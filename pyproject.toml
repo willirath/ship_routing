@@ -1,0 +1,22 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "ship_routing"
+version = "2024.04.10.1"
+authors = [
+  { name="Willi Rath", email="wrath@geomar.de" },
+]
+description = "Ship Route Optimisation"
+readme = "README.md"
+requires-python = ">=3.10"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+
+[project.urls]
+Homepage = "https://github.com/willirath/ship_routing"
+Issues = "https://github.com/willirath/ship_routing/issues"
