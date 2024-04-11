@@ -166,3 +166,7 @@ def refine_along_great_circle(
         lat_end[-1],
     ]
     return lon_refined, lat_refined
+
+
+def get_directions(lon=None, lat=None):
+    pass

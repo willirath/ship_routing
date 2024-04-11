@@ -11,6 +11,8 @@ from .geodesics import (
     get_length_meters,
 )
 
+from .cost import power_for_traj_in_ocean
+
 
 class Trajectory(object):
     def __init__(self, lon=None, lat=None, duration_seconds: float = None):
@@ -114,3 +116,6 @@ class Trajectory(object):
         coords[node_num] = (lon_moved, lat_moved)
         lstr_new = LineString(coords)
         return Trajectory.from_line_string(lstr_new)
+
+    def estimate_cost_through(self, data_set=None):
+        return power_for_traj_in_ocean(trajectory=self, ocean=data_set)
