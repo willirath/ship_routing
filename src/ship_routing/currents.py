@@ -10,12 +10,18 @@ def load_currents(
     lon_name: str = "longitude",
     lat_name: str = "latitude",
     time_name: str = "time",
-    u_name: str = "uo",
-    v_name: str = "vo",
+    uo_name: str = "uo",
+    vo_name: str = "vo",
 ) -> xr.Dataset:
     ds = xr.open_dataset(data_file)
     ds = ds.rename(
-        {lon_name: "lon", lat_name: "lat", time_name: "time", u_name: "u", v_name: "v"}
+        {
+            lon_name: "lon",
+            lat_name: "lat",
+            time_name: "time",
+            uo_name: "uo",
+            vo_name: "vo",
+        }
     )
     return ds
 
@@ -25,16 +31,16 @@ def load_currents_time_average(
     lon_name: str = "longitude",
     lat_name: str = "latitude",
     time_name: str = "time",
-    u_name: str = "uo",
-    v_name: str = "vo",
+    uo_name: str = "uo",
+    vo_name: str = "vo",
 ) -> xr.Dataset:
     ds = load_currents(
         data_file=data_file,
         lon_name=lon_name,
         lat_name=lat_name,
         time_name=time_name,
-        u_name=u_name,
-        v_name=v_name,
+        uo_name=uo_name,
+        vo_name=vo_name,
     )
     ds = ds.mean("time")
     return ds

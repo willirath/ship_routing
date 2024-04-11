@@ -18,8 +18,8 @@ def test_currents_simple_loading():
         lon_name="longitude",
         lat_name="latitude",
         time_name="time",
-        u_name="uo",
-        v_name="vo",
+        uo_name="uo",
+        vo_name="vo",
     )
 
 
@@ -30,8 +30,8 @@ def test_currents_time_average_simple_loading():
         lon_name="longitude",
         lat_name="latitude",
         time_name="time",
-        u_name="uo",
-        v_name="vo",
+        uo_name="uo",
+        vo_name="vo",
     )
 
 
@@ -42,14 +42,14 @@ def test_currents_names():
         lon_name="longitude",
         lat_name="latitude",
         time_name="time",
-        u_name="uo",
-        v_name="vo",
+        uo_name="uo",
+        vo_name="vo",
     )
     assert "time" in ds
     assert "lat" in ds
     assert "lon" in ds
-    assert "v" in ds
-    assert "u" in ds
+    assert "vo" in ds
+    assert "uo" in ds
 
 
 def test_currents_time_average_names():
@@ -59,14 +59,14 @@ def test_currents_time_average_names():
         lon_name="longitude",
         lat_name="latitude",
         time_name="time",
-        u_name="uo",
-        v_name="vo",
+        uo_name="uo",
+        vo_name="vo",
     )
     assert "time" not in ds
     assert "lat" in ds
     assert "lon" in ds
-    assert "v" in ds
-    assert "u" in ds
+    assert "vo" in ds
+    assert "uo" in ds
 
 
 def test_current_selection_along_traj():
@@ -76,13 +76,13 @@ def test_current_selection_along_traj():
         lon_name="longitude",
         lat_name="latitude",
         time_name="time",
-        u_name="uo",
-        v_name="vo",
+        uo_name="uo",
+        vo_name="vo",
     )
     traj = Trajectory(lon=[-80, 0], lat=[25, 50]).refine(new_dist=10_000)
     currents = select_currents_along_traj(ds=ds, trajectory=traj)
 
     assert "lon" in currents.coords
     assert "lat" in currents.coords
-    assert "u" in currents
-    assert "v" in currents
+    assert "uo" in currents
+    assert "vo" in currents
