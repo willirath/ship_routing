@@ -78,3 +78,7 @@ def test_traj_speed():
     )
     speed_expected = (60 * ureg.nautical_mile / ureg.hour).to("knots")
     np.testing.assert_almost_equal(float(speed / speed_expected), 1.0, decimal=2)
+    np.testing.assert_almost_equal(
+        1.0,
+        float(traj.speed_ms * ureg.meter / ureg.second / speed),
+    )
