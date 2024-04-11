@@ -2,25 +2,67 @@ import numpy as np
 import pyproj
 from shapely.geometry import LineString
 
-# from .traj import Trajectory
+from collections import namedtuple
 
 
-def move_first_point_left(lstr, move_by_meters: float = 0) -> LineString:
+def move_middle_point_left(
+    lon1: float = None,
+    lat1: float = None,
+    lon2: float = None,
+    lat2: float = None,
+    lon3: float = None,
+    lat3: float = None,
+    move_by_meters: float = 0,
+) -> tuple:
     geod = pyproj.Geod(ellps="WGS84")
 
-    lon1, lon2 = lstr.xy[0]
-    lat1, lat2 = lstr.xy[1]
+    fwd_az_23, _, _ = geod.inv(
+        lons1=lon2, lats1=lat2, lons2=lon3, lats2=lat3, return_back_azimuth=True
+    )
+    _, fwd_az_12, _ = geod.inv(
+        lons1=lon1, lats1=lat1, lons2=lon2, lats2=lat2, return_back_azimuth=False
+    )
+    fwd_az = (fwd_az_12 + fwd_az_23) / 2.0
+    rot_left = fwd_az - 90.0
+
+    lon2_new, lat2_new, _ = geod.fwd(
+        lons=lon2, lats=lat2, az=rot_left, dist=move_by_meters
+    )
+
+    return lon2_new, lat2_new
+
+
+def move_first_point_left(
+    lon1: float = None,
+    lat1: float = None,
+    lon2: float = None,
+    lat2: float = None,
+    move_by_meters: float = 0,
+) -> tuple:
+    geod = pyproj.Geod(ellps="WGS84")
 
     fwd_az, _, _ = geod.inv(
         lons1=lon1, lats1=lat1, lons2=lon2, lats2=lat2, return_back_azimuth=False
     )
-    rot_left = fwd_az + 90.0
+    rot_left = fwd_az - 90.0
 
     lon1_new, lat1_new, _ = geod.fwd(
         lons=lon1, lats=lat1, az=rot_left, dist=move_by_meters
     )
 
-    return LineString([[lon1_new, lat1_new], [lon2, lat2]])
+    return lon1_new, lat1_new
+
+
+def move_second_point_left(
+    lon1: float = None,
+    lat1: float = None,
+    lon2: float = None,
+    lat2: float = None,
+    move_by_meters: float = 0,
+) -> tuple:
+    return move_first_point_left(
+        lon1=lon2, lat1=lat2, lon2=lon1, lat2=lat1, move_by_meters=-move_by_meters
+    )
 
 
 def get_refinement_factor(
@@ -61,14 +103,23 @@ def refine_along_great_circle(
         get_refinement_factor(original_dist=dst, new_dist=new_dist) for dst in distances
     ]
 
+    def _wrap_geod_inv_intermediate(**kwargs):
+        if kwargs["npts"] == 0:
+            GG = namedtuple("G", ["lons", "lats"])
+            r = GG(lons=[], lats=[])
+            return r
+        else:
+            return geod.inv_intermediate(**kwargs)
+
     # get intermediate positions
     new_intermediates = [
-        geod.inv_intermediate(
+        _wrap_geod_inv_intermediate(
+            # geod.inv_intermediate(
             lon1=lon1,
             lat1=lat1,
             lon2=lon2,
             lat2=lat2,
-            npts=reffac - 2,
+            npts=reffac - 1,
             return_back_azimuth=True,
         )
         for lon1, lat1, lon2, lat2, reffac in zip(

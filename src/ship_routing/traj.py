@@ -3,7 +3,12 @@ import numpy as np
 from shapely.geometry import LineString
 
 
-from .geodesics import refine_along_great_circle, move_first_point_left
+from .geodesics import (
+    refine_along_great_circle,
+    move_first_point_left,
+    move_second_point_left,
+    move_middle_point_left,
+)
 
 
 class Trajectory(object):
@@ -60,10 +65,40 @@ class Trajectory(object):
 
     def move_node_left(self, node_num: int = None, move_by_meters: float = 0):
         lstr = self.line_string
-        lstr_seg = LineString(list(lstr.coords)[node_num : node_num + 2])
-        lstr_seg_moved = move_first_point_left(lstr_seg, move_by_meters=move_by_meters)
-        lstr_new = LineString(
-            list(lstr.coords)[:node_num]
-            + list(lstr_seg_moved.coords)
-            + list(lstr.coords)[max(node_num+2, len(lstr.coords)-1):])
+        if node_num == 0:
+            lon1, lat1 = list(lstr.coords)[node_num]
+            lon2, lat2 = list(lstr.coords)[node_num + 1]
+            lon_moved, lat_moved = move_first_point_left(
+                lon1=lon1,
+                lat1=lat1,
+                lon2=lon2,
+                lat2=lat2,
+                move_by_meters=move_by_meters,
+            )
+        elif node_num == len(self) - 1:
+            lon1, lat1 = list(lstr.coords)[node_num - 1]
+            lon2, lat2 = list(lstr.coords)[node_num]
+            lon_moved, lat_moved = move_second_point_left(
+                lon1=lon1,
+                lat1=lat1,
+                lon2=lon2,
+                lat2=lat2,
+                move_by_meters=move_by_meters,
+            )
+        else:
+            lon1, lat1 = list(lstr.coords)[node_num - 1]
+            lon2, lat2 = list(lstr.coords)[node_num]
+            lon3, lat3 = list(lstr.coords)[node_num + 1]
+            lon_moved, lat_moved = move_middle_point_left(
+                lon1=lon1,
+                lat1=lat1,
+                lon2=lon2,
+                lat2=lat2,
+                lon3=lon3,
+                lat3=lat3,
+                move_by_meters=move_by_meters,
+            )
+        coords = list(lstr.coords)
+        coords[node_num] = (lon_moved, lat_moved)
+        lstr_new = LineString(coords)
         return Trajectory.from_line_string(lstr_new)

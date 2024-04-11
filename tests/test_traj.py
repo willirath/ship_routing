@@ -20,12 +20,49 @@ def test_trajectory_from_data_frame_idempotency():
 
 
 def test_trajectory_move_node():
-    traj_0 = Trajectory(lon=[0, 0], lat=[0, 1])
+    traj_0 = Trajectory(lon=[0, 0, 0], lat=[-1, 0, 1])
 
-    # don't move
+    # don't move, each node
     traj_1 = traj_0.move_node_left(node_num=0, move_by_meters=0)
     np.testing.assert_array_almost_equal(traj_0.data_frame, traj_1.data_frame)
+    traj_1 = traj_0.move_node_left(node_num=1, move_by_meters=0)
+    np.testing.assert_array_almost_equal(traj_0.data_frame, traj_1.data_frame)
+    traj_1 = traj_0.move_node_left(node_num=2, move_by_meters=0)
+    np.testing.assert_array_almost_equal(traj_0.data_frame, traj_1.data_frame)
 
-    # move by approx one hundreth degree
+    # move each node by approx one hundreth degree
     traj_2 = traj_0.move_node_left(node_num=0, move_by_meters=111_139 / 100)
-    np.testing.assert_array_almost_equal(traj_2.lon[0], 1 / 100, decimal=3)
+    np.testing.assert_array_almost_equal(traj_2.lon[0], -1 / 100, decimal=3)
+    traj_2 = traj_0.move_node_left(node_num=1, move_by_meters=111_139 / 100)
+    np.testing.assert_array_almost_equal(traj_2.lon[1], -1 / 100, decimal=3)
+    traj_2 = traj_0.move_node_left(node_num=2, move_by_meters=111_139 / 100)
+    np.testing.assert_array_almost_equal(traj_2.lon[2], -1 / 100, decimal=3)
+
+
+def test_traj_refinement():
+    traj_0 = Trajectory(lon=[0, 0], lat=[-1, 1])
+    traj_1 = traj_0.refine(new_dist=111e3)
+    assert len(traj_1) == 3
+
+
+def test_traj_refinement_no_downsampling():
+    # simple traj no refinement nowhere
+    traj_0 = Trajectory(lon=[0, 0], lat=[-1, 1])
+    traj_1 = traj_0.refine(new_dist=333e3)
+    assert len(traj_0) == len(traj_1)
+
+    # 3pt traj no refinement in first segment
+    traj_0 = Trajectory(lon=[0, 0, 0], lat=[-1, 0, 3])
+    traj_1 = traj_0.refine(new_dist=222e3)
+    assert len(traj_1) == len(traj_0) + 1
+
+
+def test_traj_repr():
+    traj = Trajectory(lon=[123, 45], lat=[67, 89])
+    rpr = repr(traj)
+    assert "123" in rpr
+    assert "45" in rpr
+    assert "67" in rpr
+    assert "89" in rpr
+    assert "lon" in rpr
+    assert "lat" in rpr
