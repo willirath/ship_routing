@@ -115,7 +115,11 @@ class Trajectory(object):
         coords = list(lstr.coords)
         coords[node_num] = (lon_moved, lat_moved)
         lstr_new = LineString(coords)
-        return Trajectory(lon=lstr_new.xy[0], lat=lstr_new.xy[1], duration_seconds=self.duration_seconds)
+        return Trajectory(
+            lon=lstr_new.xy[0],
+            lat=lstr_new.xy[1],
+            duration_seconds=self.duration_seconds,
+        )
 
     def estimate_cost_through(self, data_set=None):
         return power_for_traj_in_ocean(
