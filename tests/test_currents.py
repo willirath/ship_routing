@@ -1,7 +1,11 @@
 from pathlib import Path
 import pytest
 
-from ship_routing.currents import load_currents, load_currents_time_average, select_currents_along_traj
+from ship_routing.currents import (
+    load_currents,
+    load_currents_time_average,
+    select_currents_along_traj,
+)
 from ship_routing import Trajectory
 
 FIXTURE_DIR = Path(__file__).parent.resolve() / "test_data"

@@ -73,6 +73,8 @@ def test_traj_repr():
 def test_traj_speed():
     traj = Trajectory(lon=[0, 1], lat=[0, 0], duration_seconds=3600)
     ureg = pint.UnitRegistry()
-    speed = (traj.length_meters * ureg.meter / traj.duration_seconds / ureg.second).to('knots')
-    speed_expected = (60 * ureg.nautical_mile / ureg.hour).to('knots')
+    speed = (traj.length_meters * ureg.meter / traj.duration_seconds / ureg.second).to(
+        "knots"
+    )
+    speed_expected = (60 * ureg.nautical_mile / ureg.hour).to("knots")
     np.testing.assert_almost_equal(float(speed / speed_expected), 1.0, decimal=2)
