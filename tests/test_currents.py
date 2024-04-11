@@ -79,8 +79,10 @@ def test_current_selection_along_traj():
         uo_name="uo",
         vo_name="vo",
     )
-    traj = Trajectory(lon=[-80, 0], lat=[25, 50]).refine(new_dist=10_000)
-    currents = select_currents_along_traj(ds=ds, trajectory=traj)
+    ship_positions = (
+        Trajectory(lon=[-80, 0], lat=[25, 50]).refine(new_dist=10_000).data_frame
+    )
+    currents = select_currents_along_traj(ds=ds, ship_positions=ship_positions)
 
     assert "lon" in currents.coords
     assert "lat" in currents.coords

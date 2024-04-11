@@ -1,8 +1,7 @@
 import xarray as xr
+import pandas as pd
 
 from pathlib import Path
-
-from .traj import Trajectory
 
 
 def load_currents(
@@ -46,10 +45,12 @@ def load_currents_time_average(
     return ds
 
 
-def select_currents_along_traj(ds: xr.Dataset = None, trajectory: Trajectory = None):
-    traj_ds = trajectory.data_frame.to_xarray()
+def select_currents_along_traj(
+    ds: xr.Dataset = None, ship_positions: pd.DataFrame = None
+):
+    ship_pos_ds = ship_positions.to_xarray()
     return ds.sel(
-        lon=traj_ds.lon,
-        lat=traj_ds.lat,
+        lon=ship_pos_ds.lon,
+        lat=ship_pos_ds.lat,
         method="nearest",
     )

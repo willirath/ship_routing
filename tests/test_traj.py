@@ -1,8 +1,13 @@
 from ship_routing import Trajectory
+from ship_routing.currents import load_currents_time_average
+
+from pathlib import Path
 
 import pint
 
 import numpy as np
+
+FIXTURE_DIR = Path(__file__).parent.resolve() / "test_data"
 
 
 def test_trajectory_from_line_string_idempotency():
@@ -47,6 +52,12 @@ def test_traj_refinement():
     assert len(traj_1) == 3
 
 
+def test_traj_refinement_retains_duration():
+    traj_0 = Trajectory(lon=[0, 0], lat=[-1, 1], duration_seconds=1_234_567)
+    traj_1 = traj_0.refine(new_dist=111e3)
+    np.testing.assert_almost_equal(traj_0.duration_seconds, traj_1.duration_seconds)
+
+
 def test_traj_refinement_no_downsampling():
     # simple traj no refinement nowhere
     traj_0 = Trajectory(lon=[0, 0], lat=[-1, 1])
@@ -82,3 +93,31 @@ def test_traj_speed():
         1.0,
         float(traj.speed_ms * ureg.meter / ureg.second / speed),
     )
+
+
+def test_traj_cost():
+    traj = Trajectory(lon=[0, 1], lat=[0, 0], duration_seconds=3600).refine(
+        new_dist=1_000
+    )
+    data_set = load_currents_time_average(
+        data_file=FIXTURE_DIR
+        / "currents/cmems_mod_glo_phy-cur_anfc_0.083deg_P1D-m_2021-01_1deg_5day.nc"
+    )
+    cost = traj.estimate_cost_through(data_set=data_set)
+
+
+def test_traj_cost_power_law():
+    traj_fast = Trajectory(lon=[0, 1], lat=[0, 0], duration_seconds=3_600).refine(
+        new_dist=1_000
+    )
+    traj_slow = Trajectory(lon=[0, 1], lat=[0, 0], duration_seconds=36_000).refine(
+        new_dist=1_000
+    )
+    data_set = load_currents_time_average(
+        data_file=FIXTURE_DIR
+        / "currents/cmems_mod_glo_phy-cur_anfc_0.083deg_P1D-m_2021-01_1deg_5day.nc"
+    )
+    cost_fast = traj_fast.estimate_cost_through(data_set=data_set)
+    cost_slow = traj_slow.estimate_cost_through(data_set=data_set)
+
+    np.testing.assert_array_less(cost_slow, cost_fast)
