@@ -169,4 +169,26 @@ def refine_along_great_circle(
 
 
 def get_directions(lon=None, lat=None):
-    pass
+    geod = pyproj.Geod(ellps="WGS84")
+
+    fwd_az, bwd_az, _ = geod.inv(
+        lons1=lon[:-1],
+        lons2=lon[1:],
+        lats1=lat[:-1],
+        lats2=lat[1:],
+        return_back_azimuth=False,
+    )
+    az = np.array(
+        [  # use fwd dir for first node
+            fwd_az[0],
+        ]
+        + [  # use averaged dir for middle nodes
+            (f + b) / 2.0 for f, b in zip(fwd_az[1:], bwd_az[:-1])
+        ]
+        + [  # use bwd dir for last node
+            bwd_az[-1],
+        ]
+    )
+    uhat = np.sin(np.deg2rad(az))
+    vhat = np.cos(np.deg2rad(az))
+    return uhat, vhat

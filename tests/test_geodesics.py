@@ -4,6 +4,7 @@ from ship_routing.geodesics import (
     move_first_point_left,
     move_second_point_left,
     move_middle_point_left,
+    get_directions,
 )
 from ship_routing import Trajectory
 
@@ -102,3 +103,25 @@ def test_move_middle_point_left_by_small_step():
     )
     np.testing.assert_almost_equal(lon2_moved, 49.99, decimal=2)
     np.testing.assert_almost_equal(lat2_moved, 0, decimal=2)
+
+
+def test_get_directions_straight_line():
+    uhat, vhat = get_directions(lon=[0, 1, 2], lat=[0, 0, 0])
+    np.testing.assert_almost_equal(1, uhat)
+    np.testing.assert_almost_equal(0, vhat)
+
+    uhat, vhat = get_directions(lon=[0, 0, 0], lat=[0, 1, 2])
+    np.testing.assert_almost_equal(0, uhat)
+    np.testing.assert_almost_equal(1, vhat)
+
+    uhat, vhat = get_directions(
+        lon=[-1 / 10_000, 0, 1 / 10_000], lat=[-1 / 10_000, 0, 1 / 10_000]
+    )
+    np.testing.assert_almost_equal(0.5**0.5, uhat, decimal=2)
+    np.testing.assert_almost_equal(0.5**0.5, vhat, decimal=2)
+
+
+def test_get_directions_corner():
+    uhat, vhat = get_directions(lon=[0, 1, 1], lat=[0, 0, 1])
+    np.testing.assert_almost_equal([1, 0.5**0.5, 0], uhat, decimal=2)
+    np.testing.assert_almost_equal([0, 0.5**0.5, 1], vhat, decimal=2)

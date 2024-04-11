@@ -1,3 +1,7 @@
+from .geodesics import get_directions
+from .currents import select_currents_along_traj
+
+
 def power_maintain_speed(
     uo: float = None,
     vo: float = None,
@@ -12,5 +16,13 @@ def power_maintain_speed(
     return power_needed
 
 
-def power_for_traj_in_ocean(trajectory=None, ocean_data=None):
-    pass
+def power_for_traj_in_ocean(ship_positions=None, speed=None, ocean_data=None):
+    lon = ship_positions.lon
+    lat = ship_positions.lat
+    speed = speed
+    uhat, vhat = get_directions(lon=lon, lat=lat)
+    speed = speed
+    us = uhat * speed
+    vs = vhat * speed
+    ds_uovo = select_currents_along_traj(ds=ocean_data, ship_positions=ship_positions)
+    return power_maintain_speed(us=us, vs=vs, uo=ds_uovo.uo, vo=ds_uovo.vo)

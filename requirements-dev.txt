@@ -7,3 +7,6 @@ pytest-datafiles
 xarray
 netcdf4
 pint
+tqdm
+black
+black[jupyter]

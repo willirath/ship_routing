@@ -24,7 +24,7 @@ class Trajectory(object):
             Longitudes.
         lat: array
             Latitudes.
-        duration: float
+        duration_seconds: float
             Duration of the journey.
         """
         self.data_frame = pd.DataFrame(
@@ -72,7 +72,7 @@ class Trajectory(object):
         lon, lat = refine_along_great_circle(
             lon=self.lon, lat=self.lat, new_dist=new_dist
         )
-        return Trajectory(lon=lon, lat=lat)
+        return Trajectory(lon=lon, lat=lat, duration_seconds=self.duration_seconds)
 
     def __repr__(self):
         return repr(self.data_frame)
@@ -115,7 +115,13 @@ class Trajectory(object):
         coords = list(lstr.coords)
         coords[node_num] = (lon_moved, lat_moved)
         lstr_new = LineString(coords)
-        return Trajectory.from_line_string(lstr_new)
+        return Trajectory(
+            lon=lstr_new.xy[0],
+            lat=lstr_new.xy[1],
+            duration_seconds=self.duration_seconds,
+        )
 
     def estimate_cost_through(self, data_set=None):
-        return power_for_traj_in_ocean(trajectory=self, ocean=data_set)
+        return power_for_traj_in_ocean(
+            ship_positions=self.data_frame, speed=self.speed_ms, ocean_data=data_set
+        )
