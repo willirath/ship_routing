@@ -6,3 +6,4 @@ pyproj
 pytest-datafiles
 xarray
 netcdf4
+pint

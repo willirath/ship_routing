@@ -5,6 +5,12 @@ from shapely.geometry import LineString
 from collections import namedtuple
 
 
+def get_length_meters(line_string: LineString = None) -> float:
+    geod = pyproj.Geod(ellps="WGS84")
+
+    return geod.geometry_length(line_string)
+
+
 def move_middle_point_left(
     lon1: float = None,
     lat1: float = None,

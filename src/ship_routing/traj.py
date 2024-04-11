@@ -8,11 +8,12 @@ from .geodesics import (
     move_first_point_left,
     move_second_point_left,
     move_middle_point_left,
+    get_length_meters,
 )
 
 
 class Trajectory(object):
-    def __init__(self, lon=None, lat=None):
+    def __init__(self, lon=None, lat=None, duration_seconds: float = None):
         """Trajectory.
 
         Parameters
@@ -21,6 +22,8 @@ class Trajectory(object):
             Longitudes.
         lat: array
             Latitudes.
+        duration: float
+            Duration of the journey.
         """
         self.data_frame = pd.DataFrame(
             dict(
@@ -28,9 +31,18 @@ class Trajectory(object):
                 lat=lat,
             )
         )
+        self.duration_seconds = duration_seconds
 
     def __len__(self):
         return len(self.data_frame)
+
+    @property
+    def speed_ms(self):
+        return self.length_meters / self.duration_seconds
+
+    @property
+    def length_meters(self):
+        return get_length_meters(self.line_string)
 
     @property
     def lon(self):

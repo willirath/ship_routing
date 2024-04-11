@@ -1,5 +1,7 @@
 from ship_routing import Trajectory
 
+import pint
+
 import numpy as np
 
 
@@ -66,3 +68,11 @@ def test_traj_repr():
     assert "89" in rpr
     assert "lon" in rpr
     assert "lat" in rpr
+
+
+def test_traj_speed():
+    traj = Trajectory(lon=[0, 1], lat=[0, 0], duration_seconds=3600)
+    ureg = pint.UnitRegistry()
+    speed = (traj.length_meters * ureg.meter / traj.duration_seconds / ureg.second).to('knots')
+    speed_expected = (60 * ureg.nautical_mile / ureg.hour).to('knots')
+    np.testing.assert_almost_equal(float(speed / speed_expected), 1.0, decimal=2)
