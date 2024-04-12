@@ -15,7 +15,7 @@ from .cost import power_for_traj_in_ocean
 
 
 class Trajectory(object):
-    def __init__(self, lon=None, lat=None, duration_seconds: float = None):
+    def __init__(self, lon=None, lat=None, duration_seconds: float = np.nan):
         """Trajectory.
 
         Parameters
@@ -34,24 +34,33 @@ class Trajectory(object):
             lat = [
                 lat,
             ]
-        self.data_frame = pd.DataFrame(
-            dict(
-                lon=lon,
-                lat=lat,
-            )
-        )
+        self.lon = lon
+        self.lat = lat
         self.duration_seconds = duration_seconds
 
     def __len__(self):
-        return len(self.data_frame)
+        return len(self.lon)
 
     def __getitem__(self, key):
-        # Note that there's no good way to convey duration to the new traj
-        # without implementing along-track distance parameterisation
-        return Trajectory(
+        _traj = Trajectory(
             lon=self.lon[key],
             lat=self.lat[key],
         )
+        if len(_traj) == 1:
+            duration = 0
+        else:
+            duration = _traj.length_meters / self.speed_ms
+        return Trajectory(
+            lon=self.lon[key], lat=self.lat[key], duration_seconds=duration
+        )
+
+    @property
+    def data_frame(self):
+        return pd.DataFrame(dict(lon=self.lon, lat=self.lat, dist=self.dist))
+
+    @property
+    def time_since_start(self):
+        return [d / self.speed_ms for d in self.dist]
 
     @property
     def speed_ms(self):
@@ -60,14 +69,6 @@ class Trajectory(object):
     @property
     def length_meters(self):
         return get_length_meters(self.line_string)
-
-    @property
-    def lon(self):
-        return self.data_frame["lon"]
-
-    @property
-    def lat(self):
-        return self.data_frame["lat"]
 
     @property
     def line_string(self):
@@ -140,3 +141,9 @@ class Trajectory(object):
         return power_for_traj_in_ocean(
             ship_positions=self.data_frame, speed=self.speed_ms, ocean_data=data_set
         )
+
+    @property
+    def dist(self):
+        return [
+            0,
+        ] + [get_length_meters(self[:n].line_string) for n in range(2, len(self) + 1)]

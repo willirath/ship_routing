@@ -130,8 +130,28 @@ def test_traj_cost_power_law():
 def test_traj_slicing():
     traj_0 = Trajectory(lon=[0, 1, 2, 3], lat=[0, 1, 2, 4])
     traj_1 = traj_0[:3]
+    traj_2 = traj_0[1]
     assert traj_1.lon[0] == traj_0.lon[0]
     assert traj_1.lat[0] == traj_0.lat[0]
     assert traj_1.lon[2] == traj_0.lon[2]
     assert traj_1.lat[2] == traj_0.lat[2]
     assert len(traj_1) == 3
+    assert traj_2.lon[0] == traj_0.lon[1]
+    assert traj_2.lat[0] == traj_0.lat[1]
+    assert len(traj_2) == 1
+
+
+def test_traj_cumulative_distance():
+    traj_0 = Trajectory(lon=[0, 1, 2, 3], lat=[0, 0, 0, 0])
+    ureg = pint.UnitRegistry()
+    true_dist = (np.array([0, 60, 120, 180]) * ureg["nautical_mile"]).to("meter")
+    test_dist = np.array(traj_0.dist) * ureg.meter
+    assert test_dist[0] == true_dist[0]
+    np.testing.assert_array_almost_equal(1, true_dist[1:] / test_dist[1:], decimal=2)
+
+
+def test_traj_cumulative_time():
+    traj_0 = Trajectory(lon=[0, 1, 2, 3], lat=[0, 0, 0, 0], duration_seconds=1_000)
+    np.testing.assert_array_almost_equal(
+        [0, 1000 / 3, 2000 / 3, 1000], traj_0.time_since_start
+    )
