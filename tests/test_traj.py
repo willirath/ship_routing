@@ -163,3 +163,12 @@ def test_traj_cumulative_time():
     np.testing.assert_array_almost_equal(
         [0, 1000 / 3, 2000 / 3, 1000], traj_0.time_since_start
     )
+
+
+def test_traj_add_waypoint():
+    ureg = pint.UnitRegistry()
+    traj_0 = Trajectory(lon=[0, 0], lat=[-1 / 60, 1 / 60])
+    traj_1 = traj_0.add_waypoint(dist=float(1 * ureg.nautical_mile / ureg.meter))
+    np.testing.assert_almost_equal(traj_1.lon[1], 0, decimal=3)
+    np.testing.assert_almost_equal(traj_1.lat[1], 0, decimal=3)
+    assert len(traj_1) == 3

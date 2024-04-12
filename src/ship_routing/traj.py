@@ -147,3 +147,21 @@ class Trajectory(object):
         return [
             0,
         ] + [get_length_meters(self[:n].line_string) for n in range(2, len(self) + 1)]
+
+    def add_waypoint(self, dist: float = None):
+        data_frame = self.data_frame
+        data_frame = data_frame.set_index("dist")
+        data_frame = data_frame.join(
+            pd.DataFrame(
+                {},
+                index=[
+                    dist,
+                ],
+            ),
+            how="outer",
+        ).interpolate(method="index")
+        return Trajectory(
+            lon=data_frame.lon,
+            lat=data_frame.lat,
+            duration_seconds=self.duration_seconds,
+        )
