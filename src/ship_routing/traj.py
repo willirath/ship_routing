@@ -34,8 +34,8 @@ class Trajectory(object):
             lat = [
                 lat,
             ]
-        self.lon = lon
-        self.lat = lat
+        self.lon = list(lon)
+        self.lat = list(lat)
         self.duration_seconds = duration_seconds
 
     def __len__(self):

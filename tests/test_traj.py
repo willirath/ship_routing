@@ -30,6 +30,14 @@ def test_trajectory_from_data_frame_idempotency():
     np.testing.assert_array_equal(traj_0.lat, traj_1.lat)
 
 
+def test_trajectory_from_data_frame_types():
+    traj_0 = Trajectory(lon=[1, 2, 3], lat=[-3, -4, -5])
+    traj_1 = Trajectory.from_data_frame(traj_0.data_frame)
+
+    assert isinstance(traj_1.lon, list)
+    assert isinstance(traj_1.lat, list)
+
+
 def test_trajectory_move_node():
     traj_0 = Trajectory(lon=[0, 0, 0], lat=[-1, 0, 1])
 
