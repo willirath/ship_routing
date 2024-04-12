@@ -18,6 +18,10 @@ def test_trajectory_from_line_string_idempotency():
     np.testing.assert_array_equal(traj_0.lat, traj_1.lat)
 
 
+def test_traj_from_scalar_position():
+    traj = Trajectory(lon=1, lat=2)
+
+
 def test_trajectory_from_data_frame_idempotency():
     traj_0 = Trajectory(lon=[1, 2, 3], lat=[-3, -4, -5])
     traj_1 = Trajectory.from_data_frame(traj_0.data_frame)
@@ -121,3 +125,13 @@ def test_traj_cost_power_law():
     cost_slow = traj_slow.estimate_cost_through(data_set=data_set)
 
     np.testing.assert_array_less(cost_slow, cost_fast)
+
+
+def test_traj_slicing():
+    traj_0 = Trajectory(lon=[0, 1, 2, 3], lat=[0, 1, 2, 4])
+    traj_1 = traj_0[:3]
+    assert traj_1.lon[0] == traj_0.lon[0]
+    assert traj_1.lat[0] == traj_0.lat[0]
+    assert traj_1.lon[2] == traj_0.lon[2]
+    assert traj_1.lat[2] == traj_0.lat[2]
+    assert len(traj_1) == 3

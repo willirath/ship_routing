@@ -27,6 +27,13 @@ class Trajectory(object):
         duration_seconds: float
             Duration of the journey.
         """
+        if np.isscalar(lon):
+            lon = [
+                lon,
+            ]
+            lat = [
+                lat,
+            ]
         self.data_frame = pd.DataFrame(
             dict(
                 lon=lon,
@@ -37,6 +44,14 @@ class Trajectory(object):
 
     def __len__(self):
         return len(self.data_frame)
+
+    def __getitem__(self, key):
+        # Note that there's no good way to convey duration to the new traj
+        # without implementing along-track distance parameterisation
+        return Trajectory(
+            lon=self.lon[key],
+            lat=self.lat[key],
+        )
 
     @property
     def speed_ms(self):
