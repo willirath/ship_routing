@@ -11,6 +11,15 @@ def get_length_meters(line_string: LineString = None) -> float:
     return geod.geometry_length(line_string)
 
 
+def get_dist_along(line_string: LineString = None) -> list:
+    return [
+        0,
+    ] + [
+        get_length_meters(LineString(list(line_string.coords)[:n]))
+        for n in range(2, len(list(line_string.coords)) + 1)
+    ]
+
+
 def move_middle_point_left(
     lon1: float = None,
     lat1: float = None,

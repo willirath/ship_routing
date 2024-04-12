@@ -9,6 +9,7 @@ from .geodesics import (
     move_second_point_left,
     move_middle_point_left,
     get_length_meters,
+    get_dist_along,
 )
 
 from .cost import power_for_traj_in_ocean
@@ -144,9 +145,7 @@ class Trajectory(object):
 
     @property
     def dist(self):
-        return [
-            0,
-        ] + [get_length_meters(self[:n].line_string) for n in range(2, len(self) + 1)]
+        return get_dist_along(self.line_string)
 
     def add_waypoint(self, dist: float = None):
         data_frame = self.data_frame

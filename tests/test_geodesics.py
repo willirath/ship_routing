@@ -5,10 +5,16 @@ from ship_routing.geodesics import (
     move_second_point_left,
     move_middle_point_left,
     get_directions,
+    get_dist_along,
 )
+
+from shapely.geometry import LineString
+
 from ship_routing import Trajectory
 
 import numpy as np
+
+import pint
 
 
 def test_refinement_factor():
@@ -125,3 +131,14 @@ def test_get_directions_corner():
     uhat, vhat = get_directions(lon=[0, 1, 1], lat=[0, 0, 1])
     np.testing.assert_almost_equal([1, 0.5**0.5, 0], uhat, decimal=2)
     np.testing.assert_almost_equal([0, 0.5**0.5, 1], vhat, decimal=2)
+
+
+def test_dist_along_linestring():
+    ureg = pint.UnitRegistry()
+    l = LineString(zip([0, 1, 2, 3], [0, 0, 0, 0]))  # lon, lat
+    dist = np.array(get_dist_along(line_string=l))
+    dist_true = np.array(
+        [float(n * 60 * ureg.nautical_mile / ureg.meter) for n in range(4)]
+    )
+    np.testing.assert_almost_equal(dist[0], dist_true[0], decimal=2)
+    np.testing.assert_almost_equal(1, dist[1:] / dist_true[1:], decimal=2)
