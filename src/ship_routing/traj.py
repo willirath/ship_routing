@@ -2,6 +2,7 @@ import pandas as pd
 import numpy as np
 from shapely.geometry import LineString
 
+from .config import DIST_OFFSET_SLICING
 
 from .geodesics import (
     refine_along_great_circle,
@@ -11,6 +12,8 @@ from .geodesics import (
     get_length_meters,
     get_dist_along,
 )
+
+from .remix import segment_lines_with_each_other
 
 from .cost import power_for_traj_in_ocean
 
@@ -159,8 +162,60 @@ class Trajectory(object):
             ),
             how="outer",
         ).interpolate(method="index")
+        # data_frame = data_frame.round(decimals=5).drop_duplicates()
         return Trajectory(
             lon=data_frame.lon,
             lat=data_frame.lat,
             duration_seconds=self.duration_seconds,
+        )
+
+    def slice_with_dist(self, d0: float = None, d1: float = None):
+        if d1 <= d0:
+            raise ValueError(f"d1={d1} needs to be larger than d0={d0}.")
+        _traj = self.add_waypoint(dist=d0).add_waypoint(dist=d1)
+        _traj_df = _traj.data_frame.set_index("dist")
+        _d0 = d0 - DIST_OFFSET_SLICING
+        _d1 = d1 + DIST_OFFSET_SLICING
+        _sub_traj_df = _traj_df.loc[_d0:_d1]
+        return Trajectory(
+            lon=_sub_traj_df.lon,
+            lat=_sub_traj_df.lat,
+            duration_seconds=(d1 - d0) / self.length_meters * self.duration_seconds,
+        )
+
+    def segment_at_other_traj(self, other):
+        self_line = self.line_string
+        other_line = other.line_string
+
+        self_line_segments, other_line_segments = segment_lines_with_each_other(
+            line_0=self_line, line_1=other_line
+        )
+
+        self_dist = [0] + list(
+            np.cumsum([get_length_meters(s) for s in self_line_segments])
+        )
+        other_dist = [0] + list(
+            np.cumsum([get_length_meters(s) for s in other_line_segments])
+        )
+
+        self_segments = [
+            self.slice_with_dist(d0=d0, d1=d1)
+            for d0, d1 in zip(self_dist[:-1], self_dist[1:])
+        ]
+        other_segments = [
+            other.slice_with_dist(d0=d0, d1=d1)
+            for d0, d1 in zip(other_dist[:-1], other_dist[1:])
+        ]
+
+        return self_segments, other_segments
+
+    def __add__(self, other):
+        data_frame = pd.concat(
+            [self.data_frame[["lon", "lat"]], other.data_frame[["lon", "lat"]]]
+        )
+        data_frame = data_frame.drop_duplicates()
+        # data_frame = data_frame.loc[data_frame.diff() != 0]
+        duration_seconds = self.duration_seconds + other.duration_seconds
+        return Trajectory(
+            lon=data_frame.lon, lat=data_frame.lat, duration_seconds=duration_seconds
         )

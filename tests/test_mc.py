@@ -7,6 +7,10 @@ import operator
 import pytest
 
 
+@pytest.mark.xfail(
+    reason="Fails because we enforce a minimum step size now.",
+    strict=True,
+)
 @pytest.mark.parametrize("intermediate_flag", [True, False])
 def test_random_movement_zero_step(intermediate_flag):
     traj_0 = Trajectory(lon=[0, 0, 0], lat=[-1, 0, 1])
@@ -18,6 +22,18 @@ def test_random_movement_zero_step(intermediate_flag):
     np.testing.assert_array_almost_equal(
         traj_0.data_frame.to_numpy(), traj_1.data_frame.to_numpy()
     )
+
+
+@pytest.mark.parametrize("intermediate_flag", [True, False])
+def test_random_movement_enforces_minimum_diff(intermediate_flag):
+    traj_0 = Trajectory(lon=[0, 0, 0], lat=[-1, 0, 1])
+    with pytest.raises(ValueError) as valerr:
+        move_random_node(
+            trajectory=traj_0,
+            max_dist_meters=0,
+            only_move_intermediate_nodes=intermediate_flag,
+        )
+    assert "max_dist_meters must be larger than" in str(valerr.value)
 
 
 @pytest.mark.parametrize("intermediate_flag", [True, False])

@@ -7,6 +7,8 @@ import pint
 
 import numpy as np
 
+import pytest
+
 FIXTURE_DIR = Path(__file__).parent.resolve() / "test_data"
 
 
@@ -172,3 +174,31 @@ def test_traj_add_waypoint():
     np.testing.assert_almost_equal(traj_1.lon[1], 0, decimal=3)
     np.testing.assert_almost_equal(traj_1.lat[1], 0, decimal=3)
     assert len(traj_1) == 3
+
+
+def test_traj_slice_with_distance_large_distances():
+    traj = Trajectory(
+        lon=[0, 1, 2, 3, 4, 5],
+        lat=[0, 0, 0, 0, 0, 0],
+    )
+    distances = traj.dist
+    d0 = (distances[1] + distances[2]) / 2.0
+    d1 = (distances[3] + distances[4]) / 2.0
+    traj_sliced = traj.slice_with_dist(d0=d0, d1=d1)
+    np.testing.assert_almost_equal(
+        traj_sliced.dist[-1],
+        (distances[3] + distances[4] - distances[1] - distances[2]) / 2.0,
+    )
+
+
+@pytest.mark.parametrize("offset", [100, 10, 1, 0.1, 0.01, 0.001])
+def test_traj_slice_with_distance_small_distances(offset):
+    traj = Trajectory(
+        lon=[0, 1, 2, 3, 4, 5],
+        lat=[0, 0, 0, 0, 0, 0],
+    )
+    distances = traj.dist
+    d0 = distances[1] - offset
+    d1 = distances[1] + offset
+    traj_sliced = traj.slice_with_dist(d0=d0, d1=d1)
+    np.testing.assert_almost_equal(traj_sliced.dist[-1], 2.0 * offset)
