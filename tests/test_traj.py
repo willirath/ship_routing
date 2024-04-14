@@ -1,5 +1,6 @@
 from ship_routing import Trajectory
 from ship_routing.currents import load_currents_time_average
+from ship_routing.mc import move_random_node
 
 from pathlib import Path
 
@@ -202,3 +203,108 @@ def test_traj_slice_with_distance_small_distances(offset):
     d1 = distances[1] + offset
     traj_sliced = traj.slice_with_dist(d0=d0, d1=d1)
     np.testing.assert_almost_equal(traj_sliced.dist[-1], 2.0 * offset)
+
+
+def test_traj_simple_slicing_handles_duration():
+    traj_0 = Trajectory(lon=[0, 1, 2], lat=[0, 0, 0], duration_seconds=2000)
+    traj_1 = traj_0[:2]
+    np.testing.assert_almost_equal(
+        traj_1.duration_seconds, 0.5 * traj_0.duration_seconds
+    )
+
+
+def test_traj_dist_slicing_handles_duration():
+    traj_0 = Trajectory(lon=[0, 1, 2], lat=[0, 0, 0], duration_seconds=2000)
+    length = traj_0.length_meters
+    d0 = length / 3
+    d1 = 2 * length / 3
+    traj_1 = traj_0.slice_with_dist(d0=d0, d1=d1)
+    np.testing.assert_almost_equal(
+        traj_1.duration_seconds, 1 / 3 * traj_0.duration_seconds
+    )
+
+
+def test_traj_segmentation_equal_num_seg():
+    traj_0 = Trajectory(
+        lon=[0, 1, 2, 3, 4, 5],
+        lat=[0, -1, 0, 0, 1, 0],
+    ).refine(new_dist=20_000)
+    traj_1 = Trajectory(
+        lon=[0, 5],
+        lat=[0, 0],
+    ).refine(new_dist=30_000)
+    seg_0, seg_1 = traj_0.segment_at_other_traj(traj_1)
+    assert len(seg_0) == len(seg_1)
+
+
+@pytest.mark.xfail(
+    reason="May fail due to roundoff error.",
+    strict=False,
+)
+def test_traj_segmentation_equal_num_seg_fuzzy():
+    for nfuzz in range(7):
+        traj_0 = Trajectory(lon=[0, 1, 2, 3], lat=[0, -1, 0, 0]).refine(new_dist=10_000)
+        traj_1 = Trajectory(lon=[0, 3], lat=[0, 0]).refine(new_dist=10_000)
+        for nmod in range(33):
+            traj_0 = move_random_node(trajectory=traj_0, max_dist_meters=200)
+            traj_1 = move_random_node(trajectory=traj_1, max_dist_meters=200)
+        seg_0, seg_1 = traj_0.segment_at_other_traj(traj_1)
+        assert len(seg_0) == len(seg_1)
+
+
+@pytest.mark.xfail(
+    reason="May fail due to roundoff error.",
+    strict=False,
+)
+def test_traj_segmentation_no_singleton_segments_fuzzy():
+    for nfuzz in range(7):
+        traj_0 = Trajectory(lon=[0, 1, 2, 3], lat=[0, -1, 0, 0]).refine(new_dist=10_000)
+        traj_1 = Trajectory(lon=[0, 3], lat=[0, 0]).refine(new_dist=10_000)
+        for nmod in range(33):
+            traj_0 = move_random_node(trajectory=traj_0, max_dist_meters=200)
+            traj_1 = move_random_node(trajectory=traj_1, max_dist_meters=200)
+        seg_0, seg_1 = traj_0.segment_at_other_traj(traj_1)
+        assert all([len(s) > 1 for s in seg_0])
+        assert all([len(s) > 1 for s in seg_1])
+
+
+def test_traj_segmentation_handles_duration():
+    traj_0 = Trajectory(
+        lon=[0, 1, 2, 3], lat=[0, -1, 0, 0], duration_seconds=24 * 3600
+    ).refine(new_dist=10_000)
+    traj_1 = Trajectory(lon=[0, 3], lat=[0, 0], duration_seconds=24 * 3600).refine(
+        new_dist=10_000
+    )
+    seg_0, seg_1 = traj_0.segment_at_other_traj(traj_1)
+    for s in seg_0:
+        np.testing.assert_almost_equal(
+            s.duration_seconds / s.length_meters,
+            traj_0.duration_seconds / traj_0.length_meters,
+        )
+    for s in seg_1:
+        np.testing.assert_almost_equal(
+            s.duration_seconds / s.length_meters,
+            traj_1.duration_seconds / traj_1.length_meters,
+        )
+
+
+def test_traj_concat_preserves_lengths():
+    traj_0 = Trajectory(lon=[0, 1], lat=[1, 2]).refine(new_dist=20_000)
+    traj_1 = Trajectory(lon=[1, 5], lat=[2, 3]).refine(new_dist=10_000)
+    traj_2 = traj_0 + traj_1
+    np.testing.assert_almost_equal(
+        traj_0.length_meters + traj_1.length_meters, traj_2.length_meters
+    )
+
+
+def test_traj_concatenation_handles_duration():
+    traj_0 = Trajectory(lon=[0, 1], lat=[1, 2], duration_seconds=24 * 3600 * 2).refine(
+        new_dist=20_000
+    )
+    traj_1 = Trajectory(lon=[1, 5], lat=[2, 3], duration_seconds=24 * 3600 * 2).refine(
+        new_dist=10_000
+    )
+    traj_2 = traj_0 + traj_1
+    np.testing.assert_almost_equal(
+        traj_0.duration_seconds + traj_1.duration_seconds, traj_2.duration_seconds
+    )
