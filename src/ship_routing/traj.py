@@ -18,6 +18,9 @@ from .remix import segment_lines_with_each_other
 from .cost import power_for_traj_in_ocean
 
 
+from scipy.interpolate import interp1d
+
+
 class Trajectory(object):
     def __init__(self, lon=None, lat=None, duration_seconds: float = np.nan):
         """Trajectory.
@@ -142,9 +145,15 @@ class Trajectory(object):
         )
 
     def estimate_cost_through(self, data_set=None):
-        return power_for_traj_in_ocean(
-            ship_positions=self.data_frame, speed=self.speed_ms, ocean_data=data_set
+        pwr = power_for_traj_in_ocean(
+            ship_positions=self.refine(new_dist=50_000).data_frame,
+            speed=self.speed_ms,
+            ocean_data=data_set,
         )
+        if pwr.isnull().sum() > 0:
+            return np.nan
+        else:
+            return pwr.sum().data[()]
 
     @property
     def dist(self):
@@ -231,4 +240,16 @@ class Trajectory(object):
     def __deepcopy__(self):
         return Trajectory(
             lon=self.lon, lat=self.lat, duration_seconds=self.duration_seconds
+        )
+
+    def homogenize(self):
+        n = len(self)
+        dist = self.dist
+        _lon = interp1d(x=dist, y=self.lon)
+        _lat = interp1d(x=dist, y=self.lat)
+        new_dist = np.linspace(0, self.length_meters, n)
+        new_lon = list(_lon(new_dist))
+        new_lat = list(_lat(new_dist))
+        return Trajectory(
+            lon=new_lon, lat=new_lat, duration_seconds=self.duration_seconds
         )
