@@ -308,3 +308,21 @@ def test_traj_concatenation_handles_duration():
     np.testing.assert_almost_equal(
         traj_0.duration_seconds + traj_1.duration_seconds, traj_2.duration_seconds
     )
+
+
+def test_traj_copying():
+    traj_0 = Trajectory(lon=[1, 2, 3], lat=[-1, 2, 4], duration_seconds=100_000)
+    traj_1 = traj_0.copy()
+
+    # ensure DIFFERENT object identities
+    assert traj_0 is not traj_1
+    assert traj_0.lon is not traj_1.lon
+    assert traj_0.lat is not traj_1.lat
+    assert traj_0.data_frame is not traj_0.data_frame
+    assert traj_0.line_string is not traj_0.line_string
+
+    # ensure IDENTICAL values
+    np.testing.assert_almost_equal(traj_0.lon, traj_1.lon)
+    np.testing.assert_almost_equal(traj_0.lat, traj_1.lat)
+    np.testing.assert_almost_equal(traj_0.length_meters, traj_1.length_meters)
+    np.testing.assert_almost_equal(traj_0.duration_seconds, traj_1.duration_seconds)
