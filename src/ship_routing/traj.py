@@ -146,7 +146,7 @@ class Trajectory(object):
 
     def estimate_cost_through(self, data_set=None):
         pwr = power_for_traj_in_ocean(
-            ship_positions=self.refine(new_dist=50_000).data_frame,
+            ship_positions=self.refine(new_dist=20_000).data_frame,
             speed=self.speed_ms,
             ocean_data=data_set,
         )
