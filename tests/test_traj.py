@@ -326,3 +326,29 @@ def test_traj_copying():
     np.testing.assert_almost_equal(traj_0.lat, traj_1.lat)
     np.testing.assert_almost_equal(traj_0.length_meters, traj_1.length_meters)
     np.testing.assert_almost_equal(traj_0.duration_seconds, traj_1.duration_seconds)
+
+
+def test_traj_legs_pos():
+    traj_0 = Trajectory(lon=[1, 2, 3], lat=[-1, 2, 4], duration_seconds=100_000)
+    legs_pos_truth = (((1, -1), (2, 2)), ((2, 2), (3, 4)))
+    legs_pos_test = traj_0.legs_pos
+    np.testing.assert_array_almost_equal(legs_pos_truth, legs_pos_test)
+
+
+def test_traj_legs_duration():
+    traj_0 = Trajectory(lon=[1, 2, 3], lat=[-1, 2, 4], duration_seconds=100_000)
+    legs_duration = traj_0.legs_duration
+
+    np.testing.assert_almost_equal(sum(legs_duration), 100_000)
+
+
+def test_traj_legs_length():
+    traj_0 = Trajectory(lon=[1, 2, 3], lat=[-1, 2, 4], duration_seconds=100_000)
+    legs_length_meters = traj_0.legs_length_meters
+    np.testing.assert_almost_equal(sum(legs_length_meters), traj_0.length_meters)
+
+
+def test_traj_legs_speed():
+    traj_0 = Trajectory(lon=[1, 2, 3], lat=[-1, 2, 4], duration_seconds=100_000)
+    legs_speed = traj_0.legs_speed
+    np.testing.assert_array_almost_equal(legs_speed, traj_0.speed_ms)

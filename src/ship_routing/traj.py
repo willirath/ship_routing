@@ -253,3 +253,35 @@ class Trajectory(object):
         return Trajectory(
             lon=new_lon, lat=new_lat, duration_seconds=self.duration_seconds
         )
+
+    @property
+    def legs_pos(self):
+        return tuple(
+            [
+                ((lon0, lat0), (lon1, lat1))
+                for lon0, lat0, lon1, lat1 in zip(
+                    self.lon[:-1],
+                    self.lat[:-1],
+                    self.lon[1:],
+                    self.lat[1:],
+                )
+            ]
+        )
+
+    @property
+    def legs_duration(self):
+        return tuple(
+            t1 - t0
+            for t0, t1 in zip(self.time_since_start[:-1], self.time_since_start[1:])
+        )
+
+    @property
+    def legs_length_meters(self):
+        dist = self.dist
+        return tuple(d1 - d0 for d0, d1 in zip(dist[:-1], dist[1:]))
+
+    @property
+    def legs_speed(self):
+        leg_dur = self.legs_duration
+        leg_len = self.legs_length_meters
+        return tuple(l / d for l, d in zip(leg_len, leg_dur))
