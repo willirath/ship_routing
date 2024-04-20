@@ -276,6 +276,10 @@ class Trajectory(object):
         )
 
     @property
+    def legs_time_since_start(self):
+        return tuple(zip(self.time_since_start[:-1], self.time_since_start[1:]))
+
+    @property
     def legs_length_meters(self):
         dist = self.dist
         return tuple(d1 - d0 for d0, d1 in zip(dist[:-1], dist[1:]))
