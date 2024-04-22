@@ -23,9 +23,9 @@ def test_segmentation_returns_same_num_of_segments():
     assert len(l0s) == len(l1s)
 
 
-def test_setmentation_handles_overlapping_lines():
-    l0 = shapely.geometry.LineString([[0, 0], [3, 0]])
-    l1 = shapely.geometry.LineString([[0, 0], [1, -1], [2, 0], [3, 0]])
+def test_segmentation_handles_overlapping_lines():
+    l0 = shapely.geometry.LineString([[0, 0], [2, 0], [2.5, 0], [3, 0]])
+    l1 = shapely.geometry.LineString([[0, 0], [1, -1], [2, 0], [2.5, 0], [3, 0]])
     l0s, l1s = segment_lines_with_each_other(line_0=l0, line_1=l1)
 
     assert all([isinstance(s, shapely.geometry.LineString) for s in l0s])
