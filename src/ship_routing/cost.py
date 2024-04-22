@@ -1,5 +1,5 @@
 from .geodesics import get_directions
-from .currents import select_currents_along_traj
+from .currents import select_currents_for_leg
 
 
 def power_maintain_speed(
@@ -16,11 +16,18 @@ def power_maintain_speed(
     return power_needed
 
 
-def power_for_traj_in_ocean(ship_positions=None, speed=None, ocean_data=None):
-    lon = ship_positions.lon
-    lat = ship_positions.lat
+def power_for_leg_in_ocean(leg_pos=None, leg_speed=None, ocean_data=None):
+    lon = (leg_pos[0][0], leg_pos[1][0])
+    lat = (leg_pos[0][1], leg_pos[1][1])
     uhat, vhat = get_directions(lon=lon, lat=lat)
-    us = uhat * speed
-    vs = vhat * speed
-    ds_uovo = select_currents_along_traj(ds=ocean_data, ship_positions=ship_positions)
-    return power_maintain_speed(us=us, vs=vs, uo=ds_uovo.uo, vo=ds_uovo.vo)
+    us, vs = sum(uhat) / 2.0 * leg_speed, sum(vhat) / 2.0 * leg_speed
+    ds_uovo = select_currents_for_leg(
+        ds=ocean_data,
+        lon_start=leg_pos[0][0],
+        lon_end=leg_pos[1][0],
+        lat_start=leg_pos[0][1],
+        lat_end=leg_pos[1][1],
+    )
+    return (
+        power_maintain_speed(us=us, vs=vs, uo=ds_uovo.uo, vo=ds_uovo.vo).mean().data[()]
+    )

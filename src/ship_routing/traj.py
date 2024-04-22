@@ -15,7 +15,7 @@ from .geodesics import (
 
 from .remix import segment_lines_with_each_other
 
-from .cost import power_for_traj_in_ocean
+from .cost import power_for_leg_in_ocean
 
 
 from scipy.interpolate import interp1d
@@ -145,15 +145,23 @@ class Trajectory(object):
         )
 
     def estimate_cost_through(self, data_set=None):
-        pwr = power_for_traj_in_ocean(
-            ship_positions=self.refine(new_dist=20_000).data_frame,
-            speed=self.speed_ms,
-            ocean_data=data_set,
-        )
-        if pwr.isnull().sum() > 0:
-            return np.nan
-        else:
-            return pwr.sum().data[()]
+        return sum(self.estimate_cost_per_leg_through(data_set=data_set))
+
+    def estimate_cost_per_leg_through(self, data_set=None):
+        cost_per_leg = [
+            _leg_dur
+            * power_for_leg_in_ocean(
+                leg_pos=_leg_pos,
+                leg_speed=_leg_speed,
+                ocean_data=data_set,
+            )
+            for _leg_pos, _leg_speed, _leg_dur in zip(
+                self.legs_pos,
+                self.legs_speed,
+                self.legs_duration,
+            )
+        ]
+        return cost_per_leg
 
     @property
     def dist(self):

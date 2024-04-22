@@ -398,3 +398,118 @@ def test_traj_homogenize_idempotency():
 
     np.testing.assert_array_almost_equal(traj_1.lon, traj_2.lon)
     np.testing.assert_array_almost_equal(traj_1.lat, traj_2.lat)
+
+
+def test_traj_cost_per_leg_dims():
+    traj = Trajectory(
+        lon=[-50, -35.0, -20], lat=[-10, 0, 10], duration_seconds=24 * 3600 * 2
+    )
+    currents = load_currents_time_average(
+        data_file=FIXTURE_DIR
+        / "currents/cmems_mod_glo_phy-cur_anfc_0.083deg_P1D-m_2021-01_1deg_5day.nc"
+    )
+    cost_per_leg = traj.estimate_cost_per_leg_through(currents)
+    assert len(cost_per_leg) == 2
+
+
+def test_traj_cost_per_leg_resolution_independence():
+    # note that this only works if the traj follows great circles
+    traj_0 = Trajectory(
+        lon=[-10, 10], lat=[0, 0], duration_seconds=24 * 3600 * 5
+    ).refine(500_000)
+    traj_1 = Trajectory(
+        lon=[-10, 10], lat=[0, 0], duration_seconds=24 * 3600 * 5
+    ).refine(200_000)
+    currents = load_currents_time_average(
+        data_file=FIXTURE_DIR
+        / "currents/cmems_mod_glo_phy-cur_anfc_0.083deg_P1D-m_2021-01_1deg_5day.nc"
+    )
+    cost_0 = sum(traj_0.estimate_cost_per_leg_through(currents))
+    cost_1 = sum(traj_1.estimate_cost_per_leg_through(currents))
+
+    # ensure diff < 1%
+    assert 2 * abs(cost_0 - cost_1) < 0.01 * abs(cost_0 + cost_1)
+
+
+def test_traj_cost_per_leg_scaling_in_zero_currents():
+    traj_slow = Trajectory(
+        lon=[-10, 10], lat=[0, 0], duration_seconds=2 * 24 * 3600
+    ).refine(200_000)
+    traj_fast = Trajectory(
+        lon=[-10, 10], lat=[0, 0], duration_seconds=1 * 24 * 3600
+    ).refine(200_000)
+
+    currents = load_currents_time_average(
+        data_file=FIXTURE_DIR
+        / "currents/cmems_mod_glo_phy-cur_anfc_0.083deg_P1D-m_2021-01_1deg_5day.nc"
+    )
+    currents["uo"] = 0 * currents.uo.fillna(0)
+    currents["vo"] = 0 * currents.vo.fillna(0)
+
+    cost_slow = sum(traj_slow.estimate_cost_per_leg_through(currents))
+    cost_fast = sum(traj_fast.estimate_cost_per_leg_through(currents))
+
+    np.testing.assert_almost_equal(2**2, cost_fast / cost_slow, decimal=2)
+
+
+def test_traj_cost_per_leg_units_no_currents():
+    traj = Trajectory(
+        lon=[-50, 50],
+        lat=[-20, 20],
+        duration_seconds=10 * 254 * 3600,
+    ).refine(new_dist=50_000)
+
+    cost_true = traj.duration_seconds * traj.speed_ms**3
+
+    currents = load_currents_time_average(
+        data_file=FIXTURE_DIR
+        / "currents/cmems_mod_glo_phy-cur_anfc_0.083deg_P1D-m_2021-01_1deg_5day.nc"
+    )
+    currents["uo"] = 0 * currents.uo.fillna(0)
+    currents["vo"] = 0 * currents.vo.fillna(0)
+
+    cost_test = sum(traj.estimate_cost_per_leg_through(currents))
+
+    np.testing.assert_almost_equal(1, cost_test / cost_true, decimal=2)
+
+
+def test_traj_cost_per_leg_units_no_currents():
+    traj = Trajectory(
+        lon=[-50, 50],
+        lat=[-20, 20],
+        duration_seconds=10 * 254 * 3600,
+    ).refine(new_dist=50_000)
+
+    cost_true = traj.duration_seconds * traj.speed_ms**3
+
+    currents = load_currents_time_average(
+        data_file=FIXTURE_DIR
+        / "currents/cmems_mod_glo_phy-cur_anfc_0.083deg_P1D-m_2021-01_1deg_5day.nc"
+    )
+    currents["uo"] = 0 * currents.uo.fillna(0)
+    currents["vo"] = 0 * currents.vo.fillna(0)
+
+    cost_test = sum(traj.estimate_cost_per_leg_through(currents))
+
+    np.testing.assert_almost_equal(1, cost_test / cost_true, decimal=2)
+
+
+def test_traj_cost_units_no_currents():
+    traj = Trajectory(
+        lon=[-50, 50],
+        lat=[-20, 20],
+        duration_seconds=10 * 24 * 3600,
+    ).refine(new_dist=50_000)
+
+    cost_true = traj.duration_seconds * traj.speed_ms**3
+
+    currents = load_currents_time_average(
+        data_file=FIXTURE_DIR
+        / "currents/cmems_mod_glo_phy-cur_anfc_0.083deg_P1D-m_2021-01_1deg_5day.nc"
+    )
+    currents["uo"] = 0 * currents.uo.fillna(0)
+    currents["vo"] = 0 * currents.vo.fillna(0)
+
+    cost_test = traj.estimate_cost_through(currents)
+
+    np.testing.assert_almost_equal(1, cost_test / cost_true, decimal=2)
