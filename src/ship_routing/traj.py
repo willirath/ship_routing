@@ -15,7 +15,7 @@ from .geodesics import (
 
 from .remix import segment_lines_with_each_other
 
-from .cost import power_for_traj_in_ocean
+from .cost import power_for_leg_in_ocean
 
 
 from scipy.interpolate import interp1d
@@ -145,15 +145,23 @@ class Trajectory(object):
         )
 
     def estimate_cost_through(self, data_set=None):
-        pwr = power_for_traj_in_ocean(
-            ship_positions=self.refine(new_dist=20_000).data_frame,
-            speed=self.speed_ms,
-            ocean_data=data_set,
-        )
-        if pwr.isnull().sum() > 0:
-            return np.nan
-        else:
-            return pwr.sum().data[()]
+        return sum(self.estimate_cost_per_leg_through(data_set=data_set))
+
+    def estimate_cost_per_leg_through(self, data_set=None):
+        cost_per_leg = [
+            _leg_dur
+            * power_for_leg_in_ocean(
+                leg_pos=_leg_pos,
+                leg_speed=_leg_speed,
+                ocean_data=data_set,
+            )
+            for _leg_pos, _leg_speed, _leg_dur in zip(
+                self.legs_pos,
+                self.legs_speed,
+                self.legs_duration,
+            )
+        ]
+        return cost_per_leg
 
     @property
     def dist(self):
@@ -230,14 +238,6 @@ class Trajectory(object):
         )
 
     def copy(self):
-        return self.__copy__()
-
-    def __copy__(self):
-        return Trajectory(
-            lon=self.lon, lat=self.lat, duration_seconds=self.duration_seconds
-        )
-
-    def __deepcopy__(self):
         return Trajectory(
             lon=self.lon, lat=self.lat, duration_seconds=self.duration_seconds
         )
@@ -253,3 +253,39 @@ class Trajectory(object):
         return Trajectory(
             lon=new_lon, lat=new_lat, duration_seconds=self.duration_seconds
         )
+
+    @property
+    def legs_pos(self):
+        return tuple(
+            [
+                ((lon0, lat0), (lon1, lat1))
+                for lon0, lat0, lon1, lat1 in zip(
+                    self.lon[:-1],
+                    self.lat[:-1],
+                    self.lon[1:],
+                    self.lat[1:],
+                )
+            ]
+        )
+
+    @property
+    def legs_duration(self):
+        return tuple(
+            t1 - t0
+            for t0, t1 in zip(self.time_since_start[:-1], self.time_since_start[1:])
+        )
+
+    @property
+    def legs_time_since_start(self):
+        return tuple(zip(self.time_since_start[:-1], self.time_since_start[1:]))
+
+    @property
+    def legs_length_meters(self):
+        dist = self.dist
+        return tuple(d1 - d0 for d0, d1 in zip(dist[:-1], dist[1:]))
+
+    @property
+    def legs_speed(self):
+        leg_dur = self.legs_duration
+        leg_len = self.legs_length_meters
+        return tuple(l / d for l, d in zip(leg_len, leg_dur))

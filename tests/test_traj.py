@@ -10,6 +10,8 @@ import numpy as np
 
 import pytest
 
+import copy
+
 FIXTURE_DIR = Path(__file__).parent.resolve() / "test_data"
 
 
@@ -138,6 +140,16 @@ def test_traj_cost_power_law():
     np.testing.assert_array_less(cost_slow, cost_fast)
 
 
+def test_traj_cost_nan_over_land():
+    traj = Trajectory(lon=[-190, 0, 179], lat=[0, 0, 0]).refine(new_dist=400_000)
+    currents = load_currents_time_average(
+        data_file=FIXTURE_DIR
+        / "currents/cmems_mod_glo_phy-cur_anfc_0.083deg_P1D-m_2021-01_1deg_5day.nc"
+    )
+    cost = traj.estimate_cost_through(currents)
+    np.testing.assert_equal(cost, np.nan)
+
+
 def test_traj_slicing():
     traj_0 = Trajectory(lon=[0, 1, 2, 3], lat=[0, 1, 2, 4])
     traj_1 = traj_0[:3]
@@ -190,6 +202,16 @@ def test_traj_slice_with_distance_large_distances():
         traj_sliced.dist[-1],
         (distances[3] + distances[4] - distances[1] - distances[2]) / 2.0,
     )
+
+
+def test_traj_slice_with_dist_raises_if_not_sorted():
+    traj = Trajectory(
+        lon=[0, 1, 2, 3, 4, 5],
+        lat=[0, 0, 0, 0, 0, 0],
+    )
+    with pytest.raises(ValueError) as valerr:
+        traj.slice_with_dist(d0=100_000, d1=0)
+    assert "needs to be larger than" in str(valerr.value)
 
 
 @pytest.mark.parametrize("offset", [100, 10, 1, 0.1, 0.01, 0.001])
@@ -318,11 +340,176 @@ def test_traj_copying():
     assert traj_0 is not traj_1
     assert traj_0.lon is not traj_1.lon
     assert traj_0.lat is not traj_1.lat
-    assert traj_0.data_frame is not traj_0.data_frame
-    assert traj_0.line_string is not traj_0.line_string
+    assert traj_0.data_frame is not traj_1.data_frame
+    assert traj_0.line_string is not traj_1.line_string
 
     # ensure IDENTICAL values
     np.testing.assert_almost_equal(traj_0.lon, traj_1.lon)
     np.testing.assert_almost_equal(traj_0.lat, traj_1.lat)
     np.testing.assert_almost_equal(traj_0.length_meters, traj_1.length_meters)
     np.testing.assert_almost_equal(traj_0.duration_seconds, traj_1.duration_seconds)
+
+
+def test_traj_legs_pos():
+    traj_0 = Trajectory(lon=[1, 2, 3], lat=[-1, 2, 4], duration_seconds=100_000)
+    legs_pos_truth = (((1, -1), (2, 2)), ((2, 2), (3, 4)))
+    legs_pos_test = traj_0.legs_pos
+    np.testing.assert_array_almost_equal(legs_pos_truth, legs_pos_test)
+
+
+def test_traj_legs_duration():
+    traj_0 = Trajectory(lon=[1, 2, 3], lat=[-1, 2, 4], duration_seconds=100_000)
+    legs_duration = traj_0.legs_duration
+
+    np.testing.assert_almost_equal(sum(legs_duration), 100_000)
+
+
+def test_traj_legs_times():
+    traj_0 = Trajectory(lon=[1, 2, 3], lat=[-1, 2, 4], duration_seconds=100_000)
+    legs_time = traj_0.legs_time_since_start
+    np.testing.assert_almost_equal(legs_time[-1][-1], 100_000)
+    np.testing.assert_almost_equal(legs_time[0][0], 0)
+
+
+def test_traj_legs_length():
+    traj_0 = Trajectory(lon=[1, 2, 3], lat=[-1, 2, 4], duration_seconds=100_000)
+    legs_length_meters = traj_0.legs_length_meters
+    np.testing.assert_almost_equal(sum(legs_length_meters), traj_0.length_meters)
+
+
+def test_traj_legs_speed():
+    traj_0 = Trajectory(lon=[1, 2, 3], lat=[-1, 2, 4], duration_seconds=100_000)
+    legs_speed = traj_0.legs_speed
+    np.testing.assert_array_almost_equal(legs_speed, traj_0.speed_ms)
+
+
+def test_traj_homogenize():
+    traj_0 = Trajectory(lon=[0, 1, 10], lat=[0, 0, 0], duration_seconds=12_345)
+    traj_1 = traj_0.homogenize()
+
+    np.testing.assert_almost_equal(traj_1[:2].length_meters, traj_1[1:].length_meters)
+    assert len(traj_0) == len(traj_1)
+
+
+def test_traj_homogenize_idempotency():
+    traj_0 = Trajectory(lon=[0, 1, 10], lat=[0, 0, 0], duration_seconds=12_345)
+    traj_1 = traj_0.homogenize()
+    traj_2 = traj_1.homogenize()
+
+    np.testing.assert_array_almost_equal(traj_1.lon, traj_2.lon)
+    np.testing.assert_array_almost_equal(traj_1.lat, traj_2.lat)
+
+
+def test_traj_cost_per_leg_dims():
+    traj = Trajectory(
+        lon=[-50, -35.0, -20], lat=[-10, 0, 10], duration_seconds=24 * 3600 * 2
+    )
+    currents = load_currents_time_average(
+        data_file=FIXTURE_DIR
+        / "currents/cmems_mod_glo_phy-cur_anfc_0.083deg_P1D-m_2021-01_1deg_5day.nc"
+    )
+    cost_per_leg = traj.estimate_cost_per_leg_through(currents)
+    assert len(cost_per_leg) == 2
+
+
+def test_traj_cost_per_leg_resolution_independence():
+    # note that this only works if the traj follows great circles
+    traj_0 = Trajectory(
+        lon=[-10, 10], lat=[0, 0], duration_seconds=24 * 3600 * 5
+    ).refine(500_000)
+    traj_1 = Trajectory(
+        lon=[-10, 10], lat=[0, 0], duration_seconds=24 * 3600 * 5
+    ).refine(200_000)
+    currents = load_currents_time_average(
+        data_file=FIXTURE_DIR
+        / "currents/cmems_mod_glo_phy-cur_anfc_0.083deg_P1D-m_2021-01_1deg_5day.nc"
+    )
+    cost_0 = sum(traj_0.estimate_cost_per_leg_through(currents))
+    cost_1 = sum(traj_1.estimate_cost_per_leg_through(currents))
+
+    # ensure diff < 1%
+    assert 2 * abs(cost_0 - cost_1) < 0.01 * abs(cost_0 + cost_1)
+
+
+def test_traj_cost_per_leg_scaling_in_zero_currents():
+    traj_slow = Trajectory(
+        lon=[-10, 10], lat=[0, 0], duration_seconds=2 * 24 * 3600
+    ).refine(200_000)
+    traj_fast = Trajectory(
+        lon=[-10, 10], lat=[0, 0], duration_seconds=1 * 24 * 3600
+    ).refine(200_000)
+
+    currents = load_currents_time_average(
+        data_file=FIXTURE_DIR
+        / "currents/cmems_mod_glo_phy-cur_anfc_0.083deg_P1D-m_2021-01_1deg_5day.nc"
+    )
+    currents["uo"] = 0 * currents.uo.fillna(0)
+    currents["vo"] = 0 * currents.vo.fillna(0)
+
+    cost_slow = sum(traj_slow.estimate_cost_per_leg_through(currents))
+    cost_fast = sum(traj_fast.estimate_cost_per_leg_through(currents))
+
+    np.testing.assert_almost_equal(2**2, cost_fast / cost_slow, decimal=2)
+
+
+def test_traj_cost_per_leg_units_no_currents():
+    traj = Trajectory(
+        lon=[-50, 50],
+        lat=[-20, 20],
+        duration_seconds=10 * 254 * 3600,
+    ).refine(new_dist=50_000)
+
+    cost_true = traj.duration_seconds * traj.speed_ms**3
+
+    currents = load_currents_time_average(
+        data_file=FIXTURE_DIR
+        / "currents/cmems_mod_glo_phy-cur_anfc_0.083deg_P1D-m_2021-01_1deg_5day.nc"
+    )
+    currents["uo"] = 0 * currents.uo.fillna(0)
+    currents["vo"] = 0 * currents.vo.fillna(0)
+
+    cost_test = sum(traj.estimate_cost_per_leg_through(currents))
+
+    np.testing.assert_almost_equal(1, cost_test / cost_true, decimal=2)
+
+
+def test_traj_cost_per_leg_units_no_currents():
+    traj = Trajectory(
+        lon=[-50, 50],
+        lat=[-20, 20],
+        duration_seconds=10 * 254 * 3600,
+    ).refine(new_dist=50_000)
+
+    cost_true = traj.duration_seconds * traj.speed_ms**3
+
+    currents = load_currents_time_average(
+        data_file=FIXTURE_DIR
+        / "currents/cmems_mod_glo_phy-cur_anfc_0.083deg_P1D-m_2021-01_1deg_5day.nc"
+    )
+    currents["uo"] = 0 * currents.uo.fillna(0)
+    currents["vo"] = 0 * currents.vo.fillna(0)
+
+    cost_test = sum(traj.estimate_cost_per_leg_through(currents))
+
+    np.testing.assert_almost_equal(1, cost_test / cost_true, decimal=2)
+
+
+def test_traj_cost_units_no_currents():
+    traj = Trajectory(
+        lon=[-50, 50],
+        lat=[-20, 20],
+        duration_seconds=10 * 24 * 3600,
+    ).refine(new_dist=50_000)
+
+    cost_true = traj.duration_seconds * traj.speed_ms**3
+
+    currents = load_currents_time_average(
+        data_file=FIXTURE_DIR
+        / "currents/cmems_mod_glo_phy-cur_anfc_0.083deg_P1D-m_2021-01_1deg_5day.nc"
+    )
+    currents["uo"] = 0 * currents.uo.fillna(0)
+    currents["vo"] = 0 * currents.vo.fillna(0)
+
+    cost_test = traj.estimate_cost_through(currents)
+
+    np.testing.assert_almost_equal(1, cost_test / cost_true, decimal=2)
