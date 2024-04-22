@@ -176,7 +176,9 @@ def test_traj_cumulative_distance():
 def test_traj_cumulative_time():
     traj_0 = Trajectory(lon=[0, 1, 2, 3], lat=[0, 0, 0, 0], duration_seconds=1_000)
     np.testing.assert_array_almost_equal(
-        [0, 1000 / 3, 2000 / 3, 1000], traj_0.time_since_start
+        [0, 1000 / 3, 2000 / 3, 1000],
+        traj_0.time_since_start,
+        decimal=2,
     )
 
 
@@ -361,14 +363,14 @@ def test_traj_legs_duration():
     traj_0 = Trajectory(lon=[1, 2, 3], lat=[-1, 2, 4], duration_seconds=100_000)
     legs_duration = traj_0.legs_duration
 
-    np.testing.assert_almost_equal(sum(legs_duration), 100_000)
+    np.testing.assert_almost_equal(sum(legs_duration), 100_000, decimal=2)
 
 
 def test_traj_legs_times():
     traj_0 = Trajectory(lon=[1, 2, 3], lat=[-1, 2, 4], duration_seconds=100_000)
     legs_time = traj_0.legs_time_since_start
-    np.testing.assert_almost_equal(legs_time[-1][-1], 100_000)
-    np.testing.assert_almost_equal(legs_time[0][0], 0)
+    np.testing.assert_almost_equal(legs_time[-1][-1], 100_000, decimal=2)
+    np.testing.assert_almost_equal(legs_time[0][0], 0, decimal=2)
 
 
 def test_traj_legs_length():

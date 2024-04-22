@@ -25,7 +25,13 @@ from scipy.interpolate import interp1d
 
 
 class Trajectory(object):
-    def __init__(self, lon=None, lat=None, duration_seconds: float = np.nan):
+    def __init__(
+        self,
+        lon=None,
+        lat=None,
+        duration_seconds: float = np.nan,
+        start_time: str | np.datetime64 = DEFAULT_START_TIME,
+    ):
         """Trajectory.
 
         Parameters
@@ -36,17 +42,26 @@ class Trajectory(object):
             Latitudes.
         duration_seconds: float
             Duration of the journey.
+        start_time: timestamp
+            Start time stamp.
         """
         if np.isscalar(lon):
-            lon = [
-                lon,
-            ]
-            lat = [
-                lat,
-            ]
+            lon = [lon]
+            lat = [lat]
         self.lon = list(lon)
         self.lat = list(lat)
         self.duration_seconds = duration_seconds
+        if np.isnan(duration_seconds):
+            duration_milliseconds = "NaT"
+        else:
+            duration_milliseconds = round(1000 * duration_seconds)
+        self.time = [
+            np.datetime64(start_time)
+            + np.timedelta64(duration_milliseconds, "ms")
+            * d
+            / (self.length_meters + 1e-15)
+            for d in self.dist
+        ]
 
     def __len__(self):
         return len(self.lon)
@@ -70,7 +85,7 @@ class Trajectory(object):
 
     @property
     def time_since_start(self):
-        return [d / self.speed_ms for d in self.dist]
+        return [t / np.timedelta64(1, "s") for t in (self.time - self.time[0])]
 
     @property
     def speed_ms(self):
@@ -78,7 +93,10 @@ class Trajectory(object):
 
     @property
     def length_meters(self):
-        return get_length_meters(self.line_string)
+        if len(self) > 1:
+            return get_length_meters(self.line_string)
+        else:
+            return 0
 
     @property
     def line_string(self):
@@ -168,7 +186,12 @@ class Trajectory(object):
 
     @property
     def dist(self):
-        return get_dist_along(self.line_string)
+        if len(self) > 1:
+            return get_dist_along(self.line_string)
+        else:
+            return [
+                0,
+            ]
 
     def add_waypoint(self, dist: float = None):
         data_frame = self.data_frame
