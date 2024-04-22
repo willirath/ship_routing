@@ -80,7 +80,7 @@ class Trajectory(object):
             lat = [lat[0], lat[0]]
             time = [time[0], time[0]]
         duration = (time[-1] - time[0]) / np.timedelta64(1, "s")
-        return Trajectory(lon=lon, lat=lat, duration_seconds=duration)
+        return Trajectory(lon=lon, lat=lat, duration_seconds=duration, start_time=time[0])
 
     @property
     def data_frame(self):
