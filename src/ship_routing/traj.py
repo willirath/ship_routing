@@ -93,6 +93,10 @@ class Trajectory(object):
         return [t / np.timedelta64(1, "s") for t in (self.time - self.time[0])]
 
     @property
+    def start_time(self):
+        return self.time[0]
+
+    @property
     def speed_ms(self):
         return self.length_meters / self.duration_seconds
 
@@ -108,14 +112,14 @@ class Trajectory(object):
         return LineString(list(zip(self.lon, self.lat)))
 
     @classmethod
-    def from_line_string(cls, line_string=None):
-        return cls(lon=line_string.xy[0], lat=line_string.xy[1])
+    def from_line_string(cls, line_string=None, **kwargs):
+        return cls(lon=line_string.xy[0], lat=line_string.xy[1], **kwargs)
 
     @classmethod
-    def from_data_frame(cls, data_frame=None):
+    def from_data_frame(cls, data_frame=None, **kwargs):
         lon = data_frame["lon"]
         lat = data_frame["lat"]
-        return cls(lon=lon, lat=lat)
+        return cls(lon=lon, lat=lat, **kwargs)
 
     def refine(self, new_dist: float = None):
         lon, lat = refine_along_great_circle(

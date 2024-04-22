@@ -23,12 +23,42 @@ def test_trajectory_from_line_string_idempotency():
     np.testing.assert_array_equal(traj_0.lat, traj_1.lat)
 
 
+def test_trajectory_from_linestring_with_time():
+    traj_0 = Trajectory(lon=[1, 2, 3], lat=[-3, -4, -5], duration_seconds=5 * 24 * 3600)
+    traj_1 = Trajectory.from_line_string(
+        traj_0.line_string,
+        duration_seconds=traj_0.duration_seconds,
+        start_time=traj_0.start_time,
+    )
+    np.testing.assert_array_equal(traj_0.lon, traj_1.lon)
+    np.testing.assert_array_equal(traj_0.lat, traj_1.lat)
+    np.testing.assert_array_almost_equal(
+        (traj_0.time - traj_0.time[0]) / np.timedelta64(1, "s"),
+        (traj_1.time - traj_0.time[0]) / np.timedelta64(1, "s"),
+    )
+
+
 def test_traj_from_scalar_position_raises_value_error():
     with pytest.raises(ValueError) as valerr:
         traj = Trajectory(lon=1, lat=2)
     assert (
         str(valerr.value)
         == "Trajectory must have at least 2 way points. They can be identical."
+    )
+
+
+def test_trajectory_from_linestring_with_time():
+    traj_0 = Trajectory(lon=[1, 2, 3], lat=[-3, -4, -5], duration_seconds=5 * 24 * 3600)
+    traj_1 = Trajectory.from_data_frame(
+        traj_0.data_frame,
+        duration_seconds=traj_0.duration_seconds,
+        start_time=traj_0.start_time,
+    )
+    np.testing.assert_array_equal(traj_0.lon, traj_1.lon)
+    np.testing.assert_array_equal(traj_0.lat, traj_1.lat)
+    np.testing.assert_array_almost_equal(
+        (traj_0.time - traj_0.time[0]) / np.timedelta64(1, "s"),
+        (traj_1.time - traj_0.time[0]) / np.timedelta64(1, "s"),
     )
 
 
