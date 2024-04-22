@@ -2,7 +2,10 @@ import pandas as pd
 import numpy as np
 from shapely.geometry import LineString
 
-from .config import DIST_OFFSET_SLICING
+from .config import (
+    DIST_OFFSET_SLICING,
+    DEFAULT_START_TIME,
+)
 
 from .geodesics import (
     refine_along_great_circle,
