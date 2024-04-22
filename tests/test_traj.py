@@ -138,6 +138,16 @@ def test_traj_cost_power_law():
     np.testing.assert_array_less(cost_slow, cost_fast)
 
 
+def test_traj_cost_nan_over_land():
+    traj = Trajectory(lon=[-190, 0, 179], lat=[0, 0, 0]).refine(new_dist=400_000)
+    currents = load_currents_time_average(
+        data_file=FIXTURE_DIR
+        / "currents/cmems_mod_glo_phy-cur_anfc_0.083deg_P1D-m_2021-01_1deg_5day.nc"
+    )
+    cost = traj.estimate_cost_through(currents)
+    np.testing.assert_equal(cost, np.nan)
+
+
 def test_traj_slicing():
     traj_0 = Trajectory(lon=[0, 1, 2, 3], lat=[0, 1, 2, 4])
     traj_1 = traj_0[:3]
