@@ -381,3 +381,20 @@ def test_traj_legs_speed():
     traj_0 = Trajectory(lon=[1, 2, 3], lat=[-1, 2, 4], duration_seconds=100_000)
     legs_speed = traj_0.legs_speed
     np.testing.assert_array_almost_equal(legs_speed, traj_0.speed_ms)
+
+
+def test_traj_homogenize():
+    traj_0 = Trajectory(lon=[0, 1, 10], lat=[0, 0, 0], duration_seconds=12_345)
+    traj_1 = traj_0.homogenize()
+
+    np.testing.assert_almost_equal(traj_1[:2].length_meters, traj_1[1:].length_meters)
+    assert len(traj_0) == len(traj_1)
+
+
+def test_traj_homogenize_idempotency():
+    traj_0 = Trajectory(lon=[0, 1, 10], lat=[0, 0, 0], duration_seconds=12_345)
+    traj_1 = traj_0.homogenize()
+    traj_2 = traj_1.homogenize()
+
+    np.testing.assert_array_almost_equal(traj_1.lon, traj_2.lon)
+    np.testing.assert_array_almost_equal(traj_1.lat, traj_2.lat)
