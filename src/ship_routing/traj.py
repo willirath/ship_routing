@@ -46,8 +46,9 @@ class Trajectory(object):
             Start time stamp.
         """
         if np.isscalar(lon):
-            lon = [lon]
-            lat = [lat]
+            raise ValueError(
+                "Trajectory must have at least 2 way points. They can be identical."
+            )
         self.lon = list(lon)
         self.lat = list(lat)
         self.duration_seconds = duration_seconds
@@ -67,17 +68,19 @@ class Trajectory(object):
         return len(self.lon)
 
     def __getitem__(self, key):
-        _traj = Trajectory(
-            lon=self.lon[key],
-            lat=self.lat[key],
-        )
-        if len(_traj) == 1:
-            duration = 0
-        else:
-            duration = _traj.length_meters / self.speed_ms
-        return Trajectory(
-            lon=self.lon[key], lat=self.lat[key], duration_seconds=duration
-        )
+        lon = self.lon[key]
+        lat = self.lat[key]
+        time = self.time[key]
+        if np.isscalar(lon):
+            lon = [lon, lon]
+            lat = [lat, lat]
+            time = [time, time]
+        elif len(lon) == 1:
+            lon = [lon[0], lon[0]]
+            lat = [lat[0], lat[0]]
+            time = [time[0], time[0]]
+        duration = (time[-1] - time[0]) / np.timedelta64(1, "s")
+        return Trajectory(lon=lon, lat=lat, duration_seconds=duration)
 
     @property
     def data_frame(self):

@@ -23,8 +23,13 @@ def test_trajectory_from_line_string_idempotency():
     np.testing.assert_array_equal(traj_0.lat, traj_1.lat)
 
 
-def test_traj_from_scalar_position():
-    traj = Trajectory(lon=1, lat=2)
+def test_traj_from_scalar_position_raises_value_error():
+    with pytest.raises(ValueError) as valerr:
+        traj = Trajectory(lon=1, lat=2)
+    assert (
+        str(valerr.value)
+        == "Trajectory must have at least 2 way points. They can be identical."
+    )
 
 
 def test_trajectory_from_data_frame_idempotency():
@@ -153,7 +158,7 @@ def test_traj_cost_nan_over_land():
 def test_traj_slicing():
     traj_0 = Trajectory(lon=[0, 1, 2, 3], lat=[0, 1, 2, 4])
     traj_1 = traj_0[:3]
-    traj_2 = traj_0[1]
+    traj_2 = traj_0[1]  # Note that this is cast into a traj with 2 identical way points
     assert traj_1.lon[0] == traj_0.lon[0]
     assert traj_1.lat[0] == traj_0.lat[0]
     assert traj_1.lon[2] == traj_0.lon[2]
@@ -161,7 +166,7 @@ def test_traj_slicing():
     assert len(traj_1) == 3
     assert traj_2.lon[0] == traj_0.lon[1]
     assert traj_2.lat[0] == traj_0.lat[1]
-    assert len(traj_2) == 1
+    assert len(traj_2) == 2
 
 
 def test_traj_cumulative_distance():
@@ -233,7 +238,7 @@ def test_traj_simple_slicing_handles_duration():
     traj_0 = Trajectory(lon=[0, 1, 2], lat=[0, 0, 0], duration_seconds=2000)
     traj_1 = traj_0[:2]
     np.testing.assert_almost_equal(
-        traj_1.duration_seconds, 0.5 * traj_0.duration_seconds
+        traj_1.duration_seconds, 0.5 * traj_0.duration_seconds, decimal=2
     )
 
 
