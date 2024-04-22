@@ -10,6 +10,8 @@ import numpy as np
 
 import pytest
 
+import copy
+
 FIXTURE_DIR = Path(__file__).parent.resolve() / "test_data"
 
 
@@ -202,6 +204,16 @@ def test_traj_slice_with_distance_large_distances():
     )
 
 
+def test_traj_slice_with_dist_raises_if_not_sorted():
+    traj = Trajectory(
+        lon=[0, 1, 2, 3, 4, 5],
+        lat=[0, 0, 0, 0, 0, 0],
+    )
+    with pytest.raises(ValueError) as valerr:
+        traj.slice_with_dist(d0=100_000, d1=0)
+    assert "needs to be larger than" in str(valerr.value)
+
+
 @pytest.mark.parametrize("offset", [100, 10, 1, 0.1, 0.01, 0.001])
 def test_traj_slice_with_distance_small_distances(offset):
     traj = Trajectory(
@@ -328,8 +340,8 @@ def test_traj_copying():
     assert traj_0 is not traj_1
     assert traj_0.lon is not traj_1.lon
     assert traj_0.lat is not traj_1.lat
-    assert traj_0.data_frame is not traj_0.data_frame
-    assert traj_0.line_string is not traj_0.line_string
+    assert traj_0.data_frame is not traj_1.data_frame
+    assert traj_0.line_string is not traj_1.line_string
 
     # ensure IDENTICAL values
     np.testing.assert_almost_equal(traj_0.lon, traj_1.lon)

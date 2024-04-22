@@ -230,14 +230,6 @@ class Trajectory(object):
         )
 
     def copy(self):
-        return self.__copy__()
-
-    def __copy__(self):
-        return Trajectory(
-            lon=self.lon, lat=self.lat, duration_seconds=self.duration_seconds
-        )
-
-    def __deepcopy__(self):
         return Trajectory(
             lon=self.lon, lat=self.lat, duration_seconds=self.duration_seconds
         )
