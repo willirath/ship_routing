@@ -125,7 +125,12 @@ class Trajectory(object):
         lon, lat = refine_along_great_circle(
             lon=self.lon, lat=self.lat, new_dist=new_dist
         )
-        return Trajectory(lon=lon, lat=lat, duration_seconds=self.duration_seconds)
+        return Trajectory(
+            lon=lon,
+            lat=lat,
+            duration_seconds=self.duration_seconds,
+            start_time=self.start_time,
+        )
 
     def __repr__(self):
         return repr(self.data_frame)
@@ -172,6 +177,7 @@ class Trajectory(object):
             lon=lstr_new.xy[0],
             lat=lstr_new.xy[1],
             duration_seconds=self.duration_seconds,
+            start_time=self.start_time,
         )
 
     def estimate_cost_through(self, data_set=None):
@@ -266,15 +272,20 @@ class Trajectory(object):
             [self.data_frame[["lon", "lat"]], other.data_frame[["lon", "lat"]]]
         )
         data_frame = data_frame.drop_duplicates()
-        # data_frame = data_frame.loc[data_frame.diff() != 0]
         duration_seconds = self.duration_seconds + other.duration_seconds
         return Trajectory(
-            lon=data_frame.lon, lat=data_frame.lat, duration_seconds=duration_seconds
+            lon=data_frame.lon,
+            lat=data_frame.lat,
+            duration_seconds=duration_seconds,
+            start_time=self.start_time,
         )
 
     def copy(self):
         return Trajectory(
-            lon=self.lon, lat=self.lat, duration_seconds=self.duration_seconds
+            lon=self.lon,
+            lat=self.lat,
+            duration_seconds=self.duration_seconds,
+            start_time=self.start_time,
         )
 
     def homogenize(self):
@@ -286,7 +297,10 @@ class Trajectory(object):
         new_lon = list(_lon(new_dist))
         new_lat = list(_lat(new_dist))
         return Trajectory(
-            lon=new_lon, lat=new_lat, duration_seconds=self.duration_seconds
+            lon=new_lon,
+            lat=new_lat,
+            duration_seconds=self.duration_seconds,
+            start_time=self.start_time,
         )
 
     @property

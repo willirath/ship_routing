@@ -98,6 +98,19 @@ def test_trajectory_move_node():
     np.testing.assert_array_almost_equal(traj_2.lon[2], -1 / 100, decimal=3)
 
 
+def test_trajectory_move_node_preserves_start_time():
+    traj_0 = Trajectory(
+        lon=[0, 0, 0],
+        lat=[-1, 0, 1],
+        duration_seconds=24 * 3600,
+        start_time="1990-01-12",
+    )
+    traj_1 = traj_0.move_node_left(node_num=0, move_by_meters=0)
+    np.testing.assert_almost_equal(
+        0, (traj_0.start_time - traj_1.start_time) / np.timedelta64(1, "s")
+    )
+
+
 def test_traj_refinement():
     traj_0 = Trajectory(lon=[0, 0], lat=[-1, 1])
     traj_1 = traj_0.refine(new_dist=111e3)
@@ -108,6 +121,17 @@ def test_traj_refinement_retains_duration():
     traj_0 = Trajectory(lon=[0, 0], lat=[-1, 1], duration_seconds=1_234_567)
     traj_1 = traj_0.refine(new_dist=111e3)
     np.testing.assert_almost_equal(traj_0.duration_seconds, traj_1.duration_seconds)
+
+
+def test_traj_refinement_retains_start_time():
+    traj_0 = Trajectory(
+        lon=[0, 0], lat=[-1, 1], duration_seconds=1_234_567, start_time="1993-01-01"
+    )
+    traj_1 = traj_0.refine(new_dist=111e3)
+    np.testing.assert_almost_equal(
+        0,
+        (traj_0.start_time - traj_1.start_time) / np.timedelta64(1, "s"),
+    )
 
 
 def test_traj_refinement_no_downsampling():
@@ -269,7 +293,7 @@ def test_traj_slice_with_distance_small_distances(offset):
     np.testing.assert_almost_equal(traj_sliced.dist[-1], 2.0 * offset)
 
 
-def test_traj_simple_slicing_handles_duration():
+def test_traj_simple_slicing_scales_duration():
     traj_0 = Trajectory(lon=[0, 1, 2], lat=[0, 0, 0], duration_seconds=2000)
     traj_1 = traj_0[:2]
     np.testing.assert_almost_equal(
@@ -277,7 +301,21 @@ def test_traj_simple_slicing_handles_duration():
     )
 
 
-def test_traj_dist_slicing_handles_duration():
+def test_traj_simple_slicing_handles_start_time():
+    traj_0 = Trajectory(
+        lon=[0, 1, 2], lat=[0, 0, 0], duration_seconds=2000, start_time="1897-02-22"
+    )
+    traj_1 = traj_0[:2]
+    np.testing.assert_almost_equal(
+        0, (traj_0.start_time - traj_1.start_time) / np.timedelta64(1, "s")
+    )
+    traj_2 = traj_0[1:]
+    np.testing.assert_almost_equal(
+        0, (traj_0.time[1] - traj_1.start_time) / np.timedelta64(1, "s")
+    )
+
+
+def test_traj_dist_slicing_scales_duration():
     traj_0 = Trajectory(lon=[0, 1, 2], lat=[0, 0, 0], duration_seconds=2000)
     length = traj_0.length_meters
     d0 = length / 3
@@ -285,6 +323,18 @@ def test_traj_dist_slicing_handles_duration():
     traj_1 = traj_0.slice_with_dist(d0=d0, d1=d1)
     np.testing.assert_almost_equal(
         traj_1.duration_seconds, 1 / 3 * traj_0.duration_seconds
+    )
+
+
+def test_traj_dist_slicing_handles_start_time():
+    traj_0 = Trajectory(lon=[0, 1, 2], lat=[0, 0, 0], duration_seconds=2000)
+    length = traj_0.length_meters
+    d0 = length / 3
+    d1 = 2 * length / 3
+    traj_1 = traj_0.slice_with_dist(d0=d0, d1=d1)
+    np.testing.assert_almost_equal(
+        2000 / 3,
+        (traj_1.start_time - traj_0.start_time) / np.timedelta64(1, "s"),
     )
 
 
@@ -374,8 +424,27 @@ def test_traj_concatenation_handles_duration():
     )
 
 
+def test_traj_concatenation_handles_time():
+    traj_0 = Trajectory(
+        lon=[0, 1], lat=[1, 2], duration_seconds=24 * 3600 * 2, start_time="2024-01-01"
+    )
+    traj_1 = Trajectory(
+        lon=[1, 5], lat=[2, 3], duration_seconds=24 * 3600 * 2, start_time="2025-01-01"
+    )
+    traj_2 = traj_0 + traj_1  # preserve start of first traj
+    np.testing.assert_almost_equal(
+        0, (traj_0.start_time - traj_2.start_time) / np.timedelta64(1, "s")
+    )
+    traj_3 = traj_1 + traj_0  # preserve start of second traj
+    np.testing.assert_almost_equal(
+        0, (traj_1.start_time - traj_3.start_time) / np.timedelta64(1, "s")
+    )
+
+
 def test_traj_copying():
-    traj_0 = Trajectory(lon=[1, 2, 3], lat=[-1, 2, 4], duration_seconds=100_000)
+    traj_0 = Trajectory(
+        lon=[1, 2, 3], lat=[-1, 2, 4], duration_seconds=100_000, start_time="1997-01-01"
+    )
     traj_1 = traj_0.copy()
 
     # ensure DIFFERENT object identities
@@ -435,6 +504,20 @@ def test_traj_homogenize():
     traj_1 = traj_0.homogenize()
 
     np.testing.assert_almost_equal(traj_1[:2].length_meters, traj_1[1:].length_meters)
+    assert len(traj_0) == len(traj_1)
+
+
+def test_traj_homogenize_preserves_time():
+    traj_0 = Trajectory(
+        lon=[0, 1, 10], lat=[0, 0, 0], duration_seconds=12_345, start_time="1992-01-01"
+    )
+    traj_1 = traj_0.homogenize()
+
+    np.testing.assert_almost_equal(traj_1[:2].length_meters, traj_1[1:].length_meters)
+    np.testing.assert_almost_equal(
+        0,
+        (traj_0.start_time - traj_1.start_time) / np.timedelta64(1, "s"),
+    )
     assert len(traj_0) == len(traj_1)
 
 
