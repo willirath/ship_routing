@@ -86,7 +86,9 @@ class Trajectory(object):
 
     @property
     def data_frame(self):
-        return pd.DataFrame(dict(lon=self.lon, lat=self.lat, dist=self.dist))
+        return pd.DataFrame(
+            dict(lon=self.lon, lat=self.lat, dist=self.dist, time=self.time)
+        )
 
     @property
     def time_since_start(self):
@@ -188,11 +190,13 @@ class Trajectory(object):
             _leg_dur
             * power_for_leg_in_ocean(
                 leg_pos=_leg_pos,
+                leg_time=_leg_time,
                 leg_speed=_leg_speed,
                 ocean_data=data_set,
             )
-            for _leg_pos, _leg_speed, _leg_dur in zip(
+            for _leg_pos, _leg_time, _leg_speed, _leg_dur in zip(
                 self.legs_pos,
+                self.legs_time,
                 self.legs_speed,
                 self.legs_duration,
             )
@@ -326,6 +330,10 @@ class Trajectory(object):
             t1 - t0
             for t0, t1 in zip(self.time_since_start[:-1], self.time_since_start[1:])
         )
+
+    @property
+    def legs_time(self):
+        return tuple((t0, t1) for t0, t1 in zip(self.time[:-1], self.time[1:]))
 
     @property
     def legs_time_since_start(self):
