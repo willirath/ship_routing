@@ -225,6 +225,7 @@ class Trajectory(object):
             lon=data_frame.lon,
             lat=data_frame.lat,
             duration_seconds=self.duration_seconds,
+            start_time=self.start_time,
         )
 
     def slice_with_dist(self, d0: float = None, d1: float = None):
@@ -239,6 +240,8 @@ class Trajectory(object):
             lon=_sub_traj_df.lon,
             lat=_sub_traj_df.lat,
             duration_seconds=(d1 - d0) / self.length_meters * self.duration_seconds,
+            start_time=self.start_time
+            + d0 / self.speed_ms * 1000 * np.timedelta64(1, "ms"),
         )
 
     def segment_at_other_traj(self, other):
