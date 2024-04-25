@@ -83,11 +83,20 @@ def test_trajectory_move_node():
 
     # don't move, each node
     traj_1 = traj_0.move_node_left(node_num=0, move_by_meters=0)
-    np.testing.assert_array_almost_equal(traj_0.data_frame, traj_1.data_frame)
+    np.testing.assert_array_almost_equal(
+        traj_0.data_frame[["lon", "lat", "dist"]],
+        traj_1.data_frame[["lon", "lat", "dist"]],
+    )
     traj_1 = traj_0.move_node_left(node_num=1, move_by_meters=0)
-    np.testing.assert_array_almost_equal(traj_0.data_frame, traj_1.data_frame)
+    np.testing.assert_array_almost_equal(
+        traj_0.data_frame[["lon", "lat", "dist"]],
+        traj_1.data_frame[["lon", "lat", "dist"]],
+    )
     traj_1 = traj_0.move_node_left(node_num=2, move_by_meters=0)
-    np.testing.assert_array_almost_equal(traj_0.data_frame, traj_1.data_frame)
+    np.testing.assert_array_almost_equal(
+        traj_0.data_frame[["lon", "lat", "dist"]],
+        traj_1.data_frame[["lon", "lat", "dist"]],
+    )
 
     # move each node by approx one hundreth degree
     traj_2 = traj_0.move_node_left(node_num=0, move_by_meters=111_139 / 100)

@@ -215,6 +215,9 @@ class Trajectory(object):
     def add_waypoint(self, dist: float = None):
         data_frame = self.data_frame
         data_frame = data_frame.set_index("dist")
+        # map time to float (because pandas interpolate won't work otherwise)
+        _reftime = data_frame["time"].min()
+        data_frame["time"] = (data_frame["time"] - _reftime) / np.timedelta64(1, "ms")
         data_frame = data_frame.join(
             pd.DataFrame(
                 {},
@@ -224,6 +227,8 @@ class Trajectory(object):
             ),
             how="outer",
         ).interpolate(method="index")
+        # map time back to datetime64
+        data_frame["time"] = _reftime + np.timedelta64(1, "ms") * data_frame["time"]
         # data_frame = data_frame.round(decimals=5).drop_duplicates()
         return Trajectory(
             lon=data_frame.lon,

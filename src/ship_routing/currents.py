@@ -34,7 +34,7 @@ def load_currents_time_average(
     uo_name: str = "uo",
     vo_name: str = "vo",
 ) -> xr.Dataset:
-    ds = load_currents(
+    _ds = load_currents(
         data_file=data_file,
         lon_name=lon_name,
         lat_name=lat_name,
@@ -42,7 +42,15 @@ def load_currents_time_average(
         uo_name=uo_name,
         vo_name=vo_name,
     )
-    ds = ds.mean("time")
+    ds = _ds.mean("time")
+    ds = ds.expand_dims("time").assign_coords(
+        time=(
+            ("time",),
+            [
+                _ds.time.mean().data[()],
+            ],
+        )
+    )
     return ds
 
 

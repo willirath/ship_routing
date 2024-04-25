@@ -59,7 +59,7 @@ def test_currents_time_average_names(current_data_file):
         uo_name="uo",
         vo_name="vo",
     )
-    assert "time" not in ds
+    assert "time" in ds
     assert "lat" in ds
     assert "lon" in ds
     assert "vo" in ds
