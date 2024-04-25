@@ -2,7 +2,10 @@ import pandas as pd
 import numpy as np
 from shapely.geometry import LineString
 
-from .config import DIST_OFFSET_SLICING
+from .config import (
+    DIST_OFFSET_SLICING,
+    DEFAULT_START_TIME,
+)
 
 from .geodesics import (
     refine_along_great_circle,
@@ -22,7 +25,13 @@ from scipy.interpolate import interp1d
 
 
 class Trajectory(object):
-    def __init__(self, lon=None, lat=None, duration_seconds: float = np.nan):
+    def __init__(
+        self,
+        lon=None,
+        lat=None,
+        duration_seconds: float = np.nan,
+        start_time: str | np.datetime64 = DEFAULT_START_TIME,
+    ):
         """Trajectory.
 
         Parameters
@@ -33,41 +42,61 @@ class Trajectory(object):
             Latitudes.
         duration_seconds: float
             Duration of the journey.
+        start_time: timestamp
+            Start time stamp.
         """
         if np.isscalar(lon):
-            lon = [
-                lon,
-            ]
-            lat = [
-                lat,
-            ]
+            raise ValueError(
+                "Trajectory must have at least 2 way points. They can be identical."
+            )
         self.lon = list(lon)
         self.lat = list(lat)
         self.duration_seconds = duration_seconds
+        if np.isnan(duration_seconds):
+            duration_milliseconds = "NaT"
+        else:
+            duration_milliseconds = round(1000 * duration_seconds)
+        self.time = [
+            np.datetime64(start_time)
+            + np.timedelta64(duration_milliseconds, "ms")
+            * d
+            / (self.length_meters + 1e-15)
+            for d in self.dist
+        ]
 
     def __len__(self):
         return len(self.lon)
 
     def __getitem__(self, key):
-        _traj = Trajectory(
-            lon=self.lon[key],
-            lat=self.lat[key],
-        )
-        if len(_traj) == 1:
-            duration = 0
-        else:
-            duration = _traj.length_meters / self.speed_ms
+        lon = self.lon[key]
+        lat = self.lat[key]
+        time = self.time[key]
+        if np.isscalar(lon):
+            lon = [lon, lon]
+            lat = [lat, lat]
+            time = [time, time]
+        elif len(lon) == 1:
+            lon = [lon[0], lon[0]]
+            lat = [lat[0], lat[0]]
+            time = [time[0], time[0]]
+        duration = (time[-1] - time[0]) / np.timedelta64(1, "s")
         return Trajectory(
-            lon=self.lon[key], lat=self.lat[key], duration_seconds=duration
+            lon=lon, lat=lat, duration_seconds=duration, start_time=time[0]
         )
 
     @property
     def data_frame(self):
-        return pd.DataFrame(dict(lon=self.lon, lat=self.lat, dist=self.dist))
+        return pd.DataFrame(
+            dict(lon=self.lon, lat=self.lat, dist=self.dist, time=self.time)
+        )
 
     @property
     def time_since_start(self):
-        return [d / self.speed_ms for d in self.dist]
+        return [t / np.timedelta64(1, "s") for t in (self.time - self.time[0])]
+
+    @property
+    def start_time(self):
+        return self.time[0]
 
     @property
     def speed_ms(self):
@@ -75,27 +104,35 @@ class Trajectory(object):
 
     @property
     def length_meters(self):
-        return get_length_meters(self.line_string)
+        if len(self) > 1:
+            return get_length_meters(self.line_string)
+        else:
+            return 0
 
     @property
     def line_string(self):
         return LineString(list(zip(self.lon, self.lat)))
 
     @classmethod
-    def from_line_string(cls, line_string=None):
-        return cls(lon=line_string.xy[0], lat=line_string.xy[1])
+    def from_line_string(cls, line_string=None, **kwargs):
+        return cls(lon=line_string.xy[0], lat=line_string.xy[1], **kwargs)
 
     @classmethod
-    def from_data_frame(cls, data_frame=None):
+    def from_data_frame(cls, data_frame=None, **kwargs):
         lon = data_frame["lon"]
         lat = data_frame["lat"]
-        return cls(lon=lon, lat=lat)
+        return cls(lon=lon, lat=lat, **kwargs)
 
     def refine(self, new_dist: float = None):
         lon, lat = refine_along_great_circle(
             lon=self.lon, lat=self.lat, new_dist=new_dist
         )
-        return Trajectory(lon=lon, lat=lat, duration_seconds=self.duration_seconds)
+        return Trajectory(
+            lon=lon,
+            lat=lat,
+            duration_seconds=self.duration_seconds,
+            start_time=self.start_time,
+        )
 
     def __repr__(self):
         return repr(self.data_frame)
@@ -142,6 +179,7 @@ class Trajectory(object):
             lon=lstr_new.xy[0],
             lat=lstr_new.xy[1],
             duration_seconds=self.duration_seconds,
+            start_time=self.start_time,
         )
 
     def estimate_cost_through(self, data_set=None):
@@ -152,11 +190,13 @@ class Trajectory(object):
             _leg_dur
             * power_for_leg_in_ocean(
                 leg_pos=_leg_pos,
+                leg_time=_leg_time,
                 leg_speed=_leg_speed,
                 ocean_data=data_set,
             )
-            for _leg_pos, _leg_speed, _leg_dur in zip(
+            for _leg_pos, _leg_time, _leg_speed, _leg_dur in zip(
                 self.legs_pos,
+                self.legs_time,
                 self.legs_speed,
                 self.legs_duration,
             )
@@ -165,11 +205,19 @@ class Trajectory(object):
 
     @property
     def dist(self):
-        return get_dist_along(self.line_string)
+        if len(self) > 1:
+            return get_dist_along(self.line_string)
+        else:
+            return [
+                0,
+            ]
 
     def add_waypoint(self, dist: float = None):
         data_frame = self.data_frame
         data_frame = data_frame.set_index("dist")
+        # map time to float (because pandas interpolate won't work otherwise)
+        _reftime = data_frame["time"].min()
+        data_frame["time"] = (data_frame["time"] - _reftime) / np.timedelta64(1, "ms")
         data_frame = data_frame.join(
             pd.DataFrame(
                 {},
@@ -179,11 +227,14 @@ class Trajectory(object):
             ),
             how="outer",
         ).interpolate(method="index")
+        # map time back to datetime64
+        data_frame["time"] = _reftime + np.timedelta64(1, "ms") * data_frame["time"]
         # data_frame = data_frame.round(decimals=5).drop_duplicates()
         return Trajectory(
             lon=data_frame.lon,
             lat=data_frame.lat,
             duration_seconds=self.duration_seconds,
+            start_time=self.start_time,
         )
 
     def slice_with_dist(self, d0: float = None, d1: float = None):
@@ -198,6 +249,8 @@ class Trajectory(object):
             lon=_sub_traj_df.lon,
             lat=_sub_traj_df.lat,
             duration_seconds=(d1 - d0) / self.length_meters * self.duration_seconds,
+            start_time=self.start_time
+            + d0 / self.speed_ms * 1000 * np.timedelta64(1, "ms"),
         )
 
     def segment_at_other_traj(self, other):
@@ -231,15 +284,20 @@ class Trajectory(object):
             [self.data_frame[["lon", "lat"]], other.data_frame[["lon", "lat"]]]
         )
         data_frame = data_frame.drop_duplicates()
-        # data_frame = data_frame.loc[data_frame.diff() != 0]
         duration_seconds = self.duration_seconds + other.duration_seconds
         return Trajectory(
-            lon=data_frame.lon, lat=data_frame.lat, duration_seconds=duration_seconds
+            lon=data_frame.lon,
+            lat=data_frame.lat,
+            duration_seconds=duration_seconds,
+            start_time=self.start_time,
         )
 
     def copy(self):
         return Trajectory(
-            lon=self.lon, lat=self.lat, duration_seconds=self.duration_seconds
+            lon=self.lon,
+            lat=self.lat,
+            duration_seconds=self.duration_seconds,
+            start_time=self.start_time,
         )
 
     def homogenize(self):
@@ -251,7 +309,10 @@ class Trajectory(object):
         new_lon = list(_lon(new_dist))
         new_lat = list(_lat(new_dist))
         return Trajectory(
-            lon=new_lon, lat=new_lat, duration_seconds=self.duration_seconds
+            lon=new_lon,
+            lat=new_lat,
+            duration_seconds=self.duration_seconds,
+            start_time=self.start_time,
         )
 
     @property
@@ -274,6 +335,10 @@ class Trajectory(object):
             t1 - t0
             for t0, t1 in zip(self.time_since_start[:-1], self.time_since_start[1:])
         )
+
+    @property
+    def legs_time(self):
+        return tuple((t0, t1) for t0, t1 in zip(self.time[:-1], self.time[1:]))
 
     @property
     def legs_time_since_start(self):

@@ -59,7 +59,7 @@ def test_currents_time_average_names(current_data_file):
         uo_name="uo",
         vo_name="vo",
     )
-    assert "time" not in ds
+    assert "time" in ds
     assert "lat" in ds
     assert "lon" in ds
     assert "vo" in ds
@@ -77,7 +77,9 @@ def test_current_selection_along_traj(current_data_file):
         vo_name="vo",
     )
     ship_positions = (
-        Trajectory(lon=[-80, 0], lat=[25, 50]).refine(new_dist=10_000).data_frame
+        Trajectory(lon=[-80, 0], lat=[25, 50], duration_seconds=10 * 24 * 3600)
+        .refine(new_dist=10_000)
+        .data_frame
     )
     currents = select_currents_along_traj(ds=ds, ship_positions=ship_positions)
 
