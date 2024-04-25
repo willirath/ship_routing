@@ -821,7 +821,7 @@ def test_route_refine_no_refinement():
     assert route_refined == route
 
 
-def test_route_move_outer_waypoint_zero():
+def test_route_move_waypoint_zero():
     route = Route(
         way_points=(
             WayPoint(lon=0, lat=-1 / 60.0, time=np.datetime64("2001-01-01")),
@@ -829,28 +829,27 @@ def test_route_move_outer_waypoint_zero():
             WayPoint(lon=0, lat=1 / 60.0, time=np.datetime64("2001-01-03")),
         )
     )
-    route_moved_first = route.move_waypoint(
-        num_waypoint=0, rel_azimuth_degrees=90.0, distance_meters=0.0
-    )
-    assert route == route_moved_first
-    route_moved_last = route.move_waypoint(
-        num_waypoint=len(route) - 1, rel_azimuth_degrees=90.0, distance_meters=0.0
-    )
-    assert route == route_moved_last
+    route_moved = route.move_waypoint(n=1, azimuth_degrees=90.0, distance_meters=0.0)
+    df = route.data_frame
+    df_moved = route_moved.data_frame
+    np.testing.assert_array_almost_equal(df.lon, df_moved.lon)
+    np.testing.assert_array_almost_equal(df.lat, df_moved.lat)
 
 
-def test_route_move_inner_waypoint_zero():
+def test_route_move_waypoint_north():
     route = Route(
         way_points=(
-            WayPoint(lon=0, lat=-1 / 60.0, time=np.datetime64("2001-01-01")),
-            WayPoint(lon=0, lat=0.0, time=np.datetime64("2001-01-02")),
-            WayPoint(lon=0, lat=1 / 60.0, time=np.datetime64("2001-01-03")),
+            WayPoint(lon=0, lat=-1 / 10 / 60.0, time=np.datetime64("2001-01-01")),
+            WayPoint(lon=0, lat=1 / 10 / 60.0, time=np.datetime64("2001-01-03")),
         )
     )
+    ureg = pint.UnitRegistry()
     route_moved = route.move_waypoint(
-        num_waypoint=1, azimuth_degrees=90.0, distance_meters=0.0
+        n=0,
+        azimuth_degrees=0.0,
+        distance_meters=float(ureg.nautical_mile / ureg.meter / 10.0),
     )
-    assert route == route_moved
+    np.testing.assert_almost_equal(0, route_moved.way_points[0].lat, decimal=3)
 
 
 def test_route_cost_through_any_currents():

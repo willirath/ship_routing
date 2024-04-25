@@ -367,11 +367,19 @@ class Route:
 
     def move_waypoint(
         self,
-        num_waypoint: int = None,
+        n: int = None,
         azimuth_degrees: float = None,  # abs azimuth !!!!
         distance_meters: float = None,
     ):
-        raise NotImplementedError()
+        """Move nth waypoint."""
+        wps_before = self.way_points[:n]
+        wps_after = self.way_points[n + 1 :]
+        wp_orig = self.way_points[n]
+        wp_moved = wp_orig.move_space(
+            azimuth_degrees=azimuth_degrees,
+            distance_meters=distance_meters,
+        )
+        return Route(way_points=wps_before + (wp_moved,) + wps_after)
 
     def cost_through(self, current_data_set: xr.Dataset = None):
         raise NotImplementedError()
