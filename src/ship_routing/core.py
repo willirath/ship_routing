@@ -122,6 +122,9 @@ class Route:
         except ValueError as valerr:
             raise ValueError("Slicing needs at least two way points.")
 
+    def __add__(self, other):
+        return Route(way_points=self.way_points + other.way_points)
+
     @property
     def legs(self):
         """Tuple of legs pairing all consecutive way points."""

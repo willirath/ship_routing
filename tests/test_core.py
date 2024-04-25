@@ -441,3 +441,64 @@ def test_route_slicing_values(num_way_points):
     route_1_3_sliced = route[1:3]
     route_1_3 = Route(way_points=route.way_points[1:3])
     assert route_1_3 == route_1_3_sliced
+
+
+def test_route_add_len():
+    route_0 = Route(
+        way_points=tuple(
+            (
+                WayPoint(
+                    lon=np.random.uniform(-180, 180),
+                    lat=np.random.uniform(-90, 90),
+                    time=n * np.timedelta64(1, "D") + np.datetime64("2001-01-01"),
+                )
+                for n in range(3)
+            )
+        )
+    )
+    # Second route does not overlap
+    route_1 = Route(
+        way_points=tuple(
+            (
+                WayPoint(
+                    lon=np.random.uniform(-180, 180),
+                    lat=np.random.uniform(-90, 90),
+                    time=(n + 3) * np.timedelta64(1, "D") + np.datetime64("2001-01-01"),
+                )
+                for n in range(3)
+            )
+        )
+    )
+    route_0_1 = route_0 + route_1
+    assert len(route_0_1) == len(route_0) + len(route_1)
+
+
+def test_route_add_order():
+    route_0 = Route(
+        way_points=tuple(
+            (
+                WayPoint(
+                    lon=np.random.uniform(-180, 180),
+                    lat=np.random.uniform(-90, 90),
+                    time=n * np.timedelta64(1, "D") + np.datetime64("2001-01-01"),
+                )
+                for n in range(3)
+            )
+        )
+    )
+    # Second route does not overlap
+    route_1 = Route(
+        way_points=tuple(
+            (
+                WayPoint(
+                    lon=np.random.uniform(-180, 180),
+                    lat=np.random.uniform(-90, 90),
+                    time=(n + 3) * np.timedelta64(1, "D") + np.datetime64("2001-01-01"),
+                )
+                for n in range(3)
+            )
+        )
+    )
+    route_0_1 = route_0 + route_1
+    assert route_0_1[0:3] == route_0
+    assert route_0_1[3:6] == route_1
