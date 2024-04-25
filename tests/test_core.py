@@ -347,3 +347,97 @@ def test_route_from_line_string_roundtrip(num_way_points):
     route_new = Route.from_line_string(
         line_string=line_string, time=(w.time for w in route_orig.way_points)
     )
+
+
+@pytest.mark.parametrize("num_way_points", (2, 3, 15))
+def test_route_len(num_way_points):
+    route = Route(
+        way_points=tuple(
+            (
+                WayPoint(
+                    lon=np.random.uniform(-180, 180),
+                    lat=np.random.uniform(-90, 90),
+                    time=n * np.timedelta64(1, "D") + np.datetime64("2001-01-01"),
+                )
+                for n in range(num_way_points)
+            )
+        )
+    )
+    assert len(route) == num_way_points
+
+
+@pytest.mark.parametrize("num_way_points", (3, 5, 15))
+def test_route_slicing_len(num_way_points):
+    route = Route(
+        way_points=tuple(
+            (
+                WayPoint(
+                    lon=np.random.uniform(-180, 180),
+                    lat=np.random.uniform(-90, 90),
+                    time=n * np.timedelta64(1, "D") + np.datetime64("2001-01-01"),
+                )
+                for n in range(num_way_points)
+            )
+        )
+    )
+    assert len(route[0:2]) == 2
+    assert len(route[0:3]) == 3
+    assert len(route[:]) == num_way_points
+
+
+def test_route_slicing_type():
+    route = Route(
+        way_points=tuple(
+            (
+                WayPoint(
+                    lon=np.random.uniform(-180, 180),
+                    lat=np.random.uniform(-90, 90),
+                    time=n * np.timedelta64(1, "D") + np.datetime64("2001-01-01"),
+                )
+                for n in range(2)
+            )
+        )
+    )
+    assert isinstance(route[:2], Route)
+    assert isinstance(route[:].way_points[0], WayPoint)
+
+
+@pytest.mark.parametrize("num_way_points", (3, 5, 15))
+def test_route_slicing_no_singletons(num_way_points):
+    route = Route(
+        way_points=tuple(
+            (
+                WayPoint(
+                    lon=np.random.uniform(-180, 180),
+                    lat=np.random.uniform(-90, 90),
+                    time=n * np.timedelta64(1, "D") + np.datetime64("2001-01-01"),
+                )
+                for n in range(num_way_points)
+            )
+        )
+    )
+    with pytest.raises(ValueError) as valerr:
+        r = route[1:2]
+    assert "at least two way points" in str(valerr.value)
+    with pytest.raises(ValueError) as valerr:
+        r = route[2]
+    assert "at least two way points" in str(valerr.value)
+
+
+@pytest.mark.parametrize("num_way_points", (3, 5, 15))
+def test_route_slicing_values(num_way_points):
+    route = Route(
+        way_points=tuple(
+            (
+                WayPoint(
+                    lon=np.random.uniform(-180, 180),
+                    lat=np.random.uniform(-90, 90),
+                    time=n * np.timedelta64(1, "D") + np.datetime64("2001-01-01"),
+                )
+                for n in range(num_way_points)
+            )
+        )
+    )
+    route_1_3_sliced = route[1:3]
+    route_1_3 = Route(way_points=route.way_points[1:3])
+    assert route_1_3 == route_1_3_sliced

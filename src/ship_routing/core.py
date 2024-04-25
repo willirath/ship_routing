@@ -105,10 +105,22 @@ class Route:
     way_points: Tuple
 
     def __post_init__(self):
+        if not isinstance(self.way_points, tuple):
+            raise ValueError("Way_points need to be a tuple.")
         if not len(self.way_points) >= 2:
             raise ValueError(
                 "A Route needs at least two way points which may be identical."
             )
+
+    def __len__(self):
+        """Length is determined by numer of way points."""
+        return len(self.way_points)
+
+    def __getitem__(self, key):
+        try:
+            return Route(way_points=self.way_points[key])
+        except ValueError as valerr:
+            raise ValueError("Slicing needs at least two way points.")
 
     @property
     def legs(self):
