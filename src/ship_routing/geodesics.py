@@ -18,6 +18,22 @@ def move_fwd(
     return lon_new, lat_new
 
 
+def get_distance_meters(
+    lon_start: float = None,
+    lon_end: float = None,
+    lat_start: float = None,
+    lat_end: float = None,
+):
+    geod = pyproj.Geod(ellps="WGS84")
+    _, _, distance_meters = geod.inv(
+        lons1=lon_start,
+        lons2=lon_end,
+        lats1=lat_start,
+        lats2=lat_end,
+    )
+    return distance_meters
+
+
 def get_length_meters(line_string: LineString = None) -> float:
     geod = pyproj.Geod(ellps="WGS84")
 

@@ -3,10 +3,16 @@ from dataclasses import dataclass
 import numpy as np
 import pandas as pd
 from shapely.geometry import LineString, Point
+from scipy.interpolate import interp1d
 
 from typing import Iterable, Tuple
 
-from .geodesics import get_length_meters, move_fwd
+from .geodesics import (
+    get_length_meters,
+    get_distance_meters,
+    move_fwd,
+    refine_along_great_circle,
+)
 
 
 @dataclass(frozen=True)
@@ -150,6 +156,77 @@ class Leg:
         """Speed in meters per second."""
         return self.length_meters / self.duration_seconds
 
+    def time_at_distance(self, distance_meters: float = None):
+        """Time after distance travelled along this leg."""
+        return (
+            self.way_point_start.time
+            + np.timedelta64(1, "ms") * 1000.0 * distance_meters / self.speed_ms
+        )
+
+    def refine(self, distance_meters: float = None):
+        """Refine in distance.
+
+        If the new distance is shorted than the length, there will be at least two new legs.
+
+        """
+        lons = (self.way_point_start.lon, self.way_point_end.lon)
+        lats = (self.way_point_start.lat, self.way_point_end.lat)
+        lon_refined, lat_refined = refine_along_great_circle(
+            lon=lons, lat=lats, new_dist=distance_meters
+        )
+        dist_refined = (
+            [
+                0,
+            ]
+            + [
+                get_distance_meters(
+                    lon_start=self.way_point_start.lon,
+                    lat_start=self.way_point_start.lat,
+                    lon_end=_lon,
+                    lat_end=_lat,
+                )
+                for _lon, _lat in zip(lon_refined[1:-1], lat_refined[1:-1])
+            ]
+            + [
+                self.length_meters,
+            ]
+        )
+        time_refined = (
+            [
+                self.way_point_start.time,
+            ]
+            + [
+                self.time_at_distance(distance_meters=_dist)
+                for _dist in dist_refined[1:-1]
+            ]
+            + [
+                self.way_point_end.time,
+            ]
+        )
+        return tuple(
+            (
+                Leg(
+                    way_point_start=WayPoint(
+                        lon=lon_start, lat=lat_start, time=time_start
+                    ),
+                    way_point_end=WayPoint(lon=lon_end, lat=lat_end, time=time_end),
+                )
+                for lon_start, lat_start, time_start, lon_end, lat_end, time_end in zip(
+                    lon_refined[:-1],
+                    lat_refined[:-1],
+                    time_refined[:-1],
+                    lon_refined[1:],
+                    lat_refined[1:],
+                    time_refined[1:],
+                )
+            )
+        )
+
+    def overlaps_time(self, time: np.datetime64 = None):
+        """Whether time is withing leg."""
+        times = (self.way_point_start.time, self.way_point_end.time)
+        return not ((time < min(times)) or (time > max(times)))
+
 
 @dataclass(frozen=True)
 class Route:
@@ -238,7 +315,7 @@ class Route:
         return get_length_meters(self.line_string)
 
     @property
-    def strict_monotonic_time(self):
+    def strictly_monotonic_time(self):
         """True if strictly monotonic in all time steps."""
         return all(
             (
@@ -266,3 +343,20 @@ class Route:
                     yield current_wp
 
         return Route(way_points=tuple(generate_non_dupe_wps(self.way_points)))
+
+    @property
+    def distance_meters(self):
+        """Along-track distance in meters."""
+        return (0,) + tuple(np.cumsum([l.length_meters for l in self.legs]))
+
+    def refine(self, distance_meters: float = None):
+        """Refine with new distance.
+
+        Refinement is done per leg.
+        """
+        refined_legs = tuple(
+            sum(
+                [l.refine(distance_meters=distance_meters) for l in self.legs], start=()
+            )
+        )
+        return Route.from_legs(legs=refined_legs)

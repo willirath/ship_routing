@@ -239,6 +239,52 @@ def test_leg_speed_ms():
     np.testing.assert_almost_equal(speed_ms_test, speed_ms_true, decimal=2)
 
 
+def test_leg_time_after_distance_halftime():
+    leg = Leg(
+        way_point_start=WayPoint(
+            lon=0, lat=-1 / 2 / 60.0, time=np.datetime64("2001-01-01T00:00:00")
+        ),
+        way_point_end=WayPoint(
+            lon=0, lat=1 / 2 / 60.0, time=np.datetime64("2001-01-01T01:00:00")
+        ),
+    )
+    half_time = leg.time_at_distance(distance_meters=leg.length_meters / 2.0)
+    np.testing.assert_almost_equal(
+        1.0,
+        (leg.way_point_end.time - half_time) / (half_time - leg.way_point_start.time),
+        decimal=3,
+    )
+
+
+@pytest.mark.parametrize("num_refine", [2, 4, 7])
+def test_leg_refine(num_refine):
+    leg = Leg(
+        way_point_start=WayPoint(
+            lon=0, lat=-1 / 60.0, time=np.datetime64("2001-01-01T00:00:00")
+        ),
+        way_point_end=WayPoint(
+            lon=0, lat=1 / 60.0, time=np.datetime64("2001-01-01T02:00:00")
+        ),
+    )
+    new_distance = leg.length_meters / (num_refine - 1e-3)
+    legs_refined = leg.refine(distance_meters=new_distance)
+    assert len(legs_refined) == num_refine
+
+
+def test_leg_overlaps_time():
+    leg = Leg(
+        way_point_start=WayPoint(
+            lon=0, lat=-1 / 60.0, time=np.datetime64("2001-01-01T00:00:00")
+        ),
+        way_point_end=WayPoint(
+            lon=0, lat=1 / 60.0, time=np.datetime64("2001-01-01T02:00:00")
+        ),
+    )
+    assert leg.overlaps_time(time=np.datetime64("2001-01-01T01:00:00"))
+    assert leg.overlaps_time(time=leg.way_point_start.time)
+    assert leg.overlaps_time(time=leg.way_point_end.time)
+
+
 # route
 
 
@@ -632,7 +678,7 @@ def test_route_strict_monotonic_time():
             WayPoint(lon=0, lat=-1 / 2 / 60.0, time=np.datetime64("2001-01-03")),
         )
     )
-    assert route_strictly_monotonic.strict_monotonic_time is True
+    assert route_strictly_monotonic.strictly_monotonic_time is True
     route_simply_monotonic = Route(
         way_points=(
             WayPoint(lon=0, lat=-1 / 2 / 60.0, time=np.datetime64("2001-01-01")),
@@ -640,7 +686,7 @@ def test_route_strict_monotonic_time():
             WayPoint(lon=0, lat=-1 / 2 / 60.0, time=np.datetime64("2001-01-02")),
         )
     )
-    assert route_simply_monotonic.strict_monotonic_time is False
+    assert route_simply_monotonic.strictly_monotonic_time is False
     route_non_monotonic = Route(
         way_points=(
             WayPoint(lon=0, lat=-1 / 2 / 60.0, time=np.datetime64("2001-01-01")),
@@ -648,7 +694,7 @@ def test_route_strict_monotonic_time():
             WayPoint(lon=0, lat=-1 / 2 / 60.0, time=np.datetime64("2001-01-01")),
         )
     )
-    assert route_non_monotonic.strict_monotonic_time is False
+    assert route_non_monotonic.strictly_monotonic_time is False
 
 
 def test_route_sort_in_time():
@@ -705,3 +751,46 @@ def test_route_remove_consecutive_duplicate_timesteps():
         route_with_duplicates.remove_consecutive_duplicate_timesteps()
         == route_without_duplicates_truth
     )
+
+
+def test_route_distance_meters():
+    route = Route(
+        way_points=(
+            WayPoint(lon=0, lat=-1 / 60.0 / 10.0, time=np.datetime64("2001-01-01")),
+            WayPoint(lon=0, lat=0, time=np.datetime64("2001-01-02")),
+            WayPoint(lon=0, lat=1 / 60.0 / 10.0, time=np.datetime64("2001-01-03")),
+        )
+    )
+    ureg = pint.UnitRegistry()
+    nm_in_meters = float(ureg.nautical_mile / ureg.meter)
+    distance_truth = (0, nm_in_meters / 10.0, 2 * nm_in_meters / 10.0)
+    distance_test = route.distance_meters
+    np.testing.assert_almost_equal(distance_truth[0], distance_test[0])
+    np.testing.assert_almost_equal(
+        1.0, np.array(distance_truth[1:]) / np.array(distance_test[1:]), decimal=2
+    )
+
+
+def test_route_refine_2_to_many():
+    route = Route(
+        way_points=(
+            WayPoint(lon=0, lat=-1 / 60.0, time=np.datetime64("2001-01-01")),
+            WayPoint(lon=0, lat=1 / 60.0, time=np.datetime64("2001-01-03")),
+        )
+    )
+    new_dist = route.length_meters / (2.0 - 1e-3)
+    route_refined = route.refine(distance_meters=new_dist)
+    assert len(route_refined) > len(route)
+    assert route_refined.strictly_monotonic_time
+
+
+def test_route_refine_no_refinement():
+    route = Route(
+        way_points=(
+            WayPoint(lon=0, lat=-1 / 60.0, time=np.datetime64("2001-01-01")),
+            WayPoint(lon=0, lat=1 / 60.0, time=np.datetime64("2001-01-03")),
+        )
+    )
+    new_dist = 1.5 * route.length_meters
+    route_refined = route.refine(distance_meters=new_dist)
+    assert route_refined == route
