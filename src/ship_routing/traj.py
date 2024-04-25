@@ -45,7 +45,7 @@ class Trajectory(object):
         start_time: timestamp
             Start time stamp.
         """
-        if np.isscalar(lon):
+        if np.isscalar(lon) or len(lon) < 2:
             raise ValueError(
                 "Trajectory must have at least 2 way points. They can be identical."
             )
@@ -104,10 +104,7 @@ class Trajectory(object):
 
     @property
     def length_meters(self):
-        if len(self) > 1:
-            return get_length_meters(self.line_string)
-        else:
-            return 0
+        return get_length_meters(self.line_string)
 
     @property
     def line_string(self):
@@ -205,12 +202,7 @@ class Trajectory(object):
 
     @property
     def dist(self):
-        if len(self) > 1:
-            return get_dist_along(self.line_string)
-        else:
-            return [
-                0,
-            ]
+        return get_dist_along(self.line_string)
 
     def add_waypoint(self, dist: float = None):
         data_frame = self.data_frame

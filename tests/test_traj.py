@@ -166,6 +166,14 @@ def test_traj_repr():
     assert "lat" in rpr
 
 
+def test_traj_length():
+    ureg = pint.UnitRegistry()
+    traj = Trajectory(lon=[0, 1 / 60.0], lat=[0, 0])
+    len_test = traj.length_meters * ureg.meter
+    len_true = (1 * ureg.nautical_mile).to("meter")
+    np.testing.assert_almost_equal(1.0, float(len_test / len_true), decimal=2)
+
+
 def test_traj_speed():
     traj = Trajectory(lon=[0, 1], lat=[0, 0], duration_seconds=3600)
     ureg = pint.UnitRegistry()
@@ -222,6 +230,9 @@ def test_traj_slicing():
     traj_0 = Trajectory(lon=[0, 1, 2, 3], lat=[0, 1, 2, 4], duration_seconds=24 * 3600)
     traj_1 = traj_0[:3]
     traj_2 = traj_0[1]  # Note that this is cast into a traj with 2 identical way points
+    traj_3 = traj_0[
+        :1
+    ]  # Note that this is cast into a traj with 2 identical way points
     assert traj_1.lon[0] == traj_0.lon[0]
     assert traj_1.lat[0] == traj_0.lat[0]
     assert traj_1.lon[2] == traj_0.lon[2]
@@ -235,6 +246,13 @@ def test_traj_slicing():
     assert traj_2.time[1] == traj_2.time[0]
     assert (100 * abs((traj_2.time[0] - traj_0.time[1]) / np.timedelta64(1, "s"))) < 1
     assert len(traj_2) == 2
+    assert traj_3.lon[0] == traj_0.lon[0]
+    assert traj_3.lat[0] == traj_0.lat[0]
+    assert traj_3.lon[1] == traj_0.lon[0]
+    assert traj_3.lat[1] == traj_0.lat[0]
+    assert traj_3.time[1] == traj_3.time[0]
+    assert (100 * abs((traj_3.time[0] - traj_0.time[0]) / np.timedelta64(1, "s"))) < 1
+    assert len(traj_3) == 2
 
 
 def test_traj_cumulative_distance():
