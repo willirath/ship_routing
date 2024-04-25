@@ -5,6 +5,19 @@ from shapely.geometry import LineString
 from collections import namedtuple
 
 
+def move_fwd(
+    lon: float = None,
+    lat: float = None,
+    azimuth_degrees: float = None,
+    distance_meters: float = None,
+) -> tuple:
+    geod = pyproj.Geod(ellps="WGS84")
+    lon_new, lat_new, _ = geod.fwd(
+        lons=lon, lats=lat, az=azimuth_degrees, dist=distance_meters, radians=False
+    )
+    return lon_new, lat_new
+
+
 def get_length_meters(line_string: LineString = None) -> float:
     geod = pyproj.Geod(ellps="WGS84")
 

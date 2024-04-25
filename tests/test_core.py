@@ -7,6 +7,7 @@ from ship_routing.core import (
 from dataclasses import FrozenInstanceError
 
 import numpy as np
+import pint
 
 import pytest
 
@@ -51,6 +52,57 @@ def test_way_point_from_point_roundtrip():
     point = way_point_orig.point
     way_point_new = WayPoint.from_point(point=point, time=way_point_orig.time)
     assert way_point_new == way_point_orig
+
+
+def test_way_point_move_space_zero():
+    way_point_orig = WayPoint(lon=1, lat=2, time=np.datetime64("2001-01-01"))
+    way_point_moved = way_point_orig.move_space(
+        azimuth_degrees=90.0,
+        distance_meters=0.0,
+    )
+    assert way_point_orig == way_point_moved
+
+
+def test_way_point_move_space_adds_up():
+    way_point_orig = WayPoint(lon=1, lat=2, time=np.datetime64("2001-01-01"))
+    way_point_moved_two_small_steps = way_point_orig.move_space(
+        azimuth_degrees=90.0, distance_meters=1.0
+    ).move_space(azimuth_degrees=90.0, distance_meters=1.0)
+    way_point_moved_one_bigger_step = way_point_orig.move_space(
+        azimuth_degrees=90.0, distance_meters=2.0
+    )
+
+    assert way_point_orig != way_point_moved_two_small_steps
+    assert way_point_orig.time == way_point_moved_one_bigger_step.time
+    assert way_point_orig.time == way_point_moved_two_small_steps.time
+    np.testing.assert_almost_equal(
+        way_point_moved_one_bigger_step.lon,
+        way_point_moved_two_small_steps.lon,
+        decimal=2,
+    )
+    np.testing.assert_almost_equal(
+        way_point_moved_one_bigger_step.lat,
+        way_point_moved_two_small_steps.lat,
+        decimal=2,
+    )
+
+
+def test_way_point_move_time_zero():
+    way_point_orig = WayPoint(lon=1, lat=2, time=np.datetime64("2001-01-01"))
+    way_point_moved = way_point_orig.move_time(time_diff=np.timedelta64(0, "ms"))
+    assert way_point_orig == way_point_moved
+
+
+def test_way_point_move_time_back_forth():
+    way_point_orig = WayPoint(lon=1, lat=2, time=np.datetime64("2001-01-01"))
+    way_point_moved_forward = way_point_orig.move_time(
+        time_diff=np.timedelta64(1_000, "s")
+    )
+    way_point_moved_back = way_point_moved_forward.move_time(
+        time_diff=-np.timedelta64(1_000, "s")
+    )
+    assert way_point_orig != way_point_moved_forward
+    assert way_point_orig == way_point_moved_back
 
 
 # legs
@@ -131,6 +183,60 @@ def test_leg_from_line_string_roundtrip():
         time=(leg_orig.way_point_start.time, leg_orig.way_point_end.time),
     )
     assert leg_new == leg_orig
+
+
+def test_leg_length_meters():
+    leg = Leg(
+        way_point_start=WayPoint(
+            lon=0, lat=-1 / 2 / 60.0, time=np.datetime64("2001-01-01")
+        ),
+        way_point_end=WayPoint(
+            lon=0, lat=1 / 2 / 60.0, time=np.datetime64("2001-01-02")
+        ),
+    )
+    ureg = pint.UnitRegistry()
+    np.testing.assert_almost_equal(
+        1.0, leg.length_meters / float(1 * ureg.nautical_mile / ureg.meter), decimal=2
+    )
+
+
+def test_leg_duration_seconds_forward_order():
+    leg = Leg(
+        way_point_start=WayPoint(
+            lon=0, lat=-1 / 2 / 60.0, time=np.datetime64("2001-01-01")
+        ),
+        way_point_end=WayPoint(
+            lon=0, lat=1 / 2 / 60.0, time=np.datetime64("2001-01-02")
+        ),
+    )
+    np.testing.assert_almost_equal(24 * 3600, leg.duration_seconds, decimal=2)
+
+
+def test_leg_duration_seconds_backward_order():
+    leg = Leg(
+        way_point_start=WayPoint(
+            lon=0, lat=-1 / 2 / 60.0, time=np.datetime64("2001-01-02")
+        ),
+        way_point_end=WayPoint(
+            lon=0, lat=1 / 2 / 60.0, time=np.datetime64("2001-01-01")
+        ),
+    )
+    np.testing.assert_almost_equal(24 * 3600, leg.duration_seconds, decimal=2)
+
+
+def test_leg_speed_ms():
+    leg = Leg(
+        way_point_start=WayPoint(
+            lon=0, lat=-1 / 2 / 60.0, time=np.datetime64("2001-01-01T00:00:00")
+        ),
+        way_point_end=WayPoint(
+            lon=0, lat=1 / 2 / 60.0, time=np.datetime64("2001-01-01T01:00:00")
+        ),
+    )
+    ureg = pint.UnitRegistry()
+    speed_ms_true = float(1.0 * ureg.knots / ureg.meters * ureg.second)
+    speed_ms_test = leg.speed_ms
+    np.testing.assert_almost_equal(speed_ms_test, speed_ms_true, decimal=2)
 
 
 # route
@@ -502,3 +608,100 @@ def test_route_add_order():
     route_0_1 = route_0 + route_1
     assert route_0_1[0:3] == route_0
     assert route_0_1[3:6] == route_1
+
+
+def test_route_length_meters():
+    route = Route(
+        way_points=(
+            WayPoint(lon=0, lat=-1 / 2 / 60.0, time=np.datetime64("2001-01-01")),
+            WayPoint(lon=0, lat=1 / 2 / 60.0, time=np.datetime64("2001-01-02")),
+            WayPoint(lon=0, lat=-1 / 2 / 60.0, time=np.datetime64("2001-01-03")),
+        )
+    )
+    ureg = pint.UnitRegistry()
+    np.testing.assert_almost_equal(
+        1.0, route.length_meters / float(2 * ureg.nautical_mile / ureg.meter), decimal=2
+    )
+
+
+def test_route_strict_monotonic_time():
+    route_strictly_monotonic = Route(
+        way_points=(
+            WayPoint(lon=0, lat=-1 / 2 / 60.0, time=np.datetime64("2001-01-01")),
+            WayPoint(lon=0, lat=1 / 2 / 60.0, time=np.datetime64("2001-01-02")),
+            WayPoint(lon=0, lat=-1 / 2 / 60.0, time=np.datetime64("2001-01-03")),
+        )
+    )
+    assert route_strictly_monotonic.strict_monotonic_time is True
+    route_simply_monotonic = Route(
+        way_points=(
+            WayPoint(lon=0, lat=-1 / 2 / 60.0, time=np.datetime64("2001-01-01")),
+            WayPoint(lon=0, lat=1 / 2 / 60.0, time=np.datetime64("2001-01-02")),
+            WayPoint(lon=0, lat=-1 / 2 / 60.0, time=np.datetime64("2001-01-02")),
+        )
+    )
+    assert route_simply_monotonic.strict_monotonic_time is False
+    route_non_monotonic = Route(
+        way_points=(
+            WayPoint(lon=0, lat=-1 / 2 / 60.0, time=np.datetime64("2001-01-01")),
+            WayPoint(lon=0, lat=1 / 2 / 60.0, time=np.datetime64("2001-01-02")),
+            WayPoint(lon=0, lat=-1 / 2 / 60.0, time=np.datetime64("2001-01-01")),
+        )
+    )
+    assert route_non_monotonic.strict_monotonic_time is False
+
+
+def test_route_sort_in_time():
+    route_unsorted = Route(
+        way_points=(
+            WayPoint(lon=0, lat=-1 / 2 / 60.0, time=np.datetime64("2001-01-01")),
+            WayPoint(lon=0, lat=1 / 2 / 60.0, time=np.datetime64("2001-01-03")),
+            WayPoint(lon=0, lat=-1 / 2 / 60.0, time=np.datetime64("2001-01-02")),
+        )
+    )
+    route_sorted_truth = Route(
+        way_points=(
+            WayPoint(lon=0, lat=-1 / 2 / 60.0, time=np.datetime64("2001-01-01")),
+            WayPoint(lon=0, lat=-1 / 2 / 60.0, time=np.datetime64("2001-01-02")),
+            WayPoint(lon=0, lat=1 / 2 / 60.0, time=np.datetime64("2001-01-03")),
+        )
+    )
+    route_sorted_test = route_unsorted.sort_in_time()
+    assert route_sorted_test == route_sorted_truth
+
+
+def test_route_sort_in_time_idempotency():
+    route_unsorted = Route(
+        way_points=(
+            WayPoint(lon=0, lat=-1 / 2 / 60.0, time=np.datetime64("2001-01-01")),
+            WayPoint(lon=0, lat=1 / 2 / 60.0, time=np.datetime64("2001-01-03")),
+            WayPoint(lon=0, lat=-1 / 2 / 60.0, time=np.datetime64("2001-01-02")),
+        )
+    )
+    route_sorted_once = route_unsorted.sort_in_time()
+    assert route_sorted_once != route_unsorted
+    route_sorted_twice = route_sorted_once.sort_in_time()
+    assert route_sorted_twice == route_sorted_once
+
+
+def test_route_remove_consecutive_duplicate_timesteps():
+    route_with_duplicates = Route(
+        way_points=(
+            WayPoint(lon=0, lat=-1 / 2 / 60.0, time=np.datetime64("2001-01-01")),
+            WayPoint(lon=0, lat=1 / 2 / 60.0, time=np.datetime64("2001-01-02")),
+            WayPoint(lon=0, lat=3 / 2 / 60.0, time=np.datetime64("2001-01-02")),
+            WayPoint(lon=0, lat=-1 / 2 / 60.0, time=np.datetime64("2001-01-03")),
+        )
+    )
+    route_without_duplicates_truth = Route(
+        way_points=(
+            WayPoint(lon=0, lat=-1 / 2 / 60.0, time=np.datetime64("2001-01-01")),
+            WayPoint(lon=0, lat=1 / 2 / 60.0, time=np.datetime64("2001-01-02")),
+            # second point will be deleted
+            WayPoint(lon=0, lat=-1 / 2 / 60.0, time=np.datetime64("2001-01-03")),
+        )
+    )
+    assert (
+        route_with_duplicates.remove_consecutive_duplicate_timesteps()
+        == route_without_duplicates_truth
+    )

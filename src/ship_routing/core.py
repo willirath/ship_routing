@@ -6,6 +6,8 @@ from shapely.geometry import LineString, Point
 
 from typing import Iterable, Tuple
 
+from .geodesics import get_length_meters, move_fwd
+
 
 @dataclass(frozen=True)
 class WayPoint:
@@ -46,6 +48,33 @@ class WayPoint:
     def from_point(cls, point: Point = None, time: np.datetime64 = None):
         """Construct from Point with x=lon and y=lat and from time."""
         return cls(lon=point.x, lat=point.y, time=time)
+
+    def move_space(self, azimuth_degrees: float = None, distance_meters: float = None):
+        """Move in space.
+
+        Parameters
+        ----------
+        azimuth_degrees: float
+            Azimuth in degrees.
+        distance_meters: float
+            Distance in meters.
+
+        Returns
+        -------
+        WayPoint
+
+        """
+        lon_new, lat_new = move_fwd(
+            lon=self.lon,
+            lat=self.lat,
+            azimuth_degrees=azimuth_degrees,
+            distance_meters=distance_meters,
+        )
+        return WayPoint(lon=lon_new, lat=lat_new, time=self.time)
+
+    def move_time(self, time_diff: np.timedelta64):
+        """Move in time by time_diff."""
+        return WayPoint(lon=self.lon, lat=self.lat, time=self.time + time_diff)
 
 
 @dataclass(frozen=True)
@@ -96,6 +125,30 @@ class Leg:
             way_point_start=WayPoint.from_point(point=point_start, time=time_start),
             way_point_end=WayPoint.from_point(point=point_end, time=time_end),
         )
+
+    @property
+    def length_meters(self):
+        """Length of the leg in meters."""
+        return get_length_meters(self.line_string)
+
+    @property
+    def duration_seconds(self):
+        """Duration in seconds excluding sign.
+
+        Always positive irrespective of order or way points.
+        """
+        return (
+            abs(
+                (self.way_point_end.time - self.way_point_start.time)
+                / np.timedelta64(1, "ms")
+            )
+            / 1000.0
+        )
+
+    @property
+    def speed_ms(self):
+        """Speed in meters per second."""
+        return self.length_meters / self.duration_seconds
 
 
 @dataclass(frozen=True)
@@ -178,3 +231,38 @@ class Route:
                 for _p, _t in zip(map(Point, line_string.coords), time)
             )
         )
+
+    @property
+    def length_meters(self):
+        """Length of the route in meters."""
+        return get_length_meters(self.line_string)
+
+    @property
+    def strict_monotonic_time(self):
+        """True if strictly monotonic in all time steps."""
+        return all(
+            (
+                w1.time > w0.time
+                for w0, w1 in zip(self.way_points[:-1], self.way_points[1:])
+            )
+        )
+
+    def sort_in_time(self):
+        """Return route with waypoints sorted in time in ascending order."""
+        return Route(way_points=tuple(sorted(self.way_points, key=lambda w: w.time)))
+
+    def remove_consecutive_duplicate_timesteps(self):
+        """Route with the first of each 2 consecutive way points having the same time stamp."""
+
+        def generate_non_dupe_wps(wps):
+            current_wp = wps[0]
+            yield current_wp
+            n = 0
+            while n < len(wps) - 1:
+                n += 1
+                candidate_wp = wps[n]
+                if candidate_wp.time > current_wp.time:
+                    current_wp = candidate_wp
+                    yield current_wp
+
+        return Route(way_points=tuple(generate_non_dupe_wps(self.way_points)))
