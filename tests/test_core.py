@@ -4,12 +4,21 @@ from ship_routing.core import (
     WayPoint,
 )
 
+from ship_routing.currents import load_currents
+
 from dataclasses import FrozenInstanceError
+from pathlib import Path
 
 import numpy as np
 import pint
+import xarray as xr
 
 import pytest
+
+
+# fixtures etc.
+
+TEST_DATA_DIR = Path(__file__).parent.resolve() / "test_data"
 
 
 # way points
@@ -283,6 +292,22 @@ def test_leg_overlaps_time():
     assert leg.overlaps_time(time=np.datetime64("2001-01-01T01:00:00"))
     assert leg.overlaps_time(time=leg.way_point_start.time)
     assert leg.overlaps_time(time=leg.way_point_end.time)
+
+
+def test_leg_cost_through_any_currents():
+    leg = Leg(
+        way_point_start=WayPoint(
+            lon=0, lat=-1 / 60.0, time=np.datetime64("2001-01-01T00:00:00")
+        ),
+        way_point_end=WayPoint(
+            lon=0, lat=1 / 60.0, time=np.datetime64("2001-01-01T02:00:00")
+        ),
+    )
+    current_data_set = load_currents(
+        data_file=TEST_DATA_DIR
+        / "currents/cmems_mod_glo_phy-cur_anfc_0.083deg_P1D-m_2021-01_1deg_5day.nc"
+    )
+    cost = leg.cost_through(current_data_set=current_data_set)
 
 
 # route
@@ -794,3 +819,50 @@ def test_route_refine_no_refinement():
     new_dist = 1.5 * route.length_meters
     route_refined = route.refine(distance_meters=new_dist)
     assert route_refined == route
+
+
+def test_route_move_outer_waypoint_zero():
+    route = Route(
+        way_points=(
+            WayPoint(lon=0, lat=-1 / 60.0, time=np.datetime64("2001-01-01")),
+            WayPoint(lon=0, lat=0.0, time=np.datetime64("2001-01-02")),
+            WayPoint(lon=0, lat=1 / 60.0, time=np.datetime64("2001-01-03")),
+        )
+    )
+    route_moved_first = route.move_waypoint(
+        num_waypoint=0, rel_azimuth_degrees=90.0, distance_meters=0.0
+    )
+    assert route == route_moved_first
+    route_moved_last = route.move_waypoint(
+        num_waypoint=len(route) - 1, rel_azimuth_degrees=90.0, distance_meters=0.0
+    )
+    assert route == route_moved_last
+
+
+def test_route_move_inner_waypoint_zero():
+    route = Route(
+        way_points=(
+            WayPoint(lon=0, lat=-1 / 60.0, time=np.datetime64("2001-01-01")),
+            WayPoint(lon=0, lat=0.0, time=np.datetime64("2001-01-02")),
+            WayPoint(lon=0, lat=1 / 60.0, time=np.datetime64("2001-01-03")),
+        )
+    )
+    route_moved = route.move_waypoint(
+        num_waypoint=1, azimuth_degrees=90.0, distance_meters=0.0
+    )
+    assert route == route_moved
+
+
+def test_route_cost_through_any_currents():
+    route = Route(
+        way_points=(
+            WayPoint(lon=0, lat=-1 / 60.0, time=np.datetime64("2001-01-01")),
+            WayPoint(lon=0, lat=0.0, time=np.datetime64("2001-01-02")),
+            WayPoint(lon=0, lat=1 / 60.0, time=np.datetime64("2001-01-03")),
+        )
+    )
+    current_data_set = load_currents(
+        data_file=TEST_DATA_DIR
+        / "currents/cmems_mod_glo_phy-cur_anfc_0.083deg_P1D-m_2021-01_1deg_5day.nc"
+    )
+    cost = route.cost_through(current_data_set=current_data_set)

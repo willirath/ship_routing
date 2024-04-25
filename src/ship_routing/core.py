@@ -2,6 +2,7 @@ from dataclasses import dataclass
 
 import numpy as np
 import pandas as pd
+import xarray as xr
 from shapely.geometry import LineString, Point
 from scipy.interpolate import interp1d
 
@@ -227,6 +228,9 @@ class Leg:
         times = (self.way_point_start.time, self.way_point_end.time)
         return not ((time < min(times)) or (time > max(times)))
 
+    def cost_through(self, current_data_set: xr.Dataset = None):
+        raise NotImplementedError()
+
 
 @dataclass(frozen=True)
 class Route:
@@ -360,3 +364,14 @@ class Route:
             )
         )
         return Route.from_legs(legs=refined_legs)
+
+    def move_waypoint(
+        self,
+        num_waypoint: int = None,
+        azimuth_degrees: float = None,  # abs azimuth !!!!
+        distance_meters: float = None,
+    ):
+        raise NotImplementedError()
+
+    def cost_through(self, current_data_set: xr.Dataset = None):
+        raise NotImplementedError()
