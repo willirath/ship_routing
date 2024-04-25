@@ -20,22 +20,36 @@ def test_way_point_is_immutable():
         way_point.lon = 5.1
 
 
-def test_waypoint_data_frame_length():
+def test_way_point_data_frame_length():
     way_point = WayPoint(lon=1, lat=2, time=np.datetime64("2001-01-01"))
     assert len(way_point.data_frame) == 1
 
 
-def test_waypoint_data_frame_columns():
+def test_way_point_data_frame_columns():
     way_point = WayPoint(lon=1, lat=2, time=np.datetime64("2001-01-01"))
     assert "lon" in way_point.data_frame.columns
     assert "lat" in way_point.data_frame.columns
     assert "time" in way_point.data_frame.columns
 
 
-def test_waypoint_from_data_frame_roundtrip():
+def test_way_point_from_data_frame_roundtrip():
     way_point_orig = WayPoint(lon=1, lat=2, time=np.datetime64("2001-01-01"))
     data_frame = way_point_orig.data_frame
     way_point_new = WayPoint.from_data_frame(data_frame=data_frame)
+    assert way_point_new == way_point_orig
+
+
+def test_way_point_point_lon_lat():
+    way_point = WayPoint(lon=1, lat=2, time=np.datetime64("2001-01-01"))
+    point = way_point.point
+    np.testing.assert_almost_equal(way_point.lon, point.x)
+    np.testing.assert_almost_equal(way_point.lat, point.y)
+
+
+def test_way_point_from_point_roundtrip():
+    way_point_orig = WayPoint(lon=1, lat=2, time=np.datetime64("2001-01-01"))
+    point = way_point_orig.point
+    way_point_new = WayPoint.from_point(point=point, time=way_point_orig.time)
     assert way_point_new == way_point_orig
 
 
@@ -90,6 +104,33 @@ def test_leg_from_data_frame_roundtrip():
     data_frame = leg_orig.data_frame
     leg_new = Leg.from_data_frame(data_frame=data_frame)
     assert leg_orig == leg_new
+
+
+def test_leg_line_string():
+    leg = Leg(
+        way_point_start=WayPoint(lon=1, lat=2, time=np.datetime64("2001-01-01")),
+        way_point_end=WayPoint(lon=4, lat=3, time=np.datetime64("2001-01-02")),
+    )
+    line_string = leg.line_string
+    assert len(line_string.coords) == 2
+    x, y = line_string.xy
+    np.testing.assert_almost_equal(x[0], leg.way_point_start.lon)
+    np.testing.assert_almost_equal(x[1], leg.way_point_end.lon)
+    np.testing.assert_almost_equal(y[0], leg.way_point_start.lat)
+    np.testing.assert_almost_equal(y[1], leg.way_point_end.lat)
+
+
+def test_leg_from_line_string_roundtrip():
+    leg_orig = Leg(
+        way_point_start=WayPoint(lon=1, lat=2, time=np.datetime64("2001-01-01")),
+        way_point_end=WayPoint(lon=4, lat=3, time=np.datetime64("2001-01-02")),
+    )
+    line_string = leg_orig.line_string
+    leg_new = Leg.from_line_string(
+        line_string=line_string,
+        time=(leg_orig.way_point_start.time, leg_orig.way_point_end.time),
+    )
+    assert leg_new == leg_orig
 
 
 # route
@@ -248,3 +289,61 @@ def test_route_from_data_frame_roundtrip(num_way_points):
     route_new = Route.from_data_frame(data_frame=data_frame)
 
     assert route_new == route_orig
+
+
+@pytest.mark.parametrize("num_way_points", (2, 3, 15))
+def test_route_line_string_len(num_way_points):
+    route = Route(
+        way_points=tuple(
+            (
+                WayPoint(
+                    lon=np.random.uniform(-180, 180),
+                    lat=np.random.uniform(-90, 90),
+                    time=n * np.timedelta64(1, "D") + np.datetime64("2001-01-01"),
+                )
+                for n in range(num_way_points)
+            )
+        )
+    )
+    line_string = route.line_string
+    assert len(line_string.coords) == num_way_points
+
+
+@pytest.mark.parametrize("num_way_points", (2, 3, 15))
+def test_route_line_string_lon_lat(num_way_points):
+    route = Route(
+        way_points=tuple(
+            (
+                WayPoint(
+                    lon=np.random.uniform(-180, 180),
+                    lat=np.random.uniform(-90, 90),
+                    time=n * np.timedelta64(1, "D") + np.datetime64("2001-01-01"),
+                )
+                for n in range(num_way_points)
+            )
+        )
+    )
+    line_string = route.line_string
+    x, y = line_string.xy
+    np.testing.assert_almost_equal(x, [w.lon for w in route.way_points])
+    np.testing.assert_almost_equal(y, [w.lat for w in route.way_points])
+
+
+@pytest.mark.parametrize("num_way_points", (2, 3, 15))
+def test_route_from_line_string_roundtrip(num_way_points):
+    route_orig = Route(
+        way_points=tuple(
+            (
+                WayPoint(
+                    lon=np.random.uniform(-180, 180),
+                    lat=np.random.uniform(-90, 90),
+                    time=n * np.timedelta64(1, "D") + np.datetime64("2001-01-01"),
+                )
+                for n in range(num_way_points)
+            )
+        )
+    )
+    line_string = route_orig.line_string
+    route_new = Route.from_line_string(
+        line_string=line_string, time=(w.time for w in route_orig.way_points)
+    )

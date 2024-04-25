@@ -2,6 +2,7 @@ from dataclasses import dataclass
 
 import numpy as np
 import pandas as pd
+from shapely.geometry import LineString, Point
 
 from typing import Iterable, Tuple
 
@@ -36,6 +37,16 @@ class WayPoint:
             time=data_frame.iloc[0]["time"],
         )
 
+    @property
+    def point(self):
+        """Point geometry with x=lon and y=lat."""
+        return Point(self.lon, self.lat)
+
+    @classmethod
+    def from_point(cls, point: Point = None, time: np.datetime64 = None):
+        """Construct from Point with x=lon and y=lat and from time."""
+        return cls(lon=point.x, lat=point.y, time=time)
+
 
 @dataclass(frozen=True)
 class Leg:
@@ -69,6 +80,21 @@ class Leg:
                 lat=data_frame.iloc[1]["lat"],
                 time=data_frame.iloc[1]["time"],
             ),
+        )
+
+    @property
+    def line_string(self):
+        """LineString geometry with x=lon and y=lat."""
+        return LineString((self.way_point_start.point, self.way_point_end.point))
+
+    @classmethod
+    def from_line_string(cls, line_string: LineString = None, time: Iterable = None):
+        """Construct from LineString with x=lon and y=lat and from time vector."""
+        point_start, point_end = map(Point, line_string.coords)
+        time_start, time_end = time
+        return cls(
+            way_point_start=WayPoint.from_point(point=point_start, time=time_start),
+            way_point_end=WayPoint.from_point(point=point_end, time=time_end),
         )
 
 
@@ -120,5 +146,20 @@ class Route:
                     WayPoint.from_data_frame(data_frame=data_frame.iloc[n : n + 1])
                     for n in range(len(data_frame))
                 )
+            )
+        )
+
+    @property
+    def line_string(self):
+        """LineString geometry with x=lon and y=lat."""
+        return LineString((w.point for w in self.way_points))
+
+    @classmethod
+    def from_line_string(cls, line_string: LineString = None, time: Iterable = None):
+        """Construct from LineString with x=lon and y=lat and from time vector."""
+        return cls(
+            way_points=tuple(
+                WayPoint.from_point(point=_p, time=_t)
+                for _p, _t in zip(map(Point, line_string.coords), time)
             )
         )
