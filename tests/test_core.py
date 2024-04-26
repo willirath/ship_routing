@@ -314,7 +314,7 @@ def test_leg_cost_through_zero_currents():
     np.testing.assert_almost_equal(1.0, cost_true / cost_test, decimal=2)
 
 
-def test_leg_direction_north_east_south_west():
+def test_leg_azimuth_degrees_north_east_south_west():
     leg_north = Leg(
         way_point_start=WayPoint(lon=0, lat=-1, time=np.datetime64("2001-01-01")),
         way_point_end=WayPoint(lon=0, lat=1, time=np.datetime64("2001-01-02")),
@@ -335,6 +335,33 @@ def test_leg_direction_north_east_south_west():
     np.testing.assert_almost_equal(90.0, leg_east.azimuth_degrees % 360.0, decimal=2)
     np.testing.assert_almost_equal(180.0, leg_south.azimuth_degrees % 360.0, decimal=2)
     np.testing.assert_almost_equal(270.0, leg_west.azimuth_degrees % 360.0, decimal=2)
+
+
+def test_leg_azimuth_degrees_north_east_south_west():
+    leg_north = Leg(
+        way_point_start=WayPoint(lon=0, lat=-1, time=np.datetime64("2001-01-01")),
+        way_point_end=WayPoint(lon=0, lat=1, time=np.datetime64("2001-01-02")),
+    )
+    leg_east = Leg(
+        way_point_start=WayPoint(lon=-1, lat=0, time=np.datetime64("2001-01-01")),
+        way_point_end=WayPoint(lon=1, lat=0, time=np.datetime64("2001-01-02")),
+    )
+    leg_south = Leg(
+        way_point_start=WayPoint(lon=0, lat=1, time=np.datetime64("2001-01-01")),
+        way_point_end=WayPoint(lon=0, lat=-1, time=np.datetime64("2001-01-02")),
+    )
+    leg_west = Leg(
+        way_point_start=WayPoint(lon=1, lat=0, time=np.datetime64("2001-01-01")),
+        way_point_end=WayPoint(lon=-1, lat=0, time=np.datetime64("2001-01-02")),
+    )
+    np.testing.assert_almost_equal(0.0, leg_north.bw_azimuth_degrees % 360, decimal=2)
+    np.testing.assert_almost_equal(90.0, leg_east.bw_azimuth_degrees % 360, decimal=2)
+    np.testing.assert_almost_equal(180.0, leg_south.bw_azimuth_degrees % 360, decimal=2)
+    np.testing.assert_almost_equal(270.0, leg_west.bw_azimuth_degrees % 360, decimal=2)
+    np.testing.assert_almost_equal(0.0, leg_north.fw_azimuth_degrees % 360, decimal=2)
+    np.testing.assert_almost_equal(90.0, leg_east.fw_azimuth_degrees % 360, decimal=2)
+    np.testing.assert_almost_equal(180.0, leg_south.fw_azimuth_degrees % 360, decimal=2)
+    np.testing.assert_almost_equal(270.0, leg_west.fw_azimuth_degrees % 360, decimal=2)
 
 
 def test_leg_uv_over_ground_ms_north():
@@ -992,3 +1019,19 @@ def test_route_cost_through_zero_currents_scaling():
     cost_slow = route_slow.cost_through(current_data_set=current_data_set)
     cost_fast = route_fast.cost_through(current_data_set=current_data_set)
     np.testing.assert_almost_equal(6.0**2, cost_fast / cost_slow, decimal=2)
+
+
+def test_route_waypoint_azimuth():
+    route = Route(
+        way_points=(
+            WayPoint(lon=0, lat=-1 / 60.0, time=np.datetime64("2001-01-01")),
+            WayPoint(lon=0, lat=0.0, time=np.datetime64("2001-01-02")),
+            WayPoint(lon=1 / 60.0, lat=0, time=np.datetime64("2001-01-03")),
+            WayPoint(lon=2 / 60.0, lat=0, time=np.datetime64("2001-01-04")),
+            WayPoint(lon=2 / 60.0, lat=-1 / 60.0, time=np.datetime64("2001-01-05")),
+            WayPoint(lon=2 / 60.0, lat=-2 / 60.0, time=np.datetime64("2001-01-06")),
+        )
+    )
+    wp_az_true = (0, 45, 90, 135, 180, 180)
+    wp_az_test = tuple(route.get_waypoint_azimuth(n=n) for n in range(len(route)))
+    np.testing.assert_almost_equal(wp_az_test, wp_az_true)

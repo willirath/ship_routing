@@ -246,4 +246,4 @@ def get_leg_azimuth(
         lats2=lat_end,
         return_back_azimuth=False,
     )
-    return (fwd_az + bwd_az) / 2.0
+    return (fwd_az + bwd_az) / 2.0, fwd_az, bwd_az

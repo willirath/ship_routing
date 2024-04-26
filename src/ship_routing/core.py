@@ -234,17 +234,40 @@ class Leg:
         return not ((time < min(times)) or (time > max(times)))
 
     @property
-    def azimuth_degrees(self):
-        """Azimuth of the leg in degrees.
-
-        This averages the forward azimuth of the first and backward azimuth of the last point.
-        """
-        return get_leg_azimuth(
+    def fw_azimuth_degrees(self):
+        """Forward azimuth from the start waypoint in degrees."""
+        _, fw_az_deg, _ = get_leg_azimuth(
             lon_start=self.way_point_start.lon,
             lat_start=self.way_point_start.lat,
             lon_end=self.way_point_end.lon,
             lat_end=self.way_point_end.lat,
         )
+        return fw_az_deg
+
+    @property
+    def bw_azimuth_degrees(self):
+        """Backward azimuth from the start waypoint in degrees."""
+        _, _, bw_az_deg = get_leg_azimuth(
+            lon_start=self.way_point_start.lon,
+            lat_start=self.way_point_start.lat,
+            lon_end=self.way_point_end.lon,
+            lat_end=self.way_point_end.lat,
+        )
+        return bw_az_deg
+
+    @property
+    def azimuth_degrees(self):
+        """Azimuth of the leg in degrees.
+
+        This averages the forward azimuth of the first and backward azimuth of the last point.
+        """
+        az_deg, _, _ = get_leg_azimuth(
+            lon_start=self.way_point_start.lon,
+            lat_start=self.way_point_start.lat,
+            lon_end=self.way_point_end.lon,
+            lat_end=self.way_point_end.lat,
+        )
+        return az_deg
 
     @property
     def uv_over_ground_ms(self):
@@ -430,3 +453,18 @@ class Route:
         return tuple(
             (l.cost_through(current_data_set=current_data_set) for l in self.legs)
         )
+
+    def get_waypoint_azimuth(self, n: int = None):
+        """Azimuth of waypoint n.
+
+        For n=0 only the fwd az of the first leg and for n=-1 only the
+        bw az of the last leg is returned. For all other n, the average of the bw az
+        of the before leg and the fw az of the after leg are returned.
+        """
+        _legs = self.legs
+        if n == 0:
+            return _legs[0].fw_azimuth_degrees
+        elif n == len(self) - 1:
+            return _legs[-1].bw_azimuth_degrees
+        else:
+            return (_legs[n - 1].bw_azimuth_degrees + _legs[n].fw_azimuth_degrees) / 2.0
