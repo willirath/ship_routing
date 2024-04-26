@@ -1085,20 +1085,9 @@ def test_route_segment_at_assert_matching_wps():
         assert s0.way_points[-1] == s1.way_points[0]
     # ends of segs of r0 meet starts of segs of r1
     for s0, s1 in zip(segments_of_route_0[:-1], segments_of_route_1[1:]):
-        np.testing.assert_almost_equal(
-            s0.way_points[-1].lon, s1.way_points[0].lon, decimal=3
-        )
-        np.testing.assert_almost_equal(
-            s0.way_points[-1].lat, s1.way_points[0].lat, decimal=3
-        )
-    # ends of segs of r1 meet starts of segs of r0
+        assert s0.way_points[-1].point == s1.way_points[0].point
     for s0, s1 in zip(segments_of_route_1[:-1], segments_of_route_0[1:]):
-        np.testing.assert_almost_equal(
-            s0.way_points[-1].lon, s1.way_points[0].lon, decimal=3
-        )
-        np.testing.assert_almost_equal(
-            s0.way_points[-1].lat, s1.way_points[0].lat, decimal=3
-        )
+        assert s0.way_points[-1].point == s1.way_points[0].point
 
 
 def test_route_split_at_distance():

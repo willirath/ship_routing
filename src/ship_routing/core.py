@@ -4,6 +4,8 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 from shapely.geometry import LineString, Point
+from shapely import union_all as shp_union_all
+from shapely.ops import snap
 from scipy.interpolate import interp1d
 
 from typing import Iterable, Tuple
@@ -525,4 +527,17 @@ class Route:
             other_segments_rev.append(s1)
             other_r = s0
         other_segments_rev.append(s0)
+        all_points_in_other_segments = shp_union_all(
+            sum([[w.point for w in s.way_points] for s in other_segments_rev], start=[])
+        )
+        self_segments_rev = [
+            s.snap_at(all_points_in_other_segments) for s in self_segments_rev
+        ]
         return tuple(self_segments_rev[::-1]), tuple(other_segments_rev[::-1])
+
+    def snap_at(self, other, tolerance: float = 1e-3):
+        """Snap at other geometry."""
+        return Route.from_line_string(
+            line_string=snap(self.line_string, other, tolerance=tolerance),
+            time=(w.time for w in self.way_points),
+        )
