@@ -5,6 +5,35 @@ from shapely.geometry import LineString
 from collections import namedtuple
 
 
+def move_fwd(
+    lon: float = None,
+    lat: float = None,
+    azimuth_degrees: float = None,
+    distance_meters: float = None,
+) -> tuple:
+    geod = pyproj.Geod(ellps="WGS84")
+    lon_new, lat_new, _ = geod.fwd(
+        lons=lon, lats=lat, az=azimuth_degrees, dist=distance_meters, radians=False
+    )
+    return lon_new, lat_new
+
+
+def get_distance_meters(
+    lon_start: float = None,
+    lon_end: float = None,
+    lat_start: float = None,
+    lat_end: float = None,
+):
+    geod = pyproj.Geod(ellps="WGS84")
+    _, _, distance_meters = geod.inv(
+        lons1=lon_start,
+        lons2=lon_end,
+        lats1=lat_start,
+        lats2=lat_end,
+    )
+    return distance_meters
+
+
 def get_length_meters(line_string: LineString = None) -> float:
     geod = pyproj.Geod(ellps="WGS84")
 
@@ -201,3 +230,20 @@ def get_directions(lon=None, lat=None):
     uhat = np.sin(np.deg2rad(az))
     vhat = np.cos(np.deg2rad(az))
     return uhat, vhat
+
+
+def get_leg_azimuth(
+    lon_start: float = None,
+    lat_start: float = None,
+    lon_end: float = None,
+    lat_end: float = None,
+):
+    geod = pyproj.Geod(ellps="WGS84")
+    fwd_az, bwd_az, _ = geod.inv(
+        lons1=lon_start,
+        lons2=lon_end,
+        lats1=lat_start,
+        lats2=lat_end,
+        return_back_azimuth=False,
+    )
+    return (fwd_az + bwd_az) / 2.0, fwd_az, bwd_az
