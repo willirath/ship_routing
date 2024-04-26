@@ -4,6 +4,8 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 from shapely.geometry import LineString, Point
+from shapely import union_all as shp_union_all
+from shapely.ops import snap
 from scipy.interpolate import interp1d
 
 from typing import Iterable, Tuple
@@ -15,6 +17,8 @@ from .geodesics import (
     refine_along_great_circle,
     get_leg_azimuth,
 )
+
+from .remix import segment_lines_with_each_other
 
 from .currents import select_currents_for_leg
 
@@ -294,6 +298,18 @@ class Leg:
             * self.duration_seconds
         )
 
+    def split_at_distance(self, distance_meters: float = None):
+        """Split leg at given distance (relto start waypoint)."""
+        fw_az = self.fw_azimuth_degrees
+        new_time = self.time_at_distance(distance_meters=distance_meters)
+        split_wp = self.way_point_start.move_space(
+            azimuth_degrees=fw_az, distance_meters=distance_meters
+        ).move_time(time_diff=new_time - self.way_point_start.time)
+        return (
+            Leg(way_point_start=self.way_point_start, way_point_end=split_wp),
+            Leg(way_point_start=split_wp, way_point_end=self.way_point_end),
+        )
+
 
 @dataclass(frozen=True)
 class Route:
@@ -468,3 +484,60 @@ class Route:
             return _legs[-1].bw_azimuth_degrees
         else:
             return (_legs[n - 1].bw_azimuth_degrees + _legs[n].fw_azimuth_degrees) / 2.0
+
+    def split_at_distance(self, distance_meters: float = None):
+        """Split at given distance."""
+        num_leg = sum([distance_meters >= d for d in self.distance_meters]) - 1
+        old_legs = self.legs
+        split_legs = old_legs[num_leg].split_at_distance(
+            distance_meters=distance_meters - self.distance_meters[num_leg]
+        )
+        new_legs_before = old_legs[:num_leg] + split_legs[:1]
+        new_legs_after = split_legs[1:] + old_legs[num_leg + 1 :]
+        return (
+            Route.from_legs(legs=new_legs_before),
+            Route.from_legs(legs=new_legs_after),
+        )
+
+    def segment_at(self, other):
+        """Segment route at other route."""
+        self_line_string = self.line_string
+        other_line_string = other.line_string
+        self_seg, other_seg = segment_lines_with_each_other(
+            line_0=self_line_string,
+            line_1=other_line_string,
+        )
+        self_split_dists = tuple(
+            np.cumsum([get_length_meters(s) for s in self_seg[:-1]])
+        )
+        other_split_dists = tuple(
+            np.cumsum([get_length_meters(s) for s in other_seg[:-1]])
+        )
+        self_segments_rev = []
+        self_r = self
+        for d in self_split_dists[::-1]:
+            s0, s1 = self_r.split_at_distance(distance_meters=d)
+            self_segments_rev.append(s1)
+            self_r = s0
+        self_segments_rev.append(s0)
+        other_segments_rev = []
+        other_r = other
+        for d in other_split_dists[::-1]:
+            s0, s1 = other_r.split_at_distance(distance_meters=d)
+            other_segments_rev.append(s1)
+            other_r = s0
+        other_segments_rev.append(s0)
+        all_points_in_other_segments = shp_union_all(
+            sum([[w.point for w in s.way_points] for s in other_segments_rev], start=[])
+        )
+        self_segments_rev = [
+            s.snap_at(all_points_in_other_segments) for s in self_segments_rev
+        ]
+        return tuple(self_segments_rev[::-1]), tuple(other_segments_rev[::-1])
+
+    def snap_at(self, other, tolerance: float = 1e-3):
+        """Snap at other geometry."""
+        return Route.from_line_string(
+            line_string=snap(self.line_string, other, tolerance=tolerance),
+            time=(w.time for w in self.way_points),
+        )
