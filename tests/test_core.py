@@ -764,6 +764,24 @@ def test_route_slicing_values(num_way_points):
     assert route_1_3 == route_1_3_sliced
 
 
+def test_route_add_identical_wp_dropped():
+    route_0 = Route(
+        way_points=(
+            WayPoint(lon=0, lat=1, time=np.datetime64("2001-01-01")),
+            WayPoint(lon=0, lat=2, time=np.datetime64("2001-01-02")),
+        )
+    )
+    route_1 = Route(
+        way_points=(
+            WayPoint(
+                lon=0, lat=2, time=np.datetime64("2001-01-02")
+            ),  # same as last above
+            WayPoint(lon=0, lat=4, time=np.datetime64("2001-01-03")),
+        )
+    )
+    assert len(route_0 + route_1) == len(route_0) + len(route_1) - 1
+
+
 def test_route_add_len():
     route_0 = Route(
         way_points=tuple(
