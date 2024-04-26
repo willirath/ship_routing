@@ -13,7 +13,12 @@ from .geodesics import (
     get_distance_meters,
     move_fwd,
     refine_along_great_circle,
+    get_leg_azimuth,
 )
+
+from .currents import select_currents_for_leg
+
+from .cost import power_maintain_speed
 
 
 @dataclass(frozen=True)
@@ -228,8 +233,43 @@ class Leg:
         times = (self.way_point_start.time, self.way_point_end.time)
         return not ((time < min(times)) or (time > max(times)))
 
+    @property
+    def azimuth_degrees(self):
+        """Azimuth of the leg in degrees.
+
+        This averages the forward azimuth of the first and backward azimuth of the last point.
+        """
+        return get_leg_azimuth(
+            lon_start=self.way_point_start.lon,
+            lat_start=self.way_point_start.lat,
+            lon_end=self.way_point_end.lon,
+            lat_end=self.way_point_end.lat,
+        )
+
+    @property
+    def uv_over_ground_ms(self):
+        """Speed over ground in meters per second."""
+        spd = self.speed_ms
+        az_rad = np.deg2rad(self.azimuth_degrees)
+        return spd * np.sin(az_rad), spd * np.cos(az_rad)
+
     def cost_through(self, current_data_set: xr.Dataset = None):
-        raise NotImplementedError()
+        us, vs = self.uv_over_ground_ms
+        ds_uovo = select_currents_for_leg(
+            ds=current_data_set,
+            lon_start=self.way_point_start.lon,
+            lat_start=self.way_point_start.lat,
+            time_start=self.way_point_start.time,
+            lon_end=self.way_point_end.lon,
+            lat_end=self.way_point_end.lat,
+            time_end=self.way_point_end.time,
+        )
+        return (
+            power_maintain_speed(uo=ds_uovo.uo, vo=ds_uovo.vo, us=us, vs=vs)
+            .mean()
+            .data[()]
+            * self.duration_seconds
+        )
 
 
 @dataclass(frozen=True)

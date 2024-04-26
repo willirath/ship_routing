@@ -230,3 +230,20 @@ def get_directions(lon=None, lat=None):
     uhat = np.sin(np.deg2rad(az))
     vhat = np.cos(np.deg2rad(az))
     return uhat, vhat
+
+
+def get_leg_azimuth(
+    lon_start: float = None,
+    lat_start: float = None,
+    lon_end: float = None,
+    lat_end: float = None,
+):
+    geod = pyproj.Geod(ellps="WGS84")
+    fwd_az, bwd_az, _ = geod.inv(
+        lons1=lon_start,
+        lons2=lon_end,
+        lats1=lat_start,
+        lats2=lat_end,
+        return_back_azimuth=False,
+    )
+    return (fwd_az + bwd_az) / 2.0

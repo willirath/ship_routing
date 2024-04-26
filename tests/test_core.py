@@ -297,17 +297,112 @@ def test_leg_overlaps_time():
 def test_leg_cost_through_any_currents():
     leg = Leg(
         way_point_start=WayPoint(
-            lon=0, lat=-1 / 60.0, time=np.datetime64("2001-01-01T00:00:00")
+            lon=0, lat=-1, time=np.datetime64("2001-01-01T00:00:00")
         ),
-        way_point_end=WayPoint(
-            lon=0, lat=1 / 60.0, time=np.datetime64("2001-01-01T02:00:00")
-        ),
+        way_point_end=WayPoint(lon=0, lat=1, time=np.datetime64("2001-01-01T12:00:00")),
     )
+    # laod currents and make zero
     current_data_set = load_currents(
         data_file=TEST_DATA_DIR
         / "currents/cmems_mod_glo_phy-cur_anfc_0.083deg_P1D-m_2021-01_1deg_5day.nc"
     )
-    cost = leg.cost_through(current_data_set=current_data_set)
+    current_data_set["uo"] = (current_data_set["uo"] * 0.0).fillna(0.0)
+    current_data_set["uo"] = (current_data_set["vo"] * 0.0).fillna(0.0)
+    speed_ms = leg.speed_ms
+    cost_true = 12 * 3600.0 * speed_ms**3
+    cost_test = leg.cost_through(current_data_set=current_data_set)
+    np.testing.assert_almost_equal(1.0, cost_true / cost_test, decimal=2)
+
+
+def test_leg_direction_north_east_south_west():
+    leg_north = Leg(
+        way_point_start=WayPoint(lon=0, lat=-1, time=np.datetime64("2001-01-01")),
+        way_point_end=WayPoint(lon=0, lat=1, time=np.datetime64("2001-01-02")),
+    )
+    leg_east = Leg(
+        way_point_start=WayPoint(lon=-1, lat=0, time=np.datetime64("2001-01-01")),
+        way_point_end=WayPoint(lon=1, lat=0, time=np.datetime64("2001-01-02")),
+    )
+    leg_south = Leg(
+        way_point_start=WayPoint(lon=0, lat=1, time=np.datetime64("2001-01-01")),
+        way_point_end=WayPoint(lon=0, lat=-1, time=np.datetime64("2001-01-02")),
+    )
+    leg_west = Leg(
+        way_point_start=WayPoint(lon=1, lat=0, time=np.datetime64("2001-01-01")),
+        way_point_end=WayPoint(lon=-1, lat=0, time=np.datetime64("2001-01-02")),
+    )
+    np.testing.assert_almost_equal(0.0, leg_north.azimuth_degrees % 360.0, decimal=2)
+    np.testing.assert_almost_equal(90.0, leg_east.azimuth_degrees % 360.0, decimal=2)
+    np.testing.assert_almost_equal(180.0, leg_south.azimuth_degrees % 360.0, decimal=2)
+    np.testing.assert_almost_equal(270.0, leg_west.azimuth_degrees % 360.0, decimal=2)
+
+
+def test_leg_uv_over_ground_ms_north():
+    ureg = pint.UnitRegistry()
+    speed_ms_true = float(1.0 * ureg.knots / ureg.meters * ureg.second)
+    leg = Leg(
+        way_point_start=WayPoint(
+            lon=0, lat=-1 / 2 / 60.0, time=np.datetime64("2001-01-01T00:00:00")
+        ),
+        way_point_end=WayPoint(
+            lon=0, lat=1 / 2 / 60.0, time=np.datetime64("2001-01-01T01:00:00")
+        ),
+    )
+    u_true, v_true = 0, speed_ms_true
+    u_test, v_test = leg.uv_over_ground_ms
+    np.testing.assert_almost_equal(u_true, u_test, decimal=2)
+    np.testing.assert_almost_equal(v_true, v_test, decimal=2)
+
+
+def test_leg_uv_over_ground_ms_south():
+    ureg = pint.UnitRegistry()
+    speed_ms_true = float(1.0 * ureg.knots / ureg.meters * ureg.second)
+    leg = Leg(
+        way_point_start=WayPoint(
+            lon=0, lat=1 / 2 / 60.0, time=np.datetime64("2001-01-01T00:00:00")
+        ),
+        way_point_end=WayPoint(
+            lon=0, lat=-1 / 2 / 60.0, time=np.datetime64("2001-01-01T01:00:00")
+        ),
+    )
+    u_true, v_true = 0, -speed_ms_true
+    u_test, v_test = leg.uv_over_ground_ms
+    np.testing.assert_almost_equal(u_true, u_test, decimal=2)
+    np.testing.assert_almost_equal(v_true, v_test, decimal=2)
+
+
+def test_leg_uv_over_ground_ms_east():
+    ureg = pint.UnitRegistry()
+    speed_ms_true = float(1.0 * ureg.knots / ureg.meters * ureg.second)
+    leg = Leg(
+        way_point_start=WayPoint(
+            lon=-1 / 2 / 60.0, lat=0, time=np.datetime64("2001-01-01T00:00:00")
+        ),
+        way_point_end=WayPoint(
+            lon=1 / 2 / 60.0, lat=0, time=np.datetime64("2001-01-01T01:00:00")
+        ),
+    )
+    u_true, v_true = speed_ms_true, 0
+    u_test, v_test = leg.uv_over_ground_ms
+    np.testing.assert_almost_equal(u_true, u_test, decimal=2)
+    np.testing.assert_almost_equal(v_true, v_test, decimal=2)
+
+
+def test_leg_uv_over_ground_ms_west():
+    ureg = pint.UnitRegistry()
+    speed_ms_true = float(1.0 * ureg.knots / ureg.meters * ureg.second)
+    leg = Leg(
+        way_point_start=WayPoint(
+            lon=1 / 2 / 60.0, lat=0, time=np.datetime64("2001-01-01T00:00:00")
+        ),
+        way_point_end=WayPoint(
+            lon=-1 / 2 / 60.0, lat=0, time=np.datetime64("2001-01-01T01:00:00")
+        ),
+    )
+    u_true, v_true = -speed_ms_true, 0
+    u_test, v_test = leg.uv_over_ground_ms
+    np.testing.assert_almost_equal(u_true, u_test, decimal=2)
+    np.testing.assert_almost_equal(v_true, v_test, decimal=2)
 
 
 # route
