@@ -294,7 +294,7 @@ def test_leg_overlaps_time():
     assert leg.overlaps_time(time=leg.way_point_end.time)
 
 
-def test_leg_cost_through_any_currents():
+def test_leg_cost_through_zero_currents():
     leg = Leg(
         way_point_start=WayPoint(
             lon=0, lat=-1, time=np.datetime64("2001-01-01T00:00:00")
@@ -959,4 +959,10 @@ def test_route_cost_through_any_currents():
         data_file=TEST_DATA_DIR
         / "currents/cmems_mod_glo_phy-cur_anfc_0.083deg_P1D-m_2021-01_1deg_5day.nc"
     )
-    cost = route.cost_through(current_data_set=current_data_set)
+    current_data_set["uo"] = (current_data_set["uo"] * 0.0).fillna(0.0)
+    current_data_set["vo"] = (current_data_set["vo"] * 0.0).fillna(0.0)
+    speeds = np.array([l.speed_ms for l in route.legs])
+    durations = np.array([l.duration_seconds for l in route.legs])
+    cost_true = np.sum(durations * speeds**3)
+    cost_test = route.cost_through(current_data_set=current_data_set)
+    np.testing.assert_almost_equal(1.0, cost_true / cost_test, decimal=2)

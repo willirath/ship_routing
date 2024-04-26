@@ -422,4 +422,11 @@ class Route:
         return Route(way_points=wps_before + (wp_moved,) + wps_after)
 
     def cost_through(self, current_data_set: xr.Dataset = None):
-        raise NotImplementedError()
+        """Cost along whole route."""
+        return sum(self.cost_per_leg_through(current_data_set=current_data_set))
+
+    def cost_per_leg_through(self, current_data_set: xr.Dataset = None):
+        """Cost along each leg."""
+        return tuple(
+            (l.cost_through(current_data_set=current_data_set) for l in self.legs)
+        )
