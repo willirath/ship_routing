@@ -947,7 +947,7 @@ def test_route_move_waypoint_north():
     np.testing.assert_almost_equal(0, route_moved.way_points[0].lat, decimal=3)
 
 
-def test_route_cost_through_any_currents():
+def test_route_cost_through_zero_currents():
     route = Route(
         way_points=(
             WayPoint(lon=0, lat=-1 / 60.0, time=np.datetime64("2001-01-01")),
@@ -966,3 +966,29 @@ def test_route_cost_through_any_currents():
     cost_true = np.sum(durations * speeds**3)
     cost_test = route.cost_through(current_data_set=current_data_set)
     np.testing.assert_almost_equal(1.0, cost_true / cost_test, decimal=2)
+
+
+def test_route_cost_through_zero_currents_scaling():
+    route_slow = Route(
+        way_points=(
+            WayPoint(lon=0, lat=-1 / 60.0, time=np.datetime64("2001-01-01T00:00:00")),
+            WayPoint(lon=0, lat=0.0, time=np.datetime64("2001-01-01T06:00:00")),
+            WayPoint(lon=0, lat=1 / 60.0, time=np.datetime64("2001-01-01T12:00:00")),
+        )
+    )
+    route_fast = Route(
+        way_points=(
+            WayPoint(lon=0, lat=-1 / 60.0, time=np.datetime64("2001-01-01T00:00:00")),
+            WayPoint(lon=0, lat=0.0, time=np.datetime64("2001-01-01T01:00:00")),
+            WayPoint(lon=0, lat=1 / 60.0, time=np.datetime64("2001-01-01T02:00:00")),
+        )
+    )
+    current_data_set = load_currents(
+        data_file=TEST_DATA_DIR
+        / "currents/cmems_mod_glo_phy-cur_anfc_0.083deg_P1D-m_2021-01_1deg_5day.nc"
+    )
+    current_data_set["uo"] = (current_data_set["uo"] * 0.0).fillna(0.0)
+    current_data_set["vo"] = (current_data_set["vo"] * 0.0).fillna(0.0)
+    cost_slow = route_slow.cost_through(current_data_set=current_data_set)
+    cost_fast = route_fast.cost_through(current_data_set=current_data_set)
+    np.testing.assert_almost_equal(6.0**2, cost_fast / cost_slow, decimal=2)
