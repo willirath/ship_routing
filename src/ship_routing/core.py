@@ -336,7 +336,15 @@ class Route:
             raise ValueError("Slicing needs at least two way points.")
 
     def __add__(self, other):
-        return Route(way_points=self.way_points + other.way_points)
+        """Concatenate route with other route.
+
+        If last own / first other way points are identical, drop first wp of other.
+        """
+        if other.way_points[0] == self.way_points[-1]:
+            other_wps = other.way_points[1:]
+        else:
+            other_wps = other.way_points
+        return Route(way_points=self.way_points + other_wps)
 
     @property
     def legs(self):
