@@ -1073,7 +1073,7 @@ def test_route_waypoint_azimuth():
         )
     )
     wp_az_true = (0, 45, 90, 135, 180, 180)
-    wp_az_test = tuple(route.get_waypoint_azimuth(n=n) for n in range(len(route)))
+    wp_az_test = tuple(route.waypoint_azimuth(n=n) for n in range(len(route)))
     np.testing.assert_almost_equal(wp_az_test, wp_az_true)
 
 

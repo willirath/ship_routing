@@ -478,7 +478,7 @@ class Route:
             (l.cost_through(current_data_set=current_data_set) for l in self.legs)
         )
 
-    def get_waypoint_azimuth(self, n: int = None):
+    def waypoint_azimuth(self, n: int = None):
         """Azimuth of waypoint n.
 
         For n=0 only the fwd az of the first leg and for n=-1 only the
