@@ -452,6 +452,18 @@ class Route:
         )
         return Route.from_legs(legs=refined_legs)
 
+    def replace_waypoint(
+        self,
+        n: int = None,
+        new_way_point: WayPoint = None,
+    ):
+        """Replace nth way point with."""
+        return Route(
+            way_points=(
+                self.way_points[:n] + (new_way_point,) + self.way_points[n + 1 :]
+            )
+        )
+
     def move_waypoint(
         self,
         n: int = None,
@@ -459,14 +471,11 @@ class Route:
         distance_meters: float = None,
     ):
         """Move nth waypoint."""
-        wps_before = self.way_points[:n]
-        wps_after = self.way_points[n + 1 :]
-        wp_orig = self.way_points[n]
-        wp_moved = wp_orig.move_space(
+        wp_moved = self.way_points[n].move_space(
             azimuth_degrees=azimuth_degrees,
             distance_meters=distance_meters,
         )
-        return Route(way_points=wps_before + (wp_moved,) + wps_after)
+        return self.replace_waypoint(n=n, new_way_point=wp_moved)
 
     def cost_through(self, current_data_set: xr.Dataset = None):
         """Cost along whole route."""

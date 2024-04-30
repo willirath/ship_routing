@@ -1122,3 +1122,22 @@ def test_route_split_at_distance():
     assert route_0.way_points[-1] == route_1.way_points[0]
     assert route_0.way_points[0] == route.way_points[0]
     assert route_1.way_points[-1] == route.way_points[-1]
+
+
+def test_route_replace_way_point():
+    route_orig = Route(
+        way_points=(
+            WayPoint(lon=0, lat=0, time=np.datetime64("2001-01-01")),
+            WayPoint(lon=1, lat=1, time=np.datetime64("2001-01-02")),
+            WayPoint(lon=0, lat=2, time=np.datetime64("2001-01-03")),
+        )
+    )
+    new_wp_1 = WayPoint(lon=-1, lat=1, time=np.datetime64("2001-01-02"))
+    route_changed = route_orig.replace_waypoint(
+        n=1,
+        new_way_point=new_wp_1,
+    )
+    assert route_changed != route_orig
+    assert route_changed.way_points[0] == route_orig.way_points[0]
+    assert route_changed.way_points[1] == new_wp_1
+    assert route_changed.way_points[-1] == route_orig.way_points[-1]
