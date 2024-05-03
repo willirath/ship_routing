@@ -578,3 +578,11 @@ class Route:
             line_string=snap(self.line_string, other, tolerance=tolerance),
             time=(w.time for w in self.way_points),
         )
+
+    def resample_with_distance(self, distances_meters: float = None):
+        """Resample route to given distances."""
+        return Route(
+            way_points=tuple(
+                (self.waypoint_at_distance(distance_meters=d) for d in distances_meters)
+            )
+        )

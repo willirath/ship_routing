@@ -1185,3 +1185,27 @@ def test_route_wp_at_distance_edge_at_start_and_end():
     np.testing.assert_almost_equal(
         0.0, (wp_test.time - wp_true.time) / np.timedelta64(1, "s"), decimal=0
     )
+
+
+def test_route_resample_with_distance():
+    route = Route(
+        way_points=(
+            WayPoint(lon=0, lat=0.0, time=np.datetime64("2001-01-01")),
+            WayPoint(lon=10, lat=0.0, time=np.datetime64("2001-01-11")),
+        )
+    )
+    new_distances = tuple(np.linspace(0, route.length_meters, 11))
+    route_resampled = route.resample_with_distance(distances_meters=new_distances)
+    for n in range(11):
+        np.testing.assert_array_almost_equal(
+            route_resampled.way_points[n].lon, 1.0 * n, decimal=2
+        )
+        np.testing.assert_array_almost_equal(
+            route_resampled.way_points[n].lat, 0.0, decimal=2
+        )
+        np.testing.assert_array_almost_equal(
+            (route_resampled.way_points[n].time - np.datetime64("2001-01-01"))
+            / np.timedelta64(1, "s"),
+            n * 24 * 3600,
+            decimal=2,
+        )
