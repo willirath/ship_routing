@@ -336,6 +336,18 @@ def test_leg_cost_through_zero_currents():
     np.testing.assert_almost_equal(1.0, cost_true / cost_test, decimal=2)
 
 
+def test_leg_cost_over_land_is_nan():
+    current_data_set = load_currents(
+        data_file=TEST_DATA_DIR
+        / "currents/cmems_mod_glo_phy-cur_anfc_0.083deg_P1D-m_2021-01_1deg_5day.nc"
+    )
+    leg = Leg(
+        way_point_start=WayPoint(lon=-180, lat=0, time=np.datetime64("2001-01-01")),
+        way_point_end=WayPoint(lon=0, lat=0, time=np.datetime64("2001-02-01")),
+    )
+    assert np.isnan(leg.cost_through(current_data_set=current_data_set))
+
+
 def test_leg_azimuth_degrees_north_east_south_west():
     leg_north = Leg(
         way_point_start=WayPoint(lon=0, lat=-1, time=np.datetime64("2001-01-01")),

@@ -291,12 +291,11 @@ class Leg:
             lat_end=self.way_point_end.lat,
             time_end=self.way_point_end.time,
         )
-        return (
-            power_maintain_speed(uo=ds_uovo.uo, vo=ds_uovo.vo, us=us, vs=vs)
-            .mean()
-            .data[()]
-            * self.duration_seconds
-        )
+        pwr = power_maintain_speed(uo=ds_uovo.uo, vo=ds_uovo.vo, us=us, vs=vs)
+        if pwr.isnull().sum() > 0:
+            return np.nan
+        else:
+            return pwr.mean().data[()] * self.duration_seconds
 
     def split_at_distance(self, distance_meters: float = None):
         """Split leg at given distance (relto start waypoint)."""
