@@ -516,6 +516,14 @@ class Route:
             Route.from_legs(legs=new_legs_after),
         )
 
+    def waypoint_at_distance(self, distance_meters: float = None):
+        """Generate waypoint at distance."""
+        num_leg = sum([distance_meters >= d for d in self.distance_meters]) - 1
+        split_legs = self.legs[num_leg].split_at_distance(
+            distance_meters=distance_meters - self.distance_meters[num_leg]
+        )
+        return split_legs[0].way_point_end
+
     def segment_at(self, other):
         """Segment route at other route."""
         self_line_string = self.line_string
