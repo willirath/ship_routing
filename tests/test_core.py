@@ -1143,7 +1143,7 @@ def test_route_replace_way_point():
     assert route_changed.way_points[-1] == route_orig.way_points[-1]
 
 
-def test_route_wp_at_distance():
+def test_route_wp_at_distance_middle():
     route = Route(
         way_points=(
             WayPoint(lon=0, lat=-1 / 10 / 60.0, time=np.datetime64("2001-01-01")),
@@ -1153,6 +1153,33 @@ def test_route_wp_at_distance():
     query_dist = route.length_meters / 2.0
     wp_test = route.waypoint_at_distance(distance_meters=query_dist)
     wp_true = WayPoint(lon=0, lat=0, time=np.datetime64("2001-01-02"))
+    np.testing.assert_almost_equal(wp_test.lon, wp_true.lon, decimal=2)
+    np.testing.assert_almost_equal(wp_test.lat, wp_true.lat, decimal=2)
+    np.testing.assert_almost_equal(
+        0.0, (wp_test.time - wp_true.time) / np.timedelta64(1, "s"), decimal=0
+    )
+
+
+def test_route_wp_at_distance_edge_at_start_and_end():
+    route = Route(
+        way_points=(
+            WayPoint(lon=10, lat=-23.0, time=np.datetime64("2001-01-01")),
+            WayPoint(lon=50, lat=32.0, time=np.datetime64("2001-01-13")),
+        )
+    ).refine(distance_meters=500_000)
+
+    # select at start
+    wp_test = route.waypoint_at_distance(distance_meters=0)
+    wp_true = route.way_points[0]
+    np.testing.assert_almost_equal(wp_test.lon, wp_true.lon, decimal=2)
+    np.testing.assert_almost_equal(wp_test.lat, wp_true.lat, decimal=2)
+    np.testing.assert_almost_equal(
+        0.0, (wp_test.time - wp_true.time) / np.timedelta64(1, "s"), decimal=0
+    )
+
+    # select at end
+    wp_test = route.waypoint_at_distance(distance_meters=route.length_meters)
+    wp_true = route.way_points[-1]
     np.testing.assert_almost_equal(wp_test.lon, wp_true.lon, decimal=2)
     np.testing.assert_almost_equal(wp_test.lat, wp_true.lat, decimal=2)
     np.testing.assert_almost_equal(
