@@ -40,75 +40,6 @@ def get_length_meters(line_string: LineString = None) -> float:
     return geod.geometry_length(line_string)
 
 
-def get_dist_along(line_string: LineString = None) -> list:
-    return [
-        0,
-    ] + [
-        get_length_meters(LineString(list(line_string.coords)[:n]))
-        for n in range(2, len(list(line_string.coords)) + 1)
-    ]
-
-
-def move_middle_point_left(
-    lon1: float = None,
-    lat1: float = None,
-    lon2: float = None,
-    lat2: float = None,
-    lon3: float = None,
-    lat3: float = None,
-    move_by_meters: float = 0,
-) -> tuple:
-    geod = pyproj.Geod(ellps="WGS84")
-
-    fwd_az_23, _, _ = geod.inv(
-        lons1=lon2, lats1=lat2, lons2=lon3, lats2=lat3, return_back_azimuth=True
-    )
-    _, fwd_az_12, _ = geod.inv(
-        lons1=lon1, lats1=lat1, lons2=lon2, lats2=lat2, return_back_azimuth=False
-    )
-    fwd_az = (fwd_az_12 + fwd_az_23) / 2.0
-    rot_left = fwd_az - 90.0
-
-    lon2_new, lat2_new, _ = geod.fwd(
-        lons=lon2, lats=lat2, az=rot_left, dist=move_by_meters
-    )
-
-    return lon2_new, lat2_new
-
-
-def move_first_point_left(
-    lon1: float = None,
-    lat1: float = None,
-    lon2: float = None,
-    lat2: float = None,
-    move_by_meters: float = 0,
-) -> tuple:
-    geod = pyproj.Geod(ellps="WGS84")
-
-    fwd_az, _, _ = geod.inv(
-        lons1=lon1, lats1=lat1, lons2=lon2, lats2=lat2, return_back_azimuth=False
-    )
-    rot_left = fwd_az - 90.0
-
-    lon1_new, lat1_new, _ = geod.fwd(
-        lons=lon1, lats=lat1, az=rot_left, dist=move_by_meters
-    )
-
-    return lon1_new, lat1_new
-
-
-def move_second_point_left(
-    lon1: float = None,
-    lat1: float = None,
-    lon2: float = None,
-    lat2: float = None,
-    move_by_meters: float = 0,
-) -> tuple:
-    return move_first_point_left(
-        lon1=lon2, lat1=lat2, lon2=lon1, lat2=lat1, move_by_meters=-move_by_meters
-    )
-
-
 def get_refinement_factor(
     original_dist: float = None,
     new_dist: float = None,
@@ -204,32 +135,6 @@ def refine_along_great_circle(
         lat_end[-1],
     ]
     return lon_refined, lat_refined
-
-
-def get_directions(lon=None, lat=None):
-    geod = pyproj.Geod(ellps="WGS84")
-
-    fwd_az, bwd_az, _ = geod.inv(
-        lons1=lon[:-1],
-        lons2=lon[1:],
-        lats1=lat[:-1],
-        lats2=lat[1:],
-        return_back_azimuth=False,
-    )
-    az = np.array(
-        [  # use fwd dir for first node
-            fwd_az[0],
-        ]
-        + [  # use averaged dir for middle nodes
-            (f + b) / 2.0 for f, b in zip(fwd_az[1:], bwd_az[:-1])
-        ]
-        + [  # use bwd dir for last node
-            bwd_az[-1],
-        ]
-    )
-    uhat = np.sin(np.deg2rad(az))
-    vhat = np.cos(np.deg2rad(az))
-    return uhat, vhat
 
 
 def get_leg_azimuth(
