@@ -336,6 +336,18 @@ def test_leg_cost_through_zero_currents():
     np.testing.assert_almost_equal(1.0, cost_true / cost_test, decimal=2)
 
 
+def test_leg_cost_over_land_is_nan():
+    current_data_set = load_currents(
+        data_file=TEST_DATA_DIR
+        / "currents/cmems_mod_glo_phy-cur_anfc_0.083deg_P1D-m_2021-01_1deg_5day.nc"
+    )
+    leg = Leg(
+        way_point_start=WayPoint(lon=-180, lat=0, time=np.datetime64("2001-01-01")),
+        way_point_end=WayPoint(lon=0, lat=0, time=np.datetime64("2001-02-01")),
+    )
+    assert np.isnan(leg.cost_through(current_data_set=current_data_set))
+
+
 def test_leg_azimuth_degrees_north_east_south_west():
     leg_north = Leg(
         way_point_start=WayPoint(lon=0, lat=-1, time=np.datetime64("2001-01-01")),
@@ -1073,7 +1085,7 @@ def test_route_waypoint_azimuth():
         )
     )
     wp_az_true = (0, 45, 90, 135, 180, 180)
-    wp_az_test = tuple(route.get_waypoint_azimuth(n=n) for n in range(len(route)))
+    wp_az_test = tuple(route.waypoint_azimuth(n=n) for n in range(len(route)))
     np.testing.assert_almost_equal(wp_az_test, wp_az_true)
 
 
@@ -1122,3 +1134,90 @@ def test_route_split_at_distance():
     assert route_0.way_points[-1] == route_1.way_points[0]
     assert route_0.way_points[0] == route.way_points[0]
     assert route_1.way_points[-1] == route.way_points[-1]
+
+
+def test_route_replace_way_point():
+    route_orig = Route(
+        way_points=(
+            WayPoint(lon=0, lat=0, time=np.datetime64("2001-01-01")),
+            WayPoint(lon=1, lat=1, time=np.datetime64("2001-01-02")),
+            WayPoint(lon=0, lat=2, time=np.datetime64("2001-01-03")),
+        )
+    )
+    new_wp_1 = WayPoint(lon=-1, lat=1, time=np.datetime64("2001-01-02"))
+    route_changed = route_orig.replace_waypoint(
+        n=1,
+        new_way_point=new_wp_1,
+    )
+    assert route_changed != route_orig
+    assert route_changed.way_points[0] == route_orig.way_points[0]
+    assert route_changed.way_points[1] == new_wp_1
+    assert route_changed.way_points[-1] == route_orig.way_points[-1]
+
+
+def test_route_wp_at_distance_middle():
+    route = Route(
+        way_points=(
+            WayPoint(lon=0, lat=-1 / 10 / 60.0, time=np.datetime64("2001-01-01")),
+            WayPoint(lon=0, lat=1 / 10 / 60.0, time=np.datetime64("2001-01-03")),
+        )
+    )
+    query_dist = route.length_meters / 2.0
+    wp_test = route.waypoint_at_distance(distance_meters=query_dist)
+    wp_true = WayPoint(lon=0, lat=0, time=np.datetime64("2001-01-02"))
+    np.testing.assert_almost_equal(wp_test.lon, wp_true.lon, decimal=2)
+    np.testing.assert_almost_equal(wp_test.lat, wp_true.lat, decimal=2)
+    np.testing.assert_almost_equal(
+        0.0, (wp_test.time - wp_true.time) / np.timedelta64(1, "s"), decimal=0
+    )
+
+
+def test_route_wp_at_distance_edge_at_start_and_end():
+    route = Route(
+        way_points=(
+            WayPoint(lon=10, lat=-23.0, time=np.datetime64("2001-01-01")),
+            WayPoint(lon=50, lat=32.0, time=np.datetime64("2001-01-13")),
+        )
+    ).refine(distance_meters=500_000)
+
+    # select at start
+    wp_test = route.waypoint_at_distance(distance_meters=0)
+    wp_true = route.way_points[0]
+    np.testing.assert_almost_equal(wp_test.lon, wp_true.lon, decimal=2)
+    np.testing.assert_almost_equal(wp_test.lat, wp_true.lat, decimal=2)
+    np.testing.assert_almost_equal(
+        0.0, (wp_test.time - wp_true.time) / np.timedelta64(1, "s"), decimal=0
+    )
+
+    # select at end
+    wp_test = route.waypoint_at_distance(distance_meters=route.length_meters)
+    wp_true = route.way_points[-1]
+    np.testing.assert_almost_equal(wp_test.lon, wp_true.lon, decimal=2)
+    np.testing.assert_almost_equal(wp_test.lat, wp_true.lat, decimal=2)
+    np.testing.assert_almost_equal(
+        0.0, (wp_test.time - wp_true.time) / np.timedelta64(1, "s"), decimal=0
+    )
+
+
+def test_route_resample_with_distance():
+    route = Route(
+        way_points=(
+            WayPoint(lon=0, lat=0.0, time=np.datetime64("2001-01-01")),
+            WayPoint(lon=10, lat=0.0, time=np.datetime64("2001-01-11")),
+        )
+    )
+    new_distances = tuple(np.linspace(0, route.length_meters, 11))
+    route_resampled = route.resample_with_distance(distances_meters=new_distances)
+    for n in range(11):
+        np.testing.assert_array_almost_equal(
+            route_resampled.way_points[n].lon, 1.0 * n, decimal=2
+        )
+        np.testing.assert_array_almost_equal(
+            route_resampled.way_points[n].lat, 0.0, decimal=2
+        )
+        np.testing.assert_array_almost_equal(
+            (route_resampled.way_points[n].time - np.datetime64("2001-01-01"))
+            / np.timedelta64(1, "s"),
+            n * 24 * 3600,
+            decimal=2,
+        )

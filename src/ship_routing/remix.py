@@ -2,7 +2,7 @@ import shapely
 from shapely.ops import split, linemerge
 from shapely import snap
 
-from .config import SHAPELY_RESOLUTION
+SHAPELY_RESOLUTION = 1e-3
 
 
 def segment_lines_with_each_other(

@@ -291,12 +291,11 @@ class Leg:
             lat_end=self.way_point_end.lat,
             time_end=self.way_point_end.time,
         )
-        return (
-            power_maintain_speed(uo=ds_uovo.uo, vo=ds_uovo.vo, us=us, vs=vs)
-            .mean()
-            .data[()]
-            * self.duration_seconds
-        )
+        pwr = power_maintain_speed(uo=ds_uovo.uo, vo=ds_uovo.vo, us=us, vs=vs)
+        if pwr.isnull().sum() > 0:
+            return np.nan
+        else:
+            return pwr.mean().data[()] * self.duration_seconds
 
     def split_at_distance(self, distance_meters: float = None):
         """Split leg at given distance (relto start waypoint)."""
@@ -452,6 +451,18 @@ class Route:
         )
         return Route.from_legs(legs=refined_legs)
 
+    def replace_waypoint(
+        self,
+        n: int = None,
+        new_way_point: WayPoint = None,
+    ):
+        """Replace nth way point with."""
+        return Route(
+            way_points=(
+                self.way_points[:n] + (new_way_point,) + self.way_points[n + 1 :]
+            )
+        )
+
     def move_waypoint(
         self,
         n: int = None,
@@ -459,14 +470,11 @@ class Route:
         distance_meters: float = None,
     ):
         """Move nth waypoint."""
-        wps_before = self.way_points[:n]
-        wps_after = self.way_points[n + 1 :]
-        wp_orig = self.way_points[n]
-        wp_moved = wp_orig.move_space(
+        wp_moved = self.way_points[n].move_space(
             azimuth_degrees=azimuth_degrees,
             distance_meters=distance_meters,
         )
-        return Route(way_points=wps_before + (wp_moved,) + wps_after)
+        return self.replace_waypoint(n=n, new_way_point=wp_moved)
 
     def cost_through(self, current_data_set: xr.Dataset = None):
         """Cost along whole route."""
@@ -478,7 +486,7 @@ class Route:
             (l.cost_through(current_data_set=current_data_set) for l in self.legs)
         )
 
-    def get_waypoint_azimuth(self, n: int = None):
+    def waypoint_azimuth(self, n: int = None):
         """Azimuth of waypoint n.
 
         For n=0 only the fwd az of the first leg and for n=-1 only the
@@ -495,7 +503,13 @@ class Route:
 
     def split_at_distance(self, distance_meters: float = None):
         """Split at given distance."""
-        num_leg = sum([distance_meters >= d for d in self.distance_meters]) - 1
+        num_leg = (
+            min(
+                sum([distance_meters >= d for d in self.distance_meters]), len(self) - 1
+            )
+            - 1
+        )
+
         old_legs = self.legs
         split_legs = old_legs[num_leg].split_at_distance(
             distance_meters=distance_meters - self.distance_meters[num_leg]
@@ -506,6 +520,20 @@ class Route:
             Route.from_legs(legs=new_legs_before),
             Route.from_legs(legs=new_legs_after),
         )
+
+    def waypoint_at_distance(self, distance_meters: float = None):
+        """Generate waypoint at distance."""
+        num_leg = (
+            min(
+                sum([distance_meters >= d for d in self.distance_meters]), len(self) - 1
+            )
+            - 1
+        )
+
+        split_legs = self.legs[num_leg].split_at_distance(
+            distance_meters=distance_meters - self.distance_meters[num_leg]
+        )
+        return split_legs[0].way_point_end
 
     def segment_at(self, other):
         """Segment route at other route."""
@@ -548,4 +576,12 @@ class Route:
         return Route.from_line_string(
             line_string=snap(self.line_string, other, tolerance=tolerance),
             time=(w.time for w in self.way_points),
+        )
+
+    def resample_with_distance(self, distances_meters: float = None):
+        """Resample route to given distances."""
+        return Route(
+            way_points=tuple(
+                (self.waypoint_at_distance(distance_meters=d) for d in distances_meters)
+            )
         )
