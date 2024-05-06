@@ -297,6 +297,23 @@ class Leg:
         else:
             return pwr.mean().data[()] * self.duration_seconds
 
+    def speed_through_water_ms(self, current_data_set: xr.Dataset = None):
+        # normalized velocity over ground
+        az_rad = np.deg2rad(self.azimuth_degrees)
+        uhat, vhat = np.sin(az_rad), np.cos(az_rad)
+        # parallel component of curretns
+        ds_uovo = select_currents_for_leg(
+            ds=current_data_set,
+            lon_start=self.way_point_start.lon,
+            lat_start=self.way_point_start.lat,
+            time_start=self.way_point_start.time,
+            lon_end=self.way_point_end.lon,
+            lat_end=self.way_point_end.lat,
+            time_end=self.way_point_end.time,
+        )
+        uo_along = (ds_uovo.uo * uhat + ds_uovo.vo * vhat).mean().data[()]
+        return self.speed_ms - uo_along
+
     def split_at_distance(self, distance_meters: float = None):
         """Split leg at given distance (relto start waypoint)."""
         fw_az = self.fw_azimuth_degrees
@@ -585,3 +602,6 @@ class Route:
                 (self.waypoint_at_distance(distance_meters=d) for d in distances_meters)
             )
         )
+
+    def homogenize_speed_through_water(self, current_data_set: xr.Dataset = None):
+        raise NotImplementedError()
