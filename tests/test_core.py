@@ -248,6 +248,56 @@ def test_leg_speed_ms():
     np.testing.assert_almost_equal(speed_ms_test, speed_ms_true, decimal=2)
 
 
+def test_leg_speed_through_water_zero_currents():
+    # high res currents
+    # load currents and make zero
+    currents = load_currents(
+        data_file=TEST_DATA_DIR
+        / "currents/cmems_mod_glo_phy-cur_anfc_0.083deg_P1D-m_2021-01_100W-020E_10N-65N.nc"
+    )
+    currents = (0.0 * currents).fillna(0.0)
+    leg = Leg(
+        way_point_start=WayPoint(lon=0, lat=12.0, time=np.datetime64("2001-01-01")),
+        way_point_end=WayPoint(lon=10, lat=13.0, time=np.datetime64("2001-01-03")),
+    )
+    np.testing.assert_almost_equal(
+        leg.speed_ms, leg.speed_through_water_ms(current_data_set=currents)
+    )
+
+
+def test_leg_speed_through_water_nearly_zero_speed_over_ground():
+    # high res currents
+    # load currents and make zero
+    currents = load_currents(
+        data_file=TEST_DATA_DIR
+        / "currents/cmems_mod_glo_phy-cur_anfc_0.083deg_P1D-m_2021-01_100W-020E_10N-65N.nc"
+    )
+    currents = (0.0 * currents).fillna(0.0)
+    currents["uo"] += 1.0  # eastward current 1m/s
+    # displace by very little just to pin down eastward direction
+    leg = Leg(
+        way_point_start=WayPoint(lon=0, lat=0.0, time=np.datetime64("2001-01-01")),
+        way_point_end=WayPoint(lon=0 + 1e-6, lat=0.0, time=np.datetime64("2001-12-31")),
+    )
+    np.testing.assert_almost_equal(
+        -1.0, leg.speed_through_water_ms(current_data_set=currents)
+    )
+
+
+def test_leg_speed_through_water_no_displacement():
+    # high res currents
+    # load currents and make zero
+    currents = load_currents(
+        data_file=TEST_DATA_DIR
+        / "currents/cmems_mod_glo_phy-cur_anfc_0.083deg_P1D-m_2021-01_100W-020E_10N-65N.nc"
+    )
+    # no displacement
+    leg = Leg(
+        way_point_start=WayPoint(lon=0, lat=0.0, time=np.datetime64("2001-01-01")),
+        way_point_end=WayPoint(lon=0, lat=0.0, time=np.datetime64("2001-12-31")),
+    )
+
+
 def test_leg_time_after_distance_halftime():
     leg = Leg(
         way_point_start=WayPoint(
@@ -323,7 +373,7 @@ def test_leg_cost_through_zero_currents():
         ),
         way_point_end=WayPoint(lon=0, lat=1, time=np.datetime64("2001-01-01T12:00:00")),
     )
-    # laod currents and make zero
+    # load currents and make zero
     current_data_set = load_currents(
         data_file=TEST_DATA_DIR
         / "currents/cmems_mod_glo_phy-cur_anfc_0.083deg_P1D-m_2021-01_1deg_5day.nc"
@@ -1221,3 +1271,33 @@ def test_route_resample_with_distance():
             n * 24 * 3600,
             decimal=2,
         )
+
+
+def test_route_homogenize_speed_through_water():
+    # high res currents
+    # load currents and make zero
+    currents = load_currents(
+        data_file=TEST_DATA_DIR
+        / "currents/cmems_mod_glo_phy-cur_anfc_0.083deg_P1D-m_2021-01_100W-020E_10N-65N.nc"
+    )
+    # route across heavy currents
+    route = Route(
+        way_points=(
+            WayPoint(lon=-72.0, lat=37.0, time=np.datetime64("2001-01-01")),
+            WayPoint(lon=-53.0, lat=40.0, time=np.datetime64("2001-01-03")),
+        )
+    ).refine(distance_meters=200_000.0)
+    # assert initial stw inhomogeneous
+    speed_through_water_ms_initial = [
+        abs(l.speed_through_water_ms(currents)) for l in route.legs
+    ]
+    np.testing.assert_array_less(0, np.std(speed_through_water_ms_initial))
+
+    # assert later inhomogeneities are small
+    route_after = route.homogenize_speed_through_water(currents)
+    speed_through_water_ms_after = [
+        abs(l.speed_through_water_ms(currents)) for l in route_after.legs
+    ]
+    np.testing.assert_array_almost_equal(
+        0.0, np.std(speed_through_water_ms_after), decimal=2
+    )

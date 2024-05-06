@@ -297,6 +297,23 @@ class Leg:
         else:
             return pwr.mean().data[()] * self.duration_seconds
 
+    def speed_through_water_ms(self, current_data_set: xr.Dataset = None):
+        # normalized velocity over ground
+        az_rad = np.deg2rad(self.azimuth_degrees)
+        uhat, vhat = np.sin(az_rad), np.cos(az_rad)
+        # parallel component of curretns
+        ds_uovo = select_currents_for_leg(
+            ds=current_data_set,
+            lon_start=self.way_point_start.lon,
+            lat_start=self.way_point_start.lat,
+            time_start=self.way_point_start.time,
+            lon_end=self.way_point_end.lon,
+            lat_end=self.way_point_end.lat,
+            time_end=self.way_point_end.time,
+        )
+        uo_along = (ds_uovo.uo * uhat + ds_uovo.vo * vhat).mean().data[()]
+        return self.speed_ms - uo_along
+
     def split_at_distance(self, distance_meters: float = None):
         """Split leg at given distance (relto start waypoint)."""
         fw_az = self.fw_azimuth_degrees
@@ -583,5 +600,40 @@ class Route:
         return Route(
             way_points=tuple(
                 (self.waypoint_at_distance(distance_meters=d) for d in distances_meters)
+            )
+        )
+
+    def homogenize_speed_through_water(self, current_data_set: xr.Dataset = None):
+        """Adapt times of intermediate way points to achieve uniform speed through water.
+
+        Assumption: Currents change slowly with time compared to the time between way points.
+        """
+        legs = self.legs
+
+        durations_seconds = np.array([l.duration_seconds for l in legs])
+        lengths_meters = np.array([l.length_meters for l in legs])
+
+        speed_tw = np.array(
+            [l.speed_through_water_ms(current_data_set=current_data_set) for l in legs]
+        )
+        speed_og = np.array([l.speed_ms for l in legs])
+        speed_tw_mean = (speed_tw * durations_seconds).sum() / durations_seconds.sum()
+        speed_og_new = speed_og + speed_tw_mean - speed_tw
+        durations_seconds_new = lengths_meters / speed_og_new
+        # new durations may be too long. So we correct
+        durations_seconds_new *= sum(durations_seconds) / sum(durations_seconds_new)
+        time_offsets = [
+            0,
+        ] + list(np.cumsum(durations_seconds_new))
+        return Route(
+            way_points=tuple(
+                (
+                    WayPoint(
+                        lon=wp.lon,
+                        lat=wp.lat,
+                        time=self.way_points[0].time + np.timedelta64(1, "s") * toff,
+                    )
+                    for wp, toff in zip(self.way_points, time_offsets)
+                )
             )
         )
