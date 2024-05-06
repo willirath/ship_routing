@@ -1298,4 +1298,6 @@ def test_route_homogenize_speed_through_water():
     speed_through_water_ms_after = [
         abs(l.speed_through_water_ms(currents)) for l in route_after.legs
     ]
-    np.testing.assert_array_almost_equal(0.0, np.array(speed_through_water_ms_after))
+    np.testing.assert_array_almost_equal(
+        0.0, np.std(speed_through_water_ms_after), decimal=2
+    )

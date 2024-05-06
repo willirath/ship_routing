@@ -604,4 +604,36 @@ class Route:
         )
 
     def homogenize_speed_through_water(self, current_data_set: xr.Dataset = None):
-        raise NotImplementedError()
+        """Adapt times of intermediate way points to achieve uniform speed through water.
+
+        Assumption: Currents change slowly with time compared to the time between way points.
+        """
+        legs = self.legs
+
+        durations_seconds = np.array([l.duration_seconds for l in legs])
+        lengths_meters = np.array([l.length_meters for l in legs])
+
+        speed_tw = np.array(
+            [l.speed_through_water_ms(current_data_set=current_data_set) for l in legs]
+        )
+        speed_og = np.array([l.speed_ms for l in legs])
+        speed_tw_mean = (speed_tw * durations_seconds).sum() / durations_seconds.sum()
+        speed_og_new = speed_og + speed_tw_mean - speed_tw
+        durations_seconds_new = lengths_meters / speed_og_new
+        # new durations may be too long. So we correct
+        durations_seconds_new *= sum(durations_seconds) / sum(durations_seconds_new)
+        time_offsets = [
+            0,
+        ] + list(np.cumsum(durations_seconds_new))
+        return Route(
+            way_points=tuple(
+                (
+                    WayPoint(
+                        lon=wp.lon,
+                        lat=wp.lat,
+                        time=self.way_points[0].time + np.timedelta64(1, "s") * toff,
+                    )
+                    for wp, toff in zip(self.way_points, time_offsets)
+                )
+            )
+        )
