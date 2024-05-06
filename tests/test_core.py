@@ -1221,3 +1221,31 @@ def test_route_resample_with_distance():
             n * 24 * 3600,
             decimal=2,
         )
+
+
+def test_route_homogenize_speed_through_water():
+    # high res currents
+    # laod currents and make zero
+    currents = load_currents(
+        data_file=TEST_DATA_DIR
+        / "currents/cmems_mod_glo_phy-cur_anfc_0.083deg_P1D-m_2021-01_100W-020E_10N-65N.nc"
+    )
+    # route across heavy currents
+    route = Route(
+        way_points=(
+            WayPoint(lon=-72.0, lat=37.0, time=np.datetime64("2001-01-01")),
+            WayPoint(lon=-53.0, lat=40.0, time=np.datetime64("2001-01-03")),
+        )
+    )
+    # assert initial stw inhomogeneous
+    speed_through_water_ms_initial = [
+        abs(l.speed_through_water(currents)) for l in route.legs
+    ]
+    np.testing.assert_array_less(0, np.std(speed_through_water_ms_initial))
+
+    # assert later inhomogeneities are small
+    route_after = route.homogenize_speed_through_water(currents)
+    speed_through_water_ms_after = [
+        abs(l.speed_through_water(currents)) for l in route_after.legs
+    ]
+    np.testing.assert_array_almost_equal(0.0, np.array(speed_through_water_ms_after))
