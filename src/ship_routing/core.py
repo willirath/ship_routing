@@ -651,17 +651,14 @@ class Route:
         current_data_set: xr.Dataset = None,
         time_shift_seconds: float = None,
     ):
+        time_diff_np = time_shift_seconds * 1000 * np.timedelta64(1, "ms")
         route_mod_fwd = self.replace_waypoint(
             n=n,
-            new_way_point=self.way_points[n].move_time(
-                time_diff=0.5 * np.timedelta64(1, "s") * time_shift_seconds
-            ),
+            new_way_point=self.way_points[n].move_time(time_diff=0.5 * time_diff_np),
         )
         route_mod_bwd = self.replace_waypoint(
             n=n,
-            new_way_point=self.way_points[n].move_time(
-                time_diff=-0.5 * np.timedelta64(1, "s") * time_shift_seconds
-            ),
+            new_way_point=self.way_points[n].move_time(time_diff=-0.5 * time_diff_np),
         )
         return (
             route_mod_fwd.cost_through(current_data_set=current_data_set)

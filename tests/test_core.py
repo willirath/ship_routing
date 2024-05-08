@@ -1273,7 +1273,7 @@ def test_route_resample_with_distance():
         )
 
 
-def test_route_calc_gradient_across_track_left_zero_currents():
+def test_route_calc_gradient_across_track_left_zero_currents_at_optimum():
     # straight route with one center point
     route = Route(
         way_points=(
@@ -1296,7 +1296,7 @@ def test_route_calc_gradient_across_track_left_zero_currents():
     np.testing.assert_almost_equal(0.0, cost_gradient_across_track_left)
 
 
-def test_route_calc_gradient_along_track_zero_currents():
+def test_route_calc_gradient_along_track_zero_currents_at_optimum():
     # straight route with one center point
     route = Route(
         way_points=(
@@ -1319,7 +1319,7 @@ def test_route_calc_gradient_along_track_zero_currents():
     np.testing.assert_almost_equal(0.0, cost_gradient_along_track)
 
 
-def test_route_calc_gradient_time_shift_zero_currents():
+def test_route_calc_gradient_time_shift_zero_currents_at_optimum():
     # straight route with one center point
     route = Route(
         way_points=(
@@ -1340,3 +1340,84 @@ def test_route_calc_gradient_time_shift_zero_currents():
         n=1, time_shift_seconds=1200.0, current_data_set=currents
     )
     np.testing.assert_almost_equal(0.0, cost_gradient_time_shift)
+
+
+def test_route_calc_gradient_time_shift_zero_currents_sign():
+    # straight route with one center point which is _NOT_ centred in time
+    route = Route(
+        way_points=(
+            WayPoint(lon=0.0, lat=0.0, time=np.datetime64("2001-01-01")),
+            WayPoint(lon=5.0, lat=0.0, time=np.datetime64("2001-01-03")),
+            WayPoint(lon=10.0, lat=0.0, time=np.datetime64("2001-01-04")),
+        )
+    )
+    # load currents and make zero
+    currents = load_currents(
+        data_file=TEST_DATA_DIR
+        / "currents/cmems_mod_glo_phy-cur_anfc_0.083deg_P1D-m_2021-01_100W-020E_10N-65N.nc"
+    )
+    currents = (0.0 * currents).fillna(0.0)
+    # With zero currents, cost is solely determined by speed over ground.
+    # The route above has a slower first leg and a faster second leg.
+    # The more equal the speeds of the two legs are the lower the cost.
+    # So shifting the time of the middle way point forward will increase cost.
+    # Hence we expect a _positive_ time gradient for the middle way point.
+    cost_gradient_time_shift = route.cost_gradient_time_shift(
+        n=1, time_shift_seconds=1200.0, current_data_set=currents
+    )
+    assert cost_gradient_time_shift > 0.0
+
+
+def test_route_calc_gradient_along_track_zero_currents_sign():
+    # straight route with one middle point which is not cetred in time.
+    route = Route(
+        way_points=(
+            WayPoint(lon=0.0, lat=0.0, time=np.datetime64("2001-01-01")),
+            WayPoint(lon=5.0, lat=0.0, time=np.datetime64("2001-01-02")),
+            WayPoint(lon=20.0, lat=0.0, time=np.datetime64("2001-01-03")),
+        )
+    )
+    # load currents and make zero
+    currents = load_currents(
+        data_file=TEST_DATA_DIR
+        / "currents/cmems_mod_glo_phy-cur_anfc_0.083deg_P1D-m_2021-01_100W-020E_10N-65N.nc"
+    )
+    currents = (0.0 * currents).fillna(0.0)
+    # With zero currents, cost is solely determined by speed over ground.
+    # The route above has a shorter first leg which is travelled slower.
+    # The more equal the speeds of the two legs are the lower the cost.
+    # So shifting the location of the of the middle way point forward will decrease cost
+    # because it acts to equalize speed of the two legs.
+    # Hence we expect a _negative_ along-track gradient for the middle way point.
+    cost_gradient_along_track = route.cost_gradient_along_track(
+        n=1, distance_meters=100.0, current_data_set=currents
+    )
+    assert cost_gradient_along_track < 0.0
+
+
+def test_route_calc_gradient_along_track_zero_currents_sign():
+    # straight route with one middle point which moved to the left of the direct line.
+    route = Route(
+        way_points=(
+            WayPoint(lon=0.0, lat=0.0, time=np.datetime64("2001-01-01")),
+            WayPoint(lon=5.0, lat=1.0, time=np.datetime64("2001-01-02")),
+            WayPoint(lon=10.0, lat=0.0, time=np.datetime64("2001-01-03")),
+        )
+    )
+    # load currents and make zero
+    currents = load_currents(
+        data_file=TEST_DATA_DIR
+        / "currents/cmems_mod_glo_phy-cur_anfc_0.083deg_P1D-m_2021-01_100W-020E_10N-65N.nc"
+    )
+    currents = (0.0 * currents).fillna(0.0)
+    # With zero currents, cost is solely determined by speed over ground.
+    # The route above has a middle way point which is left of the shortes possible
+    # connection. The more equal the speeds of the two legs are the lower the cost.
+    # So shifting the location of the of the middle way point to the left
+    # will further move the way point away from the shortest connection,
+    # increase the lenght of the route and thereby decrease cost.
+    # Hence we expect a _positive_ across-track gradient for the middle way point.
+    cost_gradient_across_track_left = route.cost_gradient_across_track_left(
+        n=1, distance_meters=100.0, current_data_set=currents
+    )
+    assert cost_gradient_across_track_left > 0.0
