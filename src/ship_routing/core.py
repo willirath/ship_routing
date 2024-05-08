@@ -651,7 +651,10 @@ class Route:
         current_data_set: xr.Dataset = None,
         time_shift_seconds: float = None,
     ):
+        # This is important: If we just do 0.5 * np.timedelta65(1, "s") * ..., this will
+        # map to timediff=0 in the internal integer representation of np.timedelta64 ...
         time_diff_np = time_shift_seconds * 1000 * np.timedelta64(1, "ms")
+
         route_mod_fwd = self.replace_waypoint(
             n=n,
             new_way_point=self.way_points[n].move_time(time_diff=0.5 * time_diff_np),
