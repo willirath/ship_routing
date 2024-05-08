@@ -1273,7 +1273,7 @@ def test_route_resample_with_distance():
         )
 
 
-def test_route_calc_gradient_across_track_zero_currents():
+def test_route_calc_gradient_across_track_left_zero_currents():
     # straight route with one center point
     route = Route(
         way_points=(
@@ -1290,10 +1290,10 @@ def test_route_calc_gradient_across_track_zero_currents():
     currents = (0.0 * currents).fillna(0.0)
     # With zero currents, a straight line has minimal cost already.
     # So we expect a zero gradient independent of the length of the shift.
-    cost_gradient_across_track = route.cost_gradient_across_track(
+    cost_gradient_across_track_left = route.cost_gradient_across_track_left(
         n=1, distance_meters=100.0, current_data_set=currents
     )
-    np.testing.assert_almost_equal(0.0, cost_gradient_across_track)
+    np.testing.assert_almost_equal(0.0, cost_gradient_across_track_left)
 
 
 def test_route_calc_gradient_along_track_zero_currents():

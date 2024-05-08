@@ -604,22 +604,66 @@ class Route:
         )
 
     def cost_gradient_across_track_left(
+        self,
         n: int = None,
         current_data_set: xr.Dataset = None,
         distance_meters: float = None,
     ):
-        raise NotImplementedError()
+        route_mod_fwd = self.move_waypoint(
+            n=n,
+            azimuth_degrees=self.waypoint_azimuth(n=n) - 90.0,
+            distance_meters=0.5 * distance_meters,
+        )
+        route_mod_bwd = self.move_waypoint(
+            n=n,
+            azimuth_degrees=self.waypoint_azimuth(n=n) - 90.0,
+            distance_meters=-0.5 * distance_meters,
+        )
+        return (
+            route_mod_fwd.cost_through(current_data_set=current_data_set)
+            - route_mod_bwd.cost_through(current_data_set=current_data_set)
+        ) / distance_meters
 
     def cost_gradient_along_track(
+        self,
         n: int = None,
         current_data_set: xr.Dataset = None,
         distance_meters: float = None,
     ):
-        raise NotImplementedError()
+        route_mod_fwd = self.move_waypoint(
+            n=n,
+            azimuth_degrees=self.waypoint_azimuth(n=n),
+            distance_meters=0.5 * distance_meters,
+        )
+        route_mod_bwd = self.move_waypoint(
+            n=n,
+            azimuth_degrees=self.waypoint_azimuth(n=n),
+            distance_meters=-0.5 * distance_meters,
+        )
+        return (
+            route_mod_fwd.cost_through(current_data_set=current_data_set)
+            - route_mod_bwd.cost_through(current_data_set=current_data_set)
+        ) / distance_meters
 
     def cost_gradient_time_shift(
+        self,
         n: int = None,
         current_data_set: xr.Dataset = None,
         time_shift_seconds: float = None,
     ):
-        raise NotImplementedError()
+        route_mod_fwd = self.replace_waypoint(
+            n=n,
+            new_way_point=self.way_points[n].move_time(
+                time_diff=0.5 * np.timedelta64(1, "s") * time_shift_seconds
+            ),
+        )
+        route_mod_bwd = self.replace_waypoint(
+            n=n,
+            new_way_point=self.way_points[n].move_time(
+                time_diff=-0.5 * np.timedelta64(1, "s") * time_shift_seconds
+            ),
+        )
+        return (
+            route_mod_fwd.cost_through(current_data_set=current_data_set)
+            - route_mod_bwd.cost_through(current_data_set=current_data_set)
+        ) / time_shift_seconds
