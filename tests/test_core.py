@@ -1271,3 +1271,49 @@ def test_route_resample_with_distance():
             n * 24 * 3600,
             decimal=2,
         )
+
+
+def test_route_calc_gradient_across_track_zero_currents():
+    # straight route with one center point
+    route = Route(
+        way_points=(
+            WayPoint(lon=0.0, lat=0.0, time=np.datetime64("2001-01-01")),
+            WayPoint(lon=5.0, lat=0.0, time=np.datetime64("2001-01-02")),
+            WayPoint(lon=10.0, lat=0.0, time=np.datetime64("2001-01-03")),
+        )
+    )
+    # load currents and make zero
+    currents = load_currents(
+        data_file=TEST_DATA_DIR
+        / "currents/cmems_mod_glo_phy-cur_anfc_0.083deg_P1D-m_2021-01_100W-020E_10N-65N.nc"
+    )
+    currents = (0.0 * currents).fillna(0.0)
+    # With zero currents, a straight line has minimal cost already.
+    # So we expect a zero gradient independent of the length of the shift.
+    cost_gradient_across_track = route.cost_gradient_across_track(
+        n=1, distance_meters=100.0, current_data_set=currents
+    )
+    np.testing.assert_almost_equal(0.0, cost_gradient_across_track)
+
+
+def test_route_calc_gradient_along_track_zero_currents():
+    # straight route with one center point
+    route = Route(
+        way_points=(
+            WayPoint(lon=0.0, lat=0.0, time=np.datetime64("2001-01-01")),
+            WayPoint(lon=5.0, lat=0.0, time=np.datetime64("2001-01-02")),
+            WayPoint(lon=10.0, lat=0.0, time=np.datetime64("2001-01-03")),
+        )
+    )
+    # load currents and make zero
+    currents = load_currents(
+        data_file=TEST_DATA_DIR
+        / "currents/cmems_mod_glo_phy-cur_anfc_0.083deg_P1D-m_2021-01_100W-020E_10N-65N.nc"
+    )
+    currents = (0.0 * currents).fillna(0.0)
+    # With zero currents, a straight line has minimal cost already.
+    # So we expect a zero gradient independent of the length of the shift.
+    cost_gradient_along_track = route.cost_gradient_along_track(
+        n=1, distance_meters=100.0, current_data_set=currents
+    )
+    np.testing.assert_almost_equal(0.0, cost_gradient_along_track)
