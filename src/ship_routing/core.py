@@ -602,3 +602,24 @@ class Route:
                 (self.waypoint_at_distance(distance_meters=d) for d in distances_meters)
             )
         )
+
+    def cost_gradient_across_track_left(
+        n: int = None,
+        current_data_set: xr.Dataset = None,
+        distance_meters: float = None,
+    ):
+        raise NotImplementedError()
+
+    def cost_gradient_along_track(
+        n: int = None,
+        current_data_set: xr.Dataset = None,
+        distance_meters: float = None,
+    ):
+        raise NotImplementedError()
+
+    def cost_gradient_time_shift(
+        n: int = None,
+        current_data_set: xr.Dataset = None,
+        time_shift_seconds: float = None,
+    ):
+        raise NotImplementedError()
