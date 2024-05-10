@@ -1421,3 +1421,61 @@ def test_route_calc_gradient_along_track_zero_currents_sign():
         n=1, distance_meters=100.0, current_data_set=currents
     )
     assert cost_gradient_across_track_left > 0.0
+
+
+@pytest.mark.parametrize("refine_fraction", [2, 3, 7, 17])
+def test_route_move_waypoints_left_nonlocal_approx_moves_add_up(refine_fraction):
+    route_0 = Route(
+        way_points=(
+            WayPoint(lon=0.0, lat=0.0, time=np.datetime64("2001-01-01")),
+            WayPoint(lon=10.0, lat=0.0, time=np.datetime64("2001-01-03")),
+        )
+    )
+    route_0 = route_0.refine(route_0.length_meters / refine_fraction)
+    route_1 = route_0.move_waypoints_left_nonlocal(
+        center_distance_meters=route_0.length_meters / 2.0,
+        width_meters=route_0.length_meters,
+        max_move_meters=100,
+    )
+    route_2 = route_1.move_waypoints_left_nonlocal(
+        center_distance_meters=route_1.length_meters / 2.0,
+        width_meters=route_1.length_meters,
+        max_move_meters=100,
+    )
+    route_3 = route_0.move_waypoints_left_nonlocal(
+        center_distance_meters=route_0.length_meters / 2.0,
+        width_meters=route_0.length_meters,
+        max_move_meters=200,
+    )
+
+    # check that move actually happened (mod route needs to be longer)
+    assert route_1.length_meters > route_0.length_meters
+    assert route_2.length_meters > route_1.length_meters
+    assert route_3.length_meters > route_0.length_meters
+
+    # check that route_3 (one full move) is close to route_2 (two half moves)
+    np.testing.assert_array_almost_equal(
+        route_3.data_frame.lon, route_2.data_frame.lon, decimal=2
+    )
+    np.testing.assert_array_almost_equal(
+        route_3.data_frame.lat, route_2.data_frame.lat, decimal=2
+    )
+
+
+@pytest.mark.parametrize("refine_fraction", [3, 7, 17])
+def test_route_move_waypoints_left_nonlocal_actually_to_left(refine_fraction):
+    route_0 = Route(
+        way_points=(
+            WayPoint(lon=0.0, lat=0.0, time=np.datetime64("2001-01-01")),
+            WayPoint(lon=10.0, lat=0.0, time=np.datetime64("2001-01-03")),
+        )
+    )
+    route_0 = route_0.refine(route_0.length_meters / refine_fraction)
+    route_1 = route_0.move_waypoints_left_nonlocal(
+        center_distance_meters=route_0.length_meters / 2.0,
+        width_meters=route_0.length_meters,
+        max_move_meters=10_000,
+    )
+    np.testing.assert_array_less(
+        route_0[1:-1].data_frame.lat, route_1[1:-1].data_frame.lat
+    )

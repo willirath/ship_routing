@@ -7,6 +7,7 @@ from shapely.geometry import LineString, Point
 from shapely import union_all as shp_union_all
 from shapely.ops import snap
 from scipy.interpolate import interp1d
+from scipy.signal.windows import hann
 
 from typing import Iterable, Tuple
 
@@ -667,3 +668,44 @@ class Route:
             route_mod_fwd.cost_through(current_data_set=current_data_set)
             - route_mod_bwd.cost_through(current_data_set=current_data_set)
         ) / time_shift_seconds
+
+    def move_waypoints_left_nonlocal(
+        self,
+        center_distance_meters: float = None,
+        width_meters: float = None,
+        max_move_meters: float = None,
+    ):
+        """Smoothly move multiple waypoints to the left of the route.
+
+        Modifications are done according to a Hann window of width_meters
+        which is centered about center_distance_meters.
+
+        Parameters
+        ----------
+        center_distance_meters: float
+            Central distance (along route) of the modification.
+        width_meters: float
+            Width of the modification window.
+        max_move_meters: float
+            Max distance of the move.
+
+        Returns
+        -------
+        Route
+            With modified locations of waypoints and unchanged times.
+
+        """
+        _x = np.linspace(-1, 1, 101) * width_meters / 2
+        _y = hann(101)
+        c_hann = interp1d(_x, _y, fill_value=0.0, bounds_error=False)
+        rel_distances = np.array(self.distance_meters) - center_distance_meters
+        mod_dists = c_hann(rel_distances) * max_move_meters
+        az_left = [self.waypoint_azimuth(n=n) - 90.0 for n in range(len(self))]
+        _route = self
+        for n in range(len(self)):
+            _route = _route.move_waypoint(
+                n=n,
+                azimuth_degrees=az_left[n],
+                distance_meters=mod_dists[n],
+            )
+        return _route
