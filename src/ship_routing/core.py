@@ -603,37 +603,67 @@ class Route:
             )
         )
 
-    def homogenize_speed_through_water(self, current_data_set: xr.Dataset = None):
-        """Adapt times of intermediate way points to achieve uniform speed through water.
-
-        Assumption: Currents change slowly with time compared to the time between way points.
-        """
-        legs = self.legs
-
-        durations_seconds = np.array([l.duration_seconds for l in legs])
-        lengths_meters = np.array([l.length_meters for l in legs])
-
-        speed_tw = np.array(
-            [l.speed_through_water_ms(current_data_set=current_data_set) for l in legs]
+    def cost_gradient_across_track_left(
+        self,
+        n: int = None,
+        current_data_set: xr.Dataset = None,
+        distance_meters: float = None,
+    ):
+        route_mod_fwd = self.move_waypoint(
+            n=n,
+            azimuth_degrees=self.waypoint_azimuth(n=n) - 90.0,
+            distance_meters=0.5 * distance_meters,
         )
-        speed_og = np.array([l.speed_ms for l in legs])
-        speed_tw_mean = (speed_tw * durations_seconds).sum() / durations_seconds.sum()
-        speed_og_new = speed_og + speed_tw_mean - speed_tw
-        durations_seconds_new = lengths_meters / speed_og_new
-        # new durations may be too long. So we correct
-        durations_seconds_new *= sum(durations_seconds) / sum(durations_seconds_new)
-        time_offsets = [
-            0,
-        ] + list(np.cumsum(durations_seconds_new))
-        return Route(
-            way_points=tuple(
-                (
-                    WayPoint(
-                        lon=wp.lon,
-                        lat=wp.lat,
-                        time=self.way_points[0].time + np.timedelta64(1, "s") * toff,
-                    )
-                    for wp, toff in zip(self.way_points, time_offsets)
-                )
-            )
+        route_mod_bwd = self.move_waypoint(
+            n=n,
+            azimuth_degrees=self.waypoint_azimuth(n=n) - 90.0,
+            distance_meters=-0.5 * distance_meters,
         )
+        return (
+            route_mod_fwd.cost_through(current_data_set=current_data_set)
+            - route_mod_bwd.cost_through(current_data_set=current_data_set)
+        ) / distance_meters
+
+    def cost_gradient_along_track(
+        self,
+        n: int = None,
+        current_data_set: xr.Dataset = None,
+        distance_meters: float = None,
+    ):
+        route_mod_fwd = self.move_waypoint(
+            n=n,
+            azimuth_degrees=self.waypoint_azimuth(n=n),
+            distance_meters=0.5 * distance_meters,
+        )
+        route_mod_bwd = self.move_waypoint(
+            n=n,
+            azimuth_degrees=self.waypoint_azimuth(n=n),
+            distance_meters=-0.5 * distance_meters,
+        )
+        return (
+            route_mod_fwd.cost_through(current_data_set=current_data_set)
+            - route_mod_bwd.cost_through(current_data_set=current_data_set)
+        ) / distance_meters
+
+    def cost_gradient_time_shift(
+        self,
+        n: int = None,
+        current_data_set: xr.Dataset = None,
+        time_shift_seconds: float = None,
+    ):
+        # This is important: If we just do 0.5 * np.timedelta65(1, "s") * ..., this will
+        # map to timediff=0 in the internal integer representation of np.timedelta64 ...
+        time_diff_np = time_shift_seconds * 1000 * np.timedelta64(1, "ms")
+
+        route_mod_fwd = self.replace_waypoint(
+            n=n,
+            new_way_point=self.way_points[n].move_time(time_diff=0.5 * time_diff_np),
+        )
+        route_mod_bwd = self.replace_waypoint(
+            n=n,
+            new_way_point=self.way_points[n].move_time(time_diff=-0.5 * time_diff_np),
+        )
+        return (
+            route_mod_fwd.cost_through(current_data_set=current_data_set)
+            - route_mod_bwd.cost_through(current_data_set=current_data_set)
+        ) / time_shift_seconds
