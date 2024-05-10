@@ -20,7 +20,6 @@ def gradient_descent_time_shift(
             for n in range(1, len(route) - 1)
         ]
     )
-    # TODO: Think about the normalization here...
     cost_before = route.cost_through(current_data_set=current_data_set)
     desired_cost_reduction = learning_rate_percent / 100 * cost_before
     gradients_squared_sum = (gradients**2).sum()
