@@ -10,6 +10,24 @@ def gradient_descent_time_shift(
     time_shift_seconds: float = None,
     learning_rate_percent: float = None,
 ):
+    """Do one step of gradient descent by shifting times.
+
+    Parameters
+    ----------
+    route: Route
+        Initial route.
+    current_data_set: xr.Dataset
+        Contains currents.
+    time_shift_seconds: float
+        Time shift used for estimating gradients.
+    learning_rate_percent: float
+        Desired learning rate in percent.
+
+    Returns
+    -------
+    Route:
+        Route with updated time stamps but unchanged locations of way points.
+    """
     gradients = np.array(
         [
             route.cost_gradient_time_shift(
