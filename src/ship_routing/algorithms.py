@@ -3,6 +3,8 @@ from .core import Route
 import xarray as xr
 import numpy as np
 
+import warnings
+
 
 def gradient_descent_time_shift(
     route: Route = None,
@@ -41,10 +43,15 @@ def gradient_descent_time_shift(
     cost_before = route.cost_through(current_data_set=current_data_set)
     desired_cost_reduction = learning_rate_percent / 100 * cost_before
     gradients_squared_sum = (gradients**2).sum()
-    if gradients_squared_sum != 0:
+    if gradients_squared_sum > 0:
         time_shifts = -desired_cost_reduction * gradients / gradients_squared_sum
+        if np.any(abs(time_shifts) > time_shift_seconds):
+            warnings.warn(
+                "Shift would be larger than the test increment. Learning rate ist probably too large. Setting shifts to zero."
+            )
+            return route
     else:
-        time_shifts = np.zeros_like(gradients)
+        return route
     for n in range(1, len(route) - 1):
         ts = time_shifts[n - 1]
         if np.isinf(ts):
@@ -95,10 +102,15 @@ def gradient_descent_along_track(
     cost_before = route.cost_through(current_data_set=current_data_set)
     desired_cost_reduction = learning_rate_percent / 100 * cost_before
     gradients_squared_sum = (gradients**2).sum()
-    if gradients_squared_sum != 0:
+    if gradients_squared_sum > 0:
         dist_shifts = -desired_cost_reduction * gradients / gradients_squared_sum
+        if np.any(abs(dist_shifts) > distance_meters):
+            warnings.warn(
+                "Shift would be larger than the test increment. Learning rate ist probably too large. Setting shifts to zero."
+            )
+            return route
     else:
-        dist_shifts = np.zeros_like(gradients)
+        return route
     _route = route
     for n in range(1, len(route) - 1):
         ds = dist_shifts[n - 1]
@@ -149,10 +161,15 @@ def gradient_descent_across_track_left(
     cost_before = route.cost_through(current_data_set=current_data_set)
     desired_cost_reduction = learning_rate_percent / 100 * cost_before
     gradients_squared_sum = (gradients**2).sum()
-    if gradients_squared_sum != 0:
+    if gradients_squared_sum > 0.0:
         dist_shifts = -desired_cost_reduction * gradients / gradients_squared_sum
+        if np.any(abs(dist_shifts) > distance_meters):
+            warnings.warn(
+                "Shift would be larger than the test increment. Learning rate ist probably too large. Setting shifts to zero."
+            )
+            return route
     else:
-        dist_shifts = np.zeros_like(gradients)
+        return route
     _route = route
     for n in range(1, len(route) - 1):
         ds = dist_shifts[n - 1]

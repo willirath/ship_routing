@@ -8,17 +8,23 @@ from ship_routing.core import Route, WayPoint
 from ship_routing.currents import load_currents
 
 import numpy as np
+import pytest
 
 from pathlib import Path
 
 TEST_DATA_DIR = Path(__file__).parent.resolve() / "test_data"
 
 
-def test_gradient_descent_across_track_left_atopt():
+@pytest.mark.parametrize("noise_level", [0.0, 1.0e-3, 1.0e-7, 1.0e-15])
+def test_gradient_descent_across_track_left_atopt(noise_level):
     route_0 = Route(
         way_points=(
             WayPoint(lon=0.0, lat=0.0, time=np.datetime64("2001-01-01")),
-            WayPoint(lon=5.0, lat=0.0, time=np.datetime64("2001-01-02")),
+            WayPoint(
+                lon=5.0 + noise_level,
+                lat=0.0 - noise_level,
+                time=np.datetime64("2001-01-02"),
+            ),
             WayPoint(lon=10.0, lat=0.0, time=np.datetime64("2001-01-03")),
         )
     )
@@ -33,8 +39,8 @@ def test_gradient_descent_across_track_left_atopt():
     route_1 = gradient_descent_across_track_left(
         route=route_0,
         current_data_set=currents,
-        distance_meters=1_000.0,
-        learning_rate_percent=1.0,
+        distance_meters=2_000.0,
+        learning_rate_percent=0.1,
     )
 
     # calc cost
@@ -81,8 +87,8 @@ def test_gradient_descent_across_track_left_nonopt():
     route_1 = gradient_descent_across_track_left(
         route=route_0,
         current_data_set=currents,
-        distance_meters=1_000.0,
-        learning_rate_percent=1.0,
+        distance_meters=2_000.0,
+        learning_rate_percent=0.1,
     )
 
     # calc cost
@@ -91,7 +97,7 @@ def test_gradient_descent_across_track_left_nonopt():
 
     # ensure reduction
     assert cost_1 < cost_0
-    np.testing.assert_almost_equal(-1.0, 100.0 * (cost_1 - cost_0) / cost_0, decimal=1)
+    np.testing.assert_almost_equal(-0.1, 100.0 * (cost_1 - cost_0) / cost_0, decimal=1)
 
 
 def test_gradient_descent_along_track_atopt():
@@ -113,8 +119,8 @@ def test_gradient_descent_along_track_atopt():
     route_1 = gradient_descent_along_track(
         route=route_0,
         current_data_set=currents,
-        distance_meters=1_000.0,
-        learning_rate_percent=1.0,
+        distance_meters=2_000.0,
+        learning_rate_percent=0.1,
     )
 
     # calc cost
@@ -161,8 +167,8 @@ def test_gradient_descent_along_track_nonopt():
     route_1 = gradient_descent_along_track(
         route=route_0,
         current_data_set=currents,
-        distance_meters=1_000.0,
-        learning_rate_percent=1.0,
+        distance_meters=2_000.0,
+        learning_rate_percent=0.1,
     )
 
     # calc cost
@@ -171,7 +177,7 @@ def test_gradient_descent_along_track_nonopt():
 
     # ensure reduction
     assert cost_1 < cost_0
-    np.testing.assert_almost_equal(-1.0, 100.0 * (cost_1 - cost_0) / cost_0, decimal=1)
+    np.testing.assert_almost_equal(-0.1, 100.0 * (cost_1 - cost_0) / cost_0, decimal=1)
 
 
 def test_gradient_descent_time_shift_atopt():
@@ -194,7 +200,7 @@ def test_gradient_descent_time_shift_atopt():
         route=route_0,
         current_data_set=currents,
         time_shift_seconds=1200.0,
-        learning_rate_percent=1.0,
+        learning_rate_percent=0.1,
     )
 
     # calc cost
@@ -242,7 +248,7 @@ def test_gradient_descent_time_shift_nonopt():
         route=route_0,
         current_data_set=currents,
         time_shift_seconds=1200.0,
-        learning_rate_percent=1.0,
+        learning_rate_percent=0.1,
     )
 
     # calc cost
@@ -251,4 +257,4 @@ def test_gradient_descent_time_shift_nonopt():
 
     # ensure reduction
     assert cost_1 < cost_0
-    np.testing.assert_almost_equal(-1.0, 100.0 * (cost_1 - cost_0) / cost_0, decimal=1)
+    np.testing.assert_almost_equal(-0.1, 100.0 * (cost_1 - cost_0) / cost_0, decimal=1)
