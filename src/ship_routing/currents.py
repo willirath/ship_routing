@@ -26,7 +26,7 @@ def load_currents(
     return ds
 
 
-def select_currents_for_leg(
+def select_data_for_leg(
     ds: xr.Dataset = None,
     lon_start=None,
     lon_end=None,
@@ -52,7 +52,7 @@ def select_currents_for_leg(
     # determine num of points
     #
     # Note we only account for i and j here because we want spatial coverage.
-    # This is OK as long as the time-variability of the currents is a lot longer
+    # This is OK as long as the time-variability of the data typically is a lot longer
     # than the variability of ship positions. Which is almost always the case.
     n = max(abs(i_end - i_start), abs(j_start - j_end)) + 1
 

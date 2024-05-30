@@ -1,4 +1,4 @@
-from .currents import select_currents_for_leg
+from .currents import select_data_for_leg
 
 import numpy as np
 
