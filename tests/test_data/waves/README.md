@@ -9,8 +9,8 @@ ds = copernicusmarine.open_dataset(
 
 wave_height = ds.VHM0
 wave_height = wave_height.sel(time=slice(
-    "2001-07-01T00:00:00", 
-    "2001-08-01T00:00:00", 
+    "2001-01-01T00:00:00", 
+    "2001-02-01T00:00:00", 
 ))
 wave_height = wave_height.sel(
     longitude=slice(-100, -20), latitude=slice(10, 65)
