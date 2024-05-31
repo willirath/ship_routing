@@ -1,5 +1,5 @@
 from numpy._typing._array_like import NDArray
-from ship_routing.cost import power_maintain_speed, power_maintain_speed_realistic
+from ship_routing.cost import power_maintain_speed_simple, power_maintain_speed_realistic
 
 
 import numpy as np
@@ -15,7 +15,7 @@ def test_cost_positivity():
     vo = np.random.uniform(-1, 1, size=(num_test,))
     us = np.random.uniform(-1, 1, size=(num_test,))
     vs = np.random.uniform(-1, 1, size=(num_test,))
-    np.testing.assert_array_less(0, power_maintain_speed(uo=uo, vo=vo, us=us, vs=vs))
+    np.testing.assert_array_less(0, power_maintain_speed_simple(uo=uo, vo=vo, us=us, vs=vs))
 
 
 def test_cost_power_law():
@@ -25,8 +25,8 @@ def test_cost_power_law():
     us = np.random.uniform(-1, 1, size=(num_test,))
     vs = np.random.uniform(-1, 1, size=(num_test,))
 
-    power_1 = power_maintain_speed(uo=uo, vo=vo, us=us, vs=vs)
-    power_2 = power_maintain_speed(uo=2 * uo, vo=2 * vo, us=2 * us, vs=2 * vs)
+    power_1 = power_maintain_speed_simple(uo=uo, vo=vo, us=us, vs=vs)
+    power_2 = power_maintain_speed_simple(uo=2 * uo, vo=2 * vo, us=2 * us, vs=2 * vs)
     np.testing.assert_almost_equal(2**3, power_2 / power_1)
 
 
@@ -37,8 +37,8 @@ def test_cost_coeff_dependency():
     us = np.random.uniform(-1, 1, size=(num_test,))
     vs = np.random.uniform(-1, 1, size=(num_test,))
 
-    power_1 = power_maintain_speed(uo=uo, vo=vo, us=us, vs=vs, coeff=1.0)
-    power_2 = power_maintain_speed(uo=uo, vo=vo, us=us, vs=vs, coeff=3.0)
+    power_1 = power_maintain_speed_simple(uo=uo, vo=vo, us=us, vs=vs, coeff=1.0)
+    power_2 = power_maintain_speed_simple(uo=uo, vo=vo, us=us, vs=vs, coeff=3.0)
     np.testing.assert_almost_equal(3.0, power_2 / power_1)
 
 
@@ -56,7 +56,7 @@ def test_cost_coeff_dependency():
 def test_cost_dtypes(uovousvs):
     """Test for many different data types."""
     uo, vo, us, vs = uovousvs
-    power_maintain_speed(uo=uo, vo=vo, us=us, vs=vs, coeff=1.0)
+    power_maintain_speed_simple(uo=uo, vo=vo, us=us, vs=vs, coeff=1.0)
 
 
 @pytest.mark.parametrize("wave_height", [0.0, 1.0, 10.0])

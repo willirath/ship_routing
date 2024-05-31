@@ -3,7 +3,7 @@ from .currents import select_data_for_leg
 import numpy as np
 
 
-def power_maintain_speed(
+def power_maintain_speed_simple(
     uo: float = None,
     vo: float = None,
     us: float = None,
