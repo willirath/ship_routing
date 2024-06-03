@@ -23,7 +23,7 @@ from .remix import segment_lines_with_each_other
 
 from .currents import select_data_for_leg
 
-from .cost import power_maintain_speed_realistic
+from .cost import power_maintain_speed
 
 
 @dataclass(frozen=True)
@@ -327,14 +327,14 @@ class Leg:
             w_wave_height = ds_wave.FIXME
         else:
             w_wave_height = 0
-        pwr = power_maintain_speed_realistic(
-            u_current=u_current,
-            v_current=v_current,
-            u_wind=u_wind,
-            v_wind=v_wind,
+        pwr = power_maintain_speed(
+            u_current_ms=u_current,
+            v_current_ms=v_current,
+            u_wind_ms=u_wind,
+            v_wind_ms=v_wind,
             w_wave_height=w_wave_height,
-            u_ship_og=u_ship_og,
-            v_ship_og=v_ship_og,
+            u_ship_og_ms=u_ship_og,
+            v_ship_og_ms=v_ship_og,
         )
         if pwr.isnull().sum() > 0:
             return np.nan

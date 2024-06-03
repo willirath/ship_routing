@@ -1,5 +1,5 @@
 from numpy._typing._array_like import NDArray
-from ship_routing.cost import power_maintain_speed_simple, power_maintain_speed_realistic
+from ship_routing.cost import power_maintain_speed
 
 
 import numpy as np
@@ -15,7 +15,7 @@ def test_cost_positivity():
     vo = np.random.uniform(-1, 1, size=(num_test,))
     us = np.random.uniform(-1, 1, size=(num_test,))
     vs = np.random.uniform(-1, 1, size=(num_test,))
-    np.testing.assert_array_less(0, power_maintain_speed_simple(uo=uo, vo=vo, us=us, vs=vs))
+    np.testing.assert_array_less(0, power_maintain_speed(uo=uo, vo=vo, us=us, vs=vs))
 
 
 def test_cost_power_law():
@@ -25,8 +25,8 @@ def test_cost_power_law():
     us = np.random.uniform(-1, 1, size=(num_test,))
     vs = np.random.uniform(-1, 1, size=(num_test,))
 
-    power_1 = power_maintain_speed_simple(uo=uo, vo=vo, us=us, vs=vs)
-    power_2 = power_maintain_speed_simple(uo=2 * uo, vo=2 * vo, us=2 * us, vs=2 * vs)
+    power_1 = power_maintain_speed(uo=uo, vo=vo, us=us, vs=vs)
+    power_2 = power_maintain_speed(uo=2 * uo, vo=2 * vo, us=2 * us, vs=2 * vs)
     np.testing.assert_almost_equal(2**3, power_2 / power_1)
 
 
@@ -37,8 +37,8 @@ def test_cost_coeff_dependency():
     us = np.random.uniform(-1, 1, size=(num_test,))
     vs = np.random.uniform(-1, 1, size=(num_test,))
 
-    power_1 = power_maintain_speed_simple(uo=uo, vo=vo, us=us, vs=vs, coeff=1.0)
-    power_2 = power_maintain_speed_simple(uo=uo, vo=vo, us=us, vs=vs, coeff=3.0)
+    power_1 = power_maintain_speed(uo=uo, vo=vo, us=us, vs=vs, coeff=1.0)
+    power_2 = power_maintain_speed(uo=uo, vo=vo, us=us, vs=vs, coeff=3.0)
     np.testing.assert_almost_equal(3.0, power_2 / power_1)
 
 
@@ -56,7 +56,7 @@ def test_cost_coeff_dependency():
 def test_cost_dtypes(uovousvs):
     """Test for many different data types."""
     uo, vo, us, vs = uovousvs
-    power_maintain_speed_simple(uo=uo, vo=vo, us=us, vs=vs, coeff=1.0)
+    power_maintain_speed(uo=uo, vo=vo, us=us, vs=vs, coeff=1.0)
 
 
 @pytest.mark.parametrize("wave_height", [0.0, 1.0, 10.0])
@@ -64,15 +64,15 @@ def test_cost_power_maintain_speed_realistic_isotropic_for_zero_currents_winds(
     wave_height,
 ):
     spd = 10.0
-    power_east = power_maintain_speed_realistic(
-        u_ship_og=spd, v_ship_og=0.0, w_wave_height=wave_height
+    power_east = power_maintain_speed(
+        u_ship_og_ms=spd, v_ship_og_ms=0.0, w_wave_height=wave_height
     )
     for bearing in np.random.uniform(-180, 180, size=(999,)):
         us, vs = spd * np.sin(np.deg2rad(bearing)), spd * np.cos(np.deg2rad(bearing))
         np.testing.assert_almost_equal(
             power_east,
-            power_maintain_speed_realistic(
-                u_ship_og=us, v_ship_og=vs, w_wave_height=wave_height
+            power_maintain_speed(
+                u_ship_og_ms=us, v_ship_og_ms=vs, w_wave_height=wave_height
             ),
         )
 
@@ -97,22 +97,22 @@ def test_cost_power_maintain_speed_realistic_reflection_invariant(
         u_current = current_speed * np.sin(np.deg2rad(bearing_current))
         v_current = current_speed * np.cos(np.deg2rad(bearing_current))
         np.testing.assert_almost_equal(
-            power_maintain_speed_realistic(
-                u_ship_og=u_ship_og,
-                v_ship_og=v_ship_og,
-                u_wind=u_wind,
-                v_wind=v_wind,
-                u_current=u_current,
-                v_current=v_current,
+            power_maintain_speed(
+                u_ship_og_ms=u_ship_og,
+                v_ship_og_ms=v_ship_og,
+                u_wind_ms=u_wind,
+                v_wind_ms=v_wind,
+                u_current_ms=u_current,
+                v_current_ms=v_current,
                 w_wave_height=wave_height,
             ),
-            power_maintain_speed_realistic(
-                u_ship_og=-u_ship_og,
-                v_ship_og=-v_ship_og,
-                u_wind=-u_wind,
-                v_wind=-v_wind,
-                u_current=-u_current,
-                v_current=-v_current,
+            power_maintain_speed(
+                u_ship_og_ms=-u_ship_og,
+                v_ship_og_ms=-v_ship_og,
+                u_wind_ms=-u_wind,
+                v_wind_ms=-v_wind,
+                u_current_ms=-u_current,
+                v_current_ms=-v_current,
                 w_wave_height=wave_height,
             ),
         )
