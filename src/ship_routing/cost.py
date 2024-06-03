@@ -21,9 +21,8 @@ class Ship:
     reference_engine_power_W: float = 14296344.0
     referemce_speed_calm_water_ms: float = 9.259
     draught_m: float = 11.5
-    supersurface_area_m2: float = 345.0
+    projected_frontal_area_above_waterline_m2: float = 690.0
     wind_resistance_coefficient: float = 0.4
-    reference_froede_number: float = 0.25
 
 
 def power_maintain_speed(
@@ -33,10 +32,16 @@ def power_maintain_speed(
     v_current_ms: float = 0.0,
     u_wind_ms: float = 0.0,
     v_wind_ms: float = 0.0,
+    w_wave_height: float = 0.0,
     physics: Physics = Physics(),
     ship: Ship = Ship(),
 ) -> float:
     """Calculate power needed to maintain speed over ground.
+
+    This largely implements the resistance estimates outlined in
+    Mannarini, G., Pinardi, N., Coppini, G., Oddo, P., and Iafrati, A.:
+    VISIR-I: small vessels – least-time nautical routes using wave forecasts,
+    Geosci. Model Dev., 9, 1597–1625, https://doi.org/10.5194/gmd-9-1597-2016, 2016.
 
     Parameters
     ----------
@@ -72,4 +77,61 @@ def power_maintain_speed(
         u_ship_og and v_ship_og.
     """
 
-    raise NotImplementedError()
+    # speed through water
+    speed_through_water_ms = (
+        (u_ship_og_ms - u_current_ms) ** 2 + (v_ship_og_ms - v_current_ms) ** 2
+    ) ** 0.5
+    speed_through_wind_ms = (
+        (u_ship_og_ms - u_wind_ms) ** 2 + (v_ship_og_ms - v_wind_ms) ** 2
+    ) ** 0.5
+
+    # resistance through calm water (Note that calm only refers to the sea state
+    # and does not imply absence of currents.)
+    reference_resistance_calm = (
+        ship.total_propulsive_efficiency
+        * ship.reference_engine_power_W
+        / ship.referemce_speed_calm_water_ms**3
+    )
+    power_through_water = reference_resistance_calm * speed_through_water_ms**3
+
+    # resistance through sea waves
+    spectral_average = 0.5
+    nondimensional_resistance_reference = (
+        20.0
+        * (ship.waterline_width_m / ship.waterline_length_m) ** (-1.20)
+        * (ship.draught_m / ship.waterline_length_m) ** 0.62
+    )
+    froude_number_reference = (
+        ship.referemce_speed_calm_water_ms
+        / (physics.gravity_acceleration_ms2 * ship.waterline_length_m) ** 0.5
+    )
+    froude_number = (
+        speed_through_water_ms
+        / (physics.gravity_acceleration_ms2 * ship.waterline_length_m) ** 0.5
+    )
+    nondimensional_resistance = (
+        nondimensional_resistance_reference / froude_number_reference * froude_number
+    )
+    resistance_through_sea_waves = (
+        nondimensional_resistance
+        * physics.sea_water_density_kgm3
+        * physics.gravity_acceleration_ms2
+        * w_wave_height**2
+        * ship.waterline_width_m**2
+        / ship.waterline_length_m
+        * spectral_average
+    )
+    power_through_waves = resistance_through_sea_waves * speed_through_water_ms
+
+    # resistance through wind. (Note simplify this to the case where the apparent
+    # wind comes from the front.)
+    resistance_through_wind = (
+        0.5
+        * ship.wind_resistance_coefficient
+        * ship.projected_frontal_area_above_waterline_m2
+        * physics.air_density_kgm3
+        * speed_through_wind_ms**2
+    )
+    power_through_wind = resistance_through_wind * speed_through_wind_ms
+
+    return power_through_water + power_through_waves + power_through_wind
