@@ -15,48 +15,60 @@ def test_cost_positivity():
     vo = np.random.uniform(-1, 1, size=(num_test,))
     us = np.random.uniform(-1, 1, size=(num_test,))
     vs = np.random.uniform(-1, 1, size=(num_test,))
-    np.testing.assert_array_less(0, power_maintain_speed(uo=uo, vo=vo, us=us, vs=vs))
+    np.testing.assert_array_less(
+        0,
+        power_maintain_speed(
+            u_current_ms=uo,
+            v_current_ms=vo,
+            u_ship_og_ms=us,
+            v_ship_og_ms=vs,
+        ),
+    )
 
 
-def test_cost_power_law():
+def test_cost_power_law_scaling_speed_over_ground():
     num_test = 1_000_000
-    uo = np.random.uniform(-1, 1, size=(num_test,))
-    vo = np.random.uniform(-1, 1, size=(num_test,))
     us = np.random.uniform(-1, 1, size=(num_test,))
     vs = np.random.uniform(-1, 1, size=(num_test,))
 
-    power_1 = power_maintain_speed(uo=uo, vo=vo, us=us, vs=vs)
-    power_2 = power_maintain_speed(uo=2 * uo, vo=2 * vo, us=2 * us, vs=2 * vs)
+    power_1 = power_maintain_speed(
+        u_current_ms=0,
+        v_current_ms=0,
+        u_ship_og_ms=us,
+        v_ship_og_ms=vs,
+        w_wave_height=0.0,
+    )
+    power_2 = power_maintain_speed(
+        u_current_ms=0,
+        v_current_ms=0,
+        u_ship_og_ms=2 * us,
+        v_ship_og_ms=2 * vs,
+        w_wave_height=0.0,
+    )
     np.testing.assert_almost_equal(2**3, power_2 / power_1)
 
 
-def test_cost_coeff_dependency():
-    num_test = 1_000_000
-    uo = np.random.uniform(-1, 1, size=(num_test,))
-    vo = np.random.uniform(-1, 1, size=(num_test,))
-    us = np.random.uniform(-1, 1, size=(num_test,))
-    vs = np.random.uniform(-1, 1, size=(num_test,))
-
-    power_1 = power_maintain_speed(uo=uo, vo=vo, us=us, vs=vs, coeff=1.0)
-    power_2 = power_maintain_speed(uo=uo, vo=vo, us=us, vs=vs, coeff=3.0)
-    np.testing.assert_almost_equal(3.0, power_2 / power_1)
-
-
 @pytest.mark.parametrize(
-    "uovousvs",
+    "uo_vo_us_vs_wh",
     [
-        [1, 2, 3, 4],
-        [1.0, 2.0, 3.0, 4.0],
-        [np.ones(shape=(123,)).copy() for n in range(4)],
-        [1.0, 1.0] + [np.ones(shape=(123,)).copy() for n in range(2)],
-        [xr.DataArray(np.ones(shape=(123,))) for n in range(4)],
-        [pd.Series(data=[1, 2, 3, 4]) for n in range(4)],
+        [1, 2, 3, 4, 5.0],
+        [1.0, 2.0, 3.0, 4.0, 5.0],
+        [np.ones(shape=(123,)).copy() for n in range(5)],
+        [1.0, 1.0] + [np.ones(shape=(123,)).copy() for n in range(2)] + [23.5],
+        [xr.DataArray(np.ones(shape=(123,))) for n in range(5)],
+        [pd.Series(data=[1, 2, 3, 4, 5]) for n in range(5)],
     ],
 )
-def test_cost_dtypes(uovousvs):
+def test_cost_dtypes(uo_vo_us_vs_wh):
     """Test for many different data types."""
-    uo, vo, us, vs = uovousvs
-    power_maintain_speed(uo=uo, vo=vo, us=us, vs=vs, coeff=1.0)
+    uo, vo, us, vs, wh = uo_vo_us_vs_wh
+    power_maintain_speed(
+        u_current_ms=uo,
+        v_current_ms=vo,
+        u_ship_og_ms=us,
+        v_ship_og_ms=vs,
+        w_wave_height=wh,
+    )
 
 
 @pytest.mark.parametrize("wave_height", [0.0, 1.0, 10.0])

@@ -15,6 +15,9 @@ class Physics:
     air_density_kgm3: float = 1.225
 
 
+physics_default = Physics()
+
+
 @dataclass(frozen=True)
 class Ship:
     """Ship dimensions, resistance coefficients, engine characteristics."""
@@ -29,6 +32,9 @@ class Ship:
     wind_resistance_coefficient: float = 0.4
 
 
+ship_default = Ship()
+
+
 def power_maintain_speed(
     u_ship_og_ms: float = None,
     v_ship_og_ms: float = None,
@@ -37,8 +43,8 @@ def power_maintain_speed(
     u_wind_ms: float = 0.0,
     v_wind_ms: float = 0.0,
     w_wave_height: float = 0.0,
-    physics: Physics = Physics(),
-    ship: Ship = Ship(),
+    physics: Physics = physics_default,
+    ship: Ship = ship_default,
 ) -> float:
     """Calculate power needed to maintain speed over ground.
 
@@ -130,7 +136,7 @@ def power_maintain_speed(
         nondimensional_resistance
         * physics.sea_water_density_kgm3
         * physics.gravity_acceleration_ms2
-        * w_wave_height**2
+        * (w_wave_height / 2.0) ** 2  # wave amplitude = height / 2
         * ship.waterline_width_m**2
         / ship.waterline_length_m
         * spectral_average
@@ -149,3 +155,31 @@ def power_maintain_speed(
     power_through_wind = resistance_through_wind * speed_through_wind_ms
 
     return power_through_water + power_through_waves + power_through_wind
+
+
+def hazard_conditions_wave_height(
+    ship: Ship = Ship(),
+    w_wave_height_m: float = 0,
+) -> bool:
+    """Check stability thresholds for wave heights.
+
+    Follows
+        Mannarini, G., Pinardi, N., Coppini, G., Oddo, P., and Iafrati, A.:
+        VISIR-I: small vessels – least-time nautical routes using wave forecasts,
+        Geosci. Model Dev., 9, 1597–1625, 2016. https://doi.org/10.5194/gmd-9-1597-2016
+    but only accounts for ration of wave height and ship length. Disregarding wave period
+    and angle of attack, this amounts to cheching wether wave height / ship length < 1/40.
+
+    Parameters
+    ----------
+    ship: Ship
+        Ship parameters.
+    w_wave_height_m: float
+       Significant wave height in meters. Defaults to: 0.0
+
+    Returns
+    -------
+    bool:
+        Whether any of the stability thresholds is violated.
+    """
+    return (w_wave_height_m / ship.waterline_length_m) < 1 / 40.0

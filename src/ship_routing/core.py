@@ -23,7 +23,13 @@ from .remix import segment_lines_with_each_other
 
 from .currents import select_data_for_leg
 
-from .cost import power_maintain_speed
+from .cost import (
+    power_maintain_speed,
+    Ship,
+    Physics,
+    ship_default,
+    physics_default,
+)
 
 
 @dataclass(frozen=True)
@@ -286,6 +292,8 @@ class Leg:
         current_data_set: xr.Dataset = None,
         wind_data_set: xr.Dataset = None,
         wave_data_set: xr.Dataset = None,
+        ship: Ship = ship_default,
+        physics: Physics = physics_default,
     ):
         u_ship_og, v_ship_og = self.uv_over_ground_ms
         if current_data_set is not None:
@@ -335,6 +343,8 @@ class Leg:
             w_wave_height=w_wave_height,
             u_ship_og_ms=u_ship_og,
             v_ship_og_ms=v_ship_og,
+            ship=ship,
+            physics=physics,
         )
         if pwr.isnull().sum() > 0:
             return np.nan
@@ -542,6 +552,8 @@ class Route:
         current_data_set: xr.Dataset = None,
         wind_data_set: xr.Dataset = None,
         wave_data_set: xr.Dataset = None,
+        ship: Ship = ship_default,
+        physics: Physics = physics_default,
     ):
         """Cost along whole route."""
         return sum(
@@ -549,6 +561,8 @@ class Route:
                 current_data_set=current_data_set,
                 wind_data_set=wind_data_set,
                 wave_data_set=wave_data_set,
+                ship=ship,
+                physics=physics,
             )
         )
 
@@ -557,6 +571,8 @@ class Route:
         current_data_set: xr.Dataset = None,
         wind_data_set: xr.Dataset = None,
         wave_data_set: xr.Dataset = None,
+        ship: Ship = ship_default,
+        physics: Physics = physics_default,
     ):
         """Cost along each leg."""
         return tuple(
@@ -565,6 +581,8 @@ class Route:
                     current_data_set=current_data_set,
                     wind_data_set=wind_data_set,
                     wave_data_set=wave_data_set,
+                    ship=ship,
+                    physics=physics,
                 )
                 for l in self.legs
             )
