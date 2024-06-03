@@ -38,10 +38,15 @@ def power_maintain_speed(
 ) -> float:
     """Calculate power needed to maintain speed over ground.
 
-    This largely implements the resistance estimates outlined in
-    Mannarini, G., Pinardi, N., Coppini, G., Oddo, P., and Iafrati, A.:
-    VISIR-I: small vessels – least-time nautical routes using wave forecasts,
-    Geosci. Model Dev., 9, 1597–1625, https://doi.org/10.5194/gmd-9-1597-2016, 2016.
+    This largely implements the resistance estimates due to calm water and sea 
+    state as outlined in
+        Mannarini, G., Pinardi, N., Coppini, G., Oddo, P., and Iafrati, A.:
+        VISIR-I: small vessels – least-time nautical routes using wave forecasts,
+        Geosci. Model Dev., 9, 1597–1625, 2016. https://doi.org/10.5194/gmd-9-1597-2016
+    and wind resistance as outlined in
+        Kim K-S, Roh M-I. ISO 15016:2015-Based Method for Estimating the Fuel Oil Consumption
+        of a Ship. Journal of Marine Science and Engineering. 2020; 8(10):791.
+        https://doi.org/10.3390/jmse8100791 
 
     Parameters
     ----------
