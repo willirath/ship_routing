@@ -8,6 +8,8 @@ from dataclasses import dataclass
 
 @dataclass(frozen=True)
 class Physics:
+    """Physical constants used in power estimation."""
+
     gravity_acceleration_ms2: float = 9.80665
     sea_water_density_kgm3: float = 1029.0
     air_density_kgm3: float = 1.225
@@ -15,11 +17,13 @@ class Physics:
 
 @dataclass(frozen=True)
 class Ship:
+    """Ship dimensions, resistance coefficients, engine characteristics."""
+
     waterline_width_m: float = 30.0
     waterline_length_m: float = 210.0
     total_propulsive_efficiency: float = 0.7
     reference_engine_power_W: float = 14296344.0
-    referemce_speed_calm_water_ms: float = 9.259
+    reference_speed_calm_water_ms: float = 9.259
     draught_m: float = 11.5
     projected_frontal_area_above_waterline_m2: float = 690.0
     wind_resistance_coefficient: float = 0.4
@@ -100,7 +104,7 @@ def power_maintain_speed(
     reference_resistance_calm = (
         ship.total_propulsive_efficiency
         * ship.reference_engine_power_W
-        / ship.referemce_speed_calm_water_ms**3
+        / ship.reference_speed_calm_water_ms**3
     )
     power_through_water = reference_resistance_calm * speed_through_water_ms**3
 
@@ -112,7 +116,7 @@ def power_maintain_speed(
         * (ship.draught_m / ship.waterline_length_m) ** 0.62
     )
     froude_number_reference = (
-        ship.referemce_speed_calm_water_ms
+        ship.reference_speed_calm_water_ms
         / (physics.gravity_acceleration_ms2 * ship.waterline_length_m) ** 0.5
     )
     froude_number = (
