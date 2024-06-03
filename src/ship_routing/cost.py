@@ -38,7 +38,7 @@ def power_maintain_speed(
 ) -> float:
     """Calculate power needed to maintain speed over ground.
 
-    This largely implements the resistance estimates due to calm water and sea 
+    This largely implements the resistance estimates due to calm water and sea
     state as outlined in
         Mannarini, G., Pinardi, N., Coppini, G., Oddo, P., and Iafrati, A.:
         VISIR-I: small vessels – least-time nautical routes using wave forecasts,
@@ -46,7 +46,12 @@ def power_maintain_speed(
     and wind resistance as outlined in
         Kim K-S, Roh M-I. ISO 15016:2015-Based Method for Estimating the Fuel Oil Consumption
         of a Ship. Journal of Marine Science and Engineering. 2020; 8(10):791.
-        https://doi.org/10.3390/jmse8100791 
+        https://doi.org/10.3390/jmse8100791
+
+    Note that for zero wave height, there is no additional resistance. For zero winds and
+    currents, however, resistance from relative movement in, respectively, water and air
+    will be accounted for. Hence, to turn off wind resistance, we need to set either the projected
+    frontal area or the wind resistance coefficient to zero.
 
     Parameters
     ----------
