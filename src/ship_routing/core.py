@@ -319,7 +319,7 @@ class Leg:
                 lat_end=self.way_point_end.lat,
                 time_end=self.way_point_end.time,
             )
-            u_wind, v_wind = ds_wind.FIXME, ds_wind.FIXME
+            u_wind, v_wind = ds_wind.uw, ds_wind.vw
         else:
             u_wind, v_wind = 0, 0
         if wave_data_set is not None:
@@ -332,7 +332,7 @@ class Leg:
                 lat_end=self.way_point_end.lat,
                 time_end=self.way_point_end.time,
             )
-            w_wave_height = ds_wave.FIXME
+            w_wave_height = ds_wave.wh
         else:
             w_wave_height = 0
         pwr = power_maintain_speed(
