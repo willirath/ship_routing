@@ -15,7 +15,7 @@ class Physics:
     air_density_kgm3: float = 1.225
 
 
-physics_default = Physics()
+PHYSICS_DEFAULT = Physics()
 
 
 @dataclass(frozen=True)
@@ -32,7 +32,7 @@ class Ship:
     wind_resistance_coefficient: float = 0.4
 
 
-ship_default = Ship()
+SHIP_DEFAULT = Ship()
 
 
 def power_maintain_speed(
@@ -43,8 +43,8 @@ def power_maintain_speed(
     u_wind_ms: float = 0.0,
     v_wind_ms: float = 0.0,
     w_wave_height: float = 0.0,
-    physics: Physics = physics_default,
-    ship: Ship = ship_default,
+    physics: Physics = PHYSICS_DEFAULT,
+    ship: Ship = SHIP_DEFAULT,
 ) -> float:
     """Calculate power needed to maintain speed over ground.
 

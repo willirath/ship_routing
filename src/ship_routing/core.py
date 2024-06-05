@@ -27,8 +27,8 @@ from .cost import (
     power_maintain_speed,
     Ship,
     Physics,
-    ship_default,
-    physics_default,
+    SHIP_DEFAULT,
+    PHYSICS_DEFAULT,
 )
 
 
@@ -292,8 +292,8 @@ class Leg:
         current_data_set: xr.Dataset = None,
         wind_data_set: xr.Dataset = None,
         wave_data_set: xr.Dataset = None,
-        ship: Ship = ship_default,
-        physics: Physics = physics_default,
+        ship: Ship = SHIP_DEFAULT,
+        physics: Physics = PHYSICS_DEFAULT,
     ):
         u_ship_og, v_ship_og = self.uv_over_ground_ms
         if current_data_set is not None:
@@ -552,8 +552,8 @@ class Route:
         current_data_set: xr.Dataset = None,
         wind_data_set: xr.Dataset = None,
         wave_data_set: xr.Dataset = None,
-        ship: Ship = ship_default,
-        physics: Physics = physics_default,
+        ship: Ship = SHIP_DEFAULT,
+        physics: Physics = PHYSICS_DEFAULT,
     ):
         """Cost along whole route."""
         return sum(
@@ -571,8 +571,8 @@ class Route:
         current_data_set: xr.Dataset = None,
         wind_data_set: xr.Dataset = None,
         wave_data_set: xr.Dataset = None,
-        ship: Ship = ship_default,
-        physics: Physics = physics_default,
+        ship: Ship = SHIP_DEFAULT,
+        physics: Physics = PHYSICS_DEFAULT,
     ):
         """Cost along each leg."""
         return tuple(
