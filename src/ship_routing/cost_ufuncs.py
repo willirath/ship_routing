@@ -1,50 +1,16 @@
-from .data import select_data_for_leg
-
-import numpy as np
+from .config import Ship, Physics, SHIP_DEFAULT, PHYSICS_DEFAULT
 
 
-from dataclasses import dataclass
-
-
-@dataclass(frozen=True)
-class Physics:
-    """Physical constants used in power estimation."""
-
-    gravity_acceleration_ms2: float = 9.80665
-    sea_water_density_kgm3: float = 1029.0
-    air_density_kgm3: float = 1.225
-
-
-physics_default = Physics()
-
-
-@dataclass(frozen=True)
-class Ship:
-    """Ship dimensions, resistance coefficients, engine characteristics."""
-
-    waterline_width_m: float = 30.0
-    waterline_length_m: float = 210.0
-    total_propulsive_efficiency: float = 0.7
-    reference_engine_power_W: float = 14296344.0
-    reference_speed_calm_water_ms: float = 9.259
-    draught_m: float = 11.5
-    projected_frontal_area_above_waterline_m2: float = 690.0
-    wind_resistance_coefficient: float = 0.4
-
-
-ship_default = Ship()
-
-
-def power_maintain_speed(
-    u_ship_og_ms: float = None,
-    v_ship_og_ms: float = None,
+def power_maintain_speed_ufunc(
+    u_ship_og_ms: float = 0.0,
+    v_ship_og_ms: float = 0.0,
     u_current_ms: float = 0.0,
     v_current_ms: float = 0.0,
     u_wind_ms: float = 0.0,
     v_wind_ms: float = 0.0,
     w_wave_height: float = 0.0,
-    physics: Physics = physics_default,
-    ship: Ship = ship_default,
+    physics: Physics = PHYSICS_DEFAULT,
+    ship: Ship = SHIP_DEFAULT,
 ) -> float:
     """Calculate power needed to maintain speed over ground.
 
@@ -65,36 +31,28 @@ def power_maintain_speed(
 
     Parameters
     ----------
-    u_ship_og: array
-        Ship eastward speed over ground in meters per second.
-    v_ship_og: array
-        Ship northward speed over ground in meters per second.
-        Needs same shape as u_ship_og.
-    u_current: array
-        Ocean currents eastward speed over ground in meters per second.
-        Needs shape that can be broadcast to shape of u_ship_og and v_ship_og.
-    v_current: array
-        Ocean currents northward speed over ground in meters per second.
-        Needs shape that can be broadcast to shape of u_ship_og and v_ship_og.
-    u_wind: array
-        Eastward 10 m wind in m/s
-        Needs shape that can be broadcst to shape of u_ship_og and v_ship_og
-    v_wind: array
-        Northward 10 m wind in m/s
-        Needs shape that can be broadcst to shape of u_ship_og and v_ship_og
-    w_wave_height: array
-        Spectral significant wave height (Hm0), meters
-        Needs shape that can be broadcst to shape of u_ship_og and v_ship_og
+    u_ship_og: float
+        Ship eastward speed over ground in m/s.  Defaults to: 0.0
+    v_ship_og: float
+        Ship northward speed over ground in m/s.  Defaults to: 0.0
+    u_current: float
+        Ocean currents eastward speed over ground in m/s.  Defaults to: 0.0
+    v_current: float
+        Ocean currents northward speed over ground in m/s.  Defaults to: 0.0
+    u_wind: float
+        Eastward 10 m wind in m/s.  Defaults to: 0.0
+    v_wind: float
+        Northward 10 m wind in m/s.  Defaults to: 0.0
+    w_wave_height: float
+        Spectral significant wave height in m.  Defaults to: 0.0
     physics: Physics
         Physics parameters.
     ship: Ship
         Ship parameters.
 
     -------
-    array:
-        Power in W (=kg*m2/s3) needed to maintain speed over ground for each
-        element of u_ship_og and v_ship_og. Shape will be identical to
-        u_ship_og and v_ship_og.
+    float:
+        Power in W (=kg*m2/s3) needed to maintain speed over ground.
     """
 
     # speed through water
@@ -157,9 +115,9 @@ def power_maintain_speed(
     return power_through_water + power_through_waves + power_through_wind
 
 
-def hazard_conditions_wave_height(
+def hazard_conditions_wave_height_ufunc(
     ship: Ship = Ship(),
-    w_wave_height_m: float = 0,
+    w_wave_height_m: float = 0.0,
 ) -> bool:
     """Check stability thresholds for wave heights.
 
@@ -175,11 +133,11 @@ def hazard_conditions_wave_height(
     ship: Ship
         Ship parameters.
     w_wave_height_m: float
-       Significant wave height in meters. Defaults to: 0.0
+       Significant wave height in m. Defaults to: 0.0
 
     Returns
     -------
     bool:
         Whether any of the stability thresholds is violated.
     """
-    return (w_wave_height_m / ship.waterline_length_m) < 1 / 40.0
+    return (w_wave_height_m / ship.waterline_length_m) > 1 / 40.0
