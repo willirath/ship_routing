@@ -1,7 +1,7 @@
 from pathlib import Path
 import pytest
 
-from ship_routing.currents import (
+from ship_routing.data import (
     load_currents,
 )
 

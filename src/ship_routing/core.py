@@ -21,7 +21,7 @@ from .geodesics import (
 
 from .remix import segment_lines_with_each_other
 
-from .currents import select_data_for_leg
+from .data import select_data_for_leg
 
 from .cost import (
     power_maintain_speed,

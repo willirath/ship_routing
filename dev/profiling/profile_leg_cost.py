@@ -1,5 +1,5 @@
 from ship_routing.core import Route, Leg, WayPoint
-from ship_routing.currents import load_currents
+from ship_routing.data import load_currents
 import numpy as np
 
 import tqdm

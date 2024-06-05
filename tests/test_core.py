@@ -4,7 +4,7 @@ from ship_routing.core import (
     WayPoint,
 )
 
-from ship_routing.currents import load_currents
+from ship_routing.data import load_currents
 
 from dataclasses import FrozenInstanceError
 from pathlib import Path
