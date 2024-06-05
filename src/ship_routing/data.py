@@ -26,6 +26,46 @@ def load_currents(
     return ds
 
 
+def load_winds(
+    data_file: Path = None,
+    lon_name: str = "longitude",
+    lat_name: str = "latitude",
+    time_name: str = "time",
+    uw_name: str = "eastward_wind",
+    vw_name: str = "northward_wind",
+) -> xr.Dataset:
+    ds = xr.open_dataset(data_file)
+    ds = ds.rename(
+        {
+            lon_name: "lon",
+            lat_name: "lat",
+            time_name: "time",
+            uw_name: "uw",
+            vw_name: "vw",
+        }
+    )
+    return ds
+
+
+def load_waves(
+    data_file: Path = None,
+    lon_name: str = "longitude",
+    lat_name: str = "latitude",
+    time_name: str = "time",
+    wh_name: str = "VHM0",
+) -> xr.Dataset:
+    ds = xr.open_dataset(data_file)
+    ds = ds.rename(
+        {
+            lon_name: "lon",
+            lat_name: "lat",
+            time_name: "time",
+            wh_name: "wh",
+        }
+    )
+    return ds
+
+
 def select_data_for_leg(
     ds: xr.Dataset = None,
     lon_start=None,
