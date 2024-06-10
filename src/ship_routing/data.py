@@ -98,13 +98,22 @@ def select_data_for_leg(
 
     # interpolate i and j
     i = xr.DataArray(
-        np.round(np.linspace(i_start, i_end, n)).astype(int), name="i", dims=("along",)
+        np.round(np.linspace(i_start, i_end, n)).astype(int),
+        name="i",
+        dims=("along",),
+        coords={"along": np.linspace(0, 1, n)},
     )
     j = xr.DataArray(
-        np.round(np.linspace(j_start, j_end, n)).astype(int), name="j", dims=("along",)
+        np.round(np.linspace(j_start, j_end, n)).astype(int),
+        name="j",
+        dims=("along",),
+        coords={"along": np.linspace(0, 1, n)},
     )
     l = xr.DataArray(
-        np.round(np.linspace(l_start, l_end, n)).astype(int), name="l", dims=("along",)
+        np.round(np.linspace(l_start, l_end, n)).astype(int),
+        name="l",
+        dims=("along",),
+        coords={"along": np.linspace(0, 1, n)},
     )
 
     # select and return

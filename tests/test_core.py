@@ -387,7 +387,7 @@ def test_leg_cost_through_zero_currents_winds_waves_scaling():
         / "currents/cmems_mod_glo_phy-cur_anfc_0.083deg_P1D-m_2021-01_1deg_5day.nc"
     )
     current_data_set["uo"] = (current_data_set["uo"] * 0.0).fillna(0.0)
-    current_data_set["uo"] = (current_data_set["vo"] * 0.0).fillna(0.0)
+    current_data_set["vo"] = (current_data_set["vo"] * 0.0).fillna(0.0)
 
     # calc cost
     cost_slow = leg_slow.cost_through(
@@ -1105,12 +1105,15 @@ def test_route_cost_through_zero_currents_winds_waves_scaling():
             WayPoint(lon=0, lat=1 / 60.0, time=np.datetime64("2001-01-01T02:00:00")),
         )
     )
-    current_data_set = load_currents(
-        data_file=TEST_DATA_DIR
-        / "currents/cmems_mod_glo_phy-cur_anfc_0.083deg_P1D-m_2021-01_1deg_5day.nc"
-    )
-    current_data_set["uo"] = (current_data_set["uo"] * 0.0).fillna(0.0)
-    current_data_set["vo"] = (current_data_set["vo"] * 0.0).fillna(0.0)
+    current_data_set = (
+        0.0
+        * load_currents(
+            data_file=TEST_DATA_DIR
+            / "currents/cmems_mod_glo_phy-cur_anfc_0.083deg_P1D-m_2021-01_1deg_5day.nc"
+        )
+    ).fillna(0.0)
+    # current_data_set["uo"] = (current_data_set["uo"] * 0.0).fillna(0.0)
+    # current_data_set["vo"] = (current_data_set["vo"] * 0.0).fillna(0.0)
     cost_slow = route_slow.cost_through(current_data_set=current_data_set)
     cost_fast = route_fast.cost_through(current_data_set=current_data_set)
     np.testing.assert_almost_equal(6.0**2, cost_fast / cost_slow, decimal=2)

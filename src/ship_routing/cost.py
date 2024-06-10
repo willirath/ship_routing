@@ -14,16 +14,21 @@ def align_along_track_arrays(*argv) -> tuple:
     a_ref = argv[i_of_longest]
 
     # interpolate shorter ones on the longer
-    return tuple((a.interp(along=a_ref.along, method="nearest") for a in argv))
+    return tuple(
+        (
+            a.sel(along=a_ref.along, method="nearest").assign_coords(along=a_ref.along)
+            for a in argv
+        )
+    )
 
 
 def maybe_cast_number_to_data_array(obj):
     """Make obj a data array with one along-track point."""
     if np.array(obj).shape == ():
         obj = xr.DataArray(
-            [obj],
+            [float(obj), float(obj)],
             dims=("along",),
-            coords={"along": [0]},
+            coords={"along": [0.0, 1.0]},
         )
     return obj
 
@@ -39,6 +44,10 @@ def power_maintain_speed(
     physics: Physics = PHYSICS_DEFAULT,
     ship: Ship = SHIP_DEFAULT,
 ):
+
+    # import pdb
+    # pdb.set_trace()
+
     # cast all to arrays
     u_ship_og_ms = maybe_cast_number_to_data_array(u_ship_og_ms)
     v_ship_og_ms = maybe_cast_number_to_data_array(v_ship_og_ms)

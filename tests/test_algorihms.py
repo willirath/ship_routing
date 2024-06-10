@@ -220,9 +220,9 @@ def test_gradient_descent_across_track_left_nonopt():
     route_0 = Route(
         way_points=(
             WayPoint(lon=0.0, lat=0.0, time=np.datetime64("2001-01-01")),
-            WayPoint(lon=4.0, lat=1.0, time=np.datetime64("2001-01-02")),
-            WayPoint(lon=10.0, lat=-1.0, time=np.datetime64("2001-01-03")),
-            WayPoint(lon=20.0, lat=0.0, time=np.datetime64("2001-01-04")),
+            WayPoint(lon=-4.0, lat=1.0, time=np.datetime64("2001-01-02")),
+            WayPoint(lon=-10.0, lat=-1.0, time=np.datetime64("2001-01-03")),
+            WayPoint(lon=-20.0, lat=0.0, time=np.datetime64("2001-01-04")),
         )
     )
     # load currents and make zero
@@ -258,9 +258,9 @@ def test_gradient_descent_along_track_nonopt():
     route_0 = Route(
         way_points=(
             WayPoint(lon=0.0, lat=0.0, time=np.datetime64("2001-01-01")),
-            WayPoint(lon=4.0, lat=0.0, time=np.datetime64("2001-01-02")),
-            WayPoint(lon=10.0, lat=0.0, time=np.datetime64("2001-01-03")),
-            WayPoint(lon=20.0, lat=0.0, time=np.datetime64("2001-01-04")),
+            WayPoint(lon=-4.0, lat=0.0, time=np.datetime64("2001-01-02")),
+            WayPoint(lon=-10.0, lat=0.0, time=np.datetime64("2001-01-03")),
+            WayPoint(lon=-20.0, lat=0.0, time=np.datetime64("2001-01-04")),
         )
     )
     # load currents and make zero
@@ -296,9 +296,9 @@ def test_gradient_descent_time_shift_nonopt():
     route_0 = Route(
         way_points=(
             WayPoint(lon=0.0, lat=0.0, time=np.datetime64("2001-01-01")),
-            WayPoint(lon=4.0, lat=0.0, time=np.datetime64("2001-01-02")),
-            WayPoint(lon=10.0, lat=0.0, time=np.datetime64("2001-01-03")),
-            WayPoint(lon=20.0, lat=0.0, time=np.datetime64("2001-01-04")),
+            WayPoint(lon=-4.0, lat=0.0, time=np.datetime64("2001-01-02")),
+            WayPoint(lon=-10.0, lat=0.0, time=np.datetime64("2001-01-03")),
+            WayPoint(lon=-20.0, lat=0.0, time=np.datetime64("2001-01-04")),
         )
     )
     # load currents and make zero
