@@ -692,6 +692,8 @@ class Route:
         self,
         n: int = None,
         current_data_set: xr.Dataset = None,
+        wind_data_set: xr.Dataset = None,
+        wave_data_set: xr.Dataset = None,
         distance_meters: float = None,
     ):
         route_mod_fwd = self.move_waypoint(
@@ -705,14 +707,24 @@ class Route:
             distance_meters=-0.5 * distance_meters,
         )
         return (
-            route_mod_fwd.cost_through(current_data_set=current_data_set)
-            - route_mod_bwd.cost_through(current_data_set=current_data_set)
+            route_mod_fwd.cost_through(
+                current_data_set=current_data_set,
+                wind_data_set=wind_data_set,
+                wave_data_set=wave_data_set,
+            )
+            - route_mod_bwd.cost_through(
+                current_data_set=current_data_set,
+                wind_data_set=wind_data_set,
+                wave_data_set=wave_data_set,
+            )
         ) / distance_meters
 
     def cost_gradient_along_track(
         self,
         n: int = None,
         current_data_set: xr.Dataset = None,
+        wind_data_set: xr.Dataset = None,
+        wave_data_set: xr.Dataset = None,
         distance_meters: float = None,
     ):
         route_mod_fwd = self.move_waypoint(
@@ -726,14 +738,24 @@ class Route:
             distance_meters=-0.5 * distance_meters,
         )
         return (
-            route_mod_fwd.cost_through(current_data_set=current_data_set)
-            - route_mod_bwd.cost_through(current_data_set=current_data_set)
+            route_mod_fwd.cost_through(
+                current_data_set=current_data_set,
+                wind_data_set=wind_data_set,
+                wave_data_set=wave_data_set,
+            )
+            - route_mod_bwd.cost_through(
+                current_data_set=current_data_set,
+                wind_data_set=wind_data_set,
+                wave_data_set=wave_data_set,
+            )
         ) / distance_meters
 
     def cost_gradient_time_shift(
         self,
         n: int = None,
         current_data_set: xr.Dataset = None,
+        wind_data_set: xr.Dataset = None,
+        wave_data_set: xr.Dataset = None,
         time_shift_seconds: float = None,
     ):
         # This is important: If we just do 0.5 * np.timedelta65(1, "s") * ..., this will
@@ -749,8 +771,16 @@ class Route:
             new_way_point=self.way_points[n].move_time(time_diff=-0.5 * time_diff_np),
         )
         return (
-            route_mod_fwd.cost_through(current_data_set=current_data_set)
-            - route_mod_bwd.cost_through(current_data_set=current_data_set)
+            route_mod_fwd.cost_through(
+                current_data_set=current_data_set,
+                wind_data_set=wind_data_set,
+                wave_data_set=wave_data_set,
+            )
+            - route_mod_bwd.cost_through(
+                current_data_set=current_data_set,
+                wind_data_set=wind_data_set,
+                wave_data_set=wave_data_set,
+            )
         ) / time_shift_seconds
 
     def move_waypoints_left_nonlocal(
