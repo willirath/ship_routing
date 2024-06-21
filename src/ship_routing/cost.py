@@ -88,3 +88,17 @@ def power_maintain_speed(
         physics=physics,
         ship=ship,
     )
+
+
+def hazard_conditions_wave_height(
+    u_ship_og_ms: xr.DataArray = 0.0,
+    v_ship_og_ms: xr.DataArray = 0.0,
+    u_current_ms: xr.DataArray = 0.0,
+    v_current_ms: xr.DataArray = 0.0,
+    u_wind_ms: xr.DataArray = 0.0,
+    v_wind_ms: xr.DataArray = 0.0,
+    w_wave_height: xr.DataArray = 0.0,
+    physics: Physics = PHYSICS_DEFAULT,
+    ship: Ship = SHIP_DEFAULT,
+):
+    raise NotImplementedError()

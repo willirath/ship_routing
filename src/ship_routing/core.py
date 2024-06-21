@@ -695,6 +695,8 @@ class Route:
         wind_data_set: xr.Dataset = None,
         wave_data_set: xr.Dataset = None,
         distance_meters: float = None,
+        ship: Ship = SHIP_DEFAULT,
+        physics: Physics = PHYSICS_DEFAULT,
     ):
         route_mod_fwd = self.move_waypoint(
             n=n,
@@ -711,11 +713,15 @@ class Route:
                 current_data_set=current_data_set,
                 wind_data_set=wind_data_set,
                 wave_data_set=wave_data_set,
+                ship=ship,
+                physics=physics,
             )
             - route_mod_bwd.cost_through(
                 current_data_set=current_data_set,
                 wind_data_set=wind_data_set,
                 wave_data_set=wave_data_set,
+                ship=ship,
+                physics=physics,
             )
         ) / distance_meters
 
@@ -726,6 +732,8 @@ class Route:
         wind_data_set: xr.Dataset = None,
         wave_data_set: xr.Dataset = None,
         distance_meters: float = None,
+        ship: Ship = SHIP_DEFAULT,
+        physics: Physics = PHYSICS_DEFAULT,
     ):
         route_mod_fwd = self.move_waypoint(
             n=n,
@@ -742,11 +750,15 @@ class Route:
                 current_data_set=current_data_set,
                 wind_data_set=wind_data_set,
                 wave_data_set=wave_data_set,
+                ship=ship,
+                physics=physics,
             )
             - route_mod_bwd.cost_through(
                 current_data_set=current_data_set,
                 wind_data_set=wind_data_set,
                 wave_data_set=wave_data_set,
+                ship=ship,
+                physics=physics,
             )
         ) / distance_meters
 
@@ -757,6 +769,8 @@ class Route:
         wind_data_set: xr.Dataset = None,
         wave_data_set: xr.Dataset = None,
         time_shift_seconds: float = None,
+        ship: Ship = SHIP_DEFAULT,
+        physics: Physics = PHYSICS_DEFAULT,
     ):
         # This is important: If we just do 0.5 * np.timedelta65(1, "s") * ..., this will
         # map to timediff=0 in the internal integer representation of np.timedelta64 ...
@@ -775,11 +789,15 @@ class Route:
                 current_data_set=current_data_set,
                 wind_data_set=wind_data_set,
                 wave_data_set=wave_data_set,
+                ship=ship,
+                physics=physics,
             )
             - route_mod_bwd.cost_through(
                 current_data_set=current_data_set,
                 wind_data_set=wind_data_set,
                 wave_data_set=wave_data_set,
+                ship=ship,
+                physics=physics,
             )
         ) / time_shift_seconds
 

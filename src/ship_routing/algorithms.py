@@ -1,4 +1,8 @@
 from .core import Route
+from .config import (
+    SHIP_DEFAULT,
+    PHYSICS_DEFAULT,
+)
 
 import xarray as xr
 import numpy as np
@@ -29,6 +33,8 @@ def gradient_descent_time_shift(
     wave_data_set: xr.Dataset = None,
     time_shift_seconds: float = None,
     learning_rate_percent: float = None,
+    ship=SHIP_DEFAULT,
+    physics=PHYSICS_DEFAULT,
 ):
     """Do one step of gradient descent by shifting times.
 
@@ -46,6 +52,10 @@ def gradient_descent_time_shift(
         Time shift used for estimating gradients.
     learning_rate_percent: float
         Desired learning rate in percent.
+    ship: Ship
+        Ship parameters.
+    physics: Physics
+        Physical constants.
 
     Returns
     -------
@@ -60,6 +70,8 @@ def gradient_descent_time_shift(
                 wind_data_set=wind_data_set,
                 wave_data_set=wave_data_set,
                 time_shift_seconds=time_shift_seconds,
+                ship=ship,
+                physics=physics,
             )
             for n in range(1, len(route) - 1)
         ]
@@ -68,6 +80,8 @@ def gradient_descent_time_shift(
         current_data_set=current_data_set,
         wind_data_set=wind_data_set,
         wave_data_set=wave_data_set,
+        ship=ship,
+        physics=physics,
     )
     desired_cost_reduction = learning_rate_percent / 100 * cost_before
     gradients_squared_sum = (gradients**2).sum()
@@ -96,6 +110,8 @@ def gradient_descent_along_track(
     wave_data_set: xr.Dataset = None,
     distance_meters: float = None,
     learning_rate_percent: float = None,
+    ship=SHIP_DEFAULT,
+    physics=PHYSICS_DEFAULT,
 ):
     """Do one step of gradient descent with along-track shifts.
 
@@ -113,6 +129,10 @@ def gradient_descent_along_track(
         Spatial shift used for estimating gradients.
     learning_rate_percent: float
         Desired learning rate in percent.
+    ship: Ship
+        Ship parameters.
+    physics: Physics
+        Physical constants.
 
     Returns
     -------
@@ -127,6 +147,8 @@ def gradient_descent_along_track(
                 wind_data_set=wind_data_set,
                 wave_data_set=wave_data_set,
                 distance_meters=distance_meters,
+                ship=ship,
+                physics=physics,
             )
             for n in range(1, len(route) - 1)
         ]
@@ -135,6 +157,8 @@ def gradient_descent_along_track(
         current_data_set=current_data_set,
         wind_data_set=wind_data_set,
         wave_data_set=wave_data_set,
+        ship=ship,
+        physics=physics,
     )
     desired_cost_reduction = learning_rate_percent / 100 * cost_before
     gradients_squared_sum = (gradients**2).sum()
@@ -164,6 +188,8 @@ def gradient_descent_across_track_left(
     wave_data_set: xr.Dataset = None,
     distance_meters: float = None,
     learning_rate_percent: float = None,
+    ship=SHIP_DEFAULT,
+    physics=PHYSICS_DEFAULT,
 ):
     """Do one step of gradient descent with across-track shifts.
 
@@ -181,6 +207,10 @@ def gradient_descent_across_track_left(
         Spatial shift used for estimating gradients.
     learning_rate_percent: float
         Desired learning rate in percent.
+    ship: Ship
+        Ship parameters.
+    physics: Physics
+        Physical constants.
 
     Returns
     -------
@@ -195,6 +225,8 @@ def gradient_descent_across_track_left(
                 wind_data_set=wind_data_set,
                 wave_data_set=wave_data_set,
                 distance_meters=distance_meters,
+                ship=ship,
+                physics=physics,
             )
             for n in range(1, len(route) - 1)
         ]
@@ -203,6 +235,8 @@ def gradient_descent_across_track_left(
         current_data_set=current_data_set,
         wind_data_set=wind_data_set,
         wave_data_set=wave_data_set,
+        ship=ship,
+        physics=physics,
     )
     desired_cost_reduction = learning_rate_percent / 100 * cost_before
     gradients_squared_sum = (gradients**2).sum()
