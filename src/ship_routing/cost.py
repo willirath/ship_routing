@@ -44,10 +44,6 @@ def power_maintain_speed(
     physics: Physics = PHYSICS_DEFAULT,
     ship: Ship = SHIP_DEFAULT,
 ):
-
-    # import pdb
-    # pdb.set_trace()
-
     # cast all to arrays
     u_ship_og_ms = maybe_cast_number_to_data_array(u_ship_og_ms)
     v_ship_og_ms = maybe_cast_number_to_data_array(v_ship_og_ms)
@@ -101,4 +97,35 @@ def hazard_conditions_wave_height(
     physics: Physics = PHYSICS_DEFAULT,
     ship: Ship = SHIP_DEFAULT,
 ):
-    raise NotImplementedError()
+    # cast all to arrays
+    u_ship_og_ms = maybe_cast_number_to_data_array(u_ship_og_ms)
+    v_ship_og_ms = maybe_cast_number_to_data_array(v_ship_og_ms)
+    u_current_ms = maybe_cast_number_to_data_array(u_current_ms)
+    v_current_ms = maybe_cast_number_to_data_array(v_current_ms)
+    u_wind_ms = maybe_cast_number_to_data_array(u_wind_ms)
+    v_wind_ms = maybe_cast_number_to_data_array(v_wind_ms)
+    w_wave_height = maybe_cast_number_to_data_array(w_wave_height)
+
+    # align all
+    (
+        u_ship_og_ms,
+        v_ship_og_ms,
+        u_current_ms,
+        v_current_ms,
+        u_wind_ms,
+        v_wind_ms,
+        w_wave_height,
+    ) = align_along_track_arrays(
+        u_ship_og_ms,
+        v_ship_og_ms,
+        u_current_ms,
+        v_current_ms,
+        u_wind_ms,
+        v_wind_ms,
+        w_wave_height,
+    )
+
+    return hazard_conditions_wave_height_ufunc(
+        w_wave_height_m=w_wave_height,
+        ship=ship,
+    )

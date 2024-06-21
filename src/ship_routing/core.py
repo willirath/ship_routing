@@ -25,6 +25,7 @@ from .data import select_data_for_leg
 
 from .cost import (
     power_maintain_speed,
+    hazard_conditions_wave_height,
     Ship,
     Physics,
     SHIP_DEFAULT,
@@ -351,6 +352,68 @@ class Leg:
         else:
             return pwr.mean().data[()] * self.duration_seconds
 
+    def hazard_through(
+        self,
+        current_data_set: xr.Dataset = None,
+        wind_data_set: xr.Dataset = None,
+        wave_data_set: xr.Dataset = None,
+        ship: Ship = SHIP_DEFAULT,
+        physics: Physics = PHYSICS_DEFAULT,
+    ):
+        u_ship_og, v_ship_og = self.uv_over_ground_ms
+        if current_data_set is not None:
+            ds_current = select_data_for_leg(
+                ds=current_data_set,
+                lon_start=self.way_point_start.lon,
+                lat_start=self.way_point_start.lat,
+                time_start=self.way_point_start.time,
+                lon_end=self.way_point_end.lon,
+                lat_end=self.way_point_end.lat,
+                time_end=self.way_point_end.time,
+            )
+            u_current, v_current = ds_current.uo, ds_current.vo
+        else:
+            u_current, v_current = 0, 0
+        if wind_data_set is not None:
+            ds_wind = select_data_for_leg(
+                ds=wind_data_set,
+                lon_start=self.way_point_start.lon,
+                lat_start=self.way_point_start.lat,
+                time_start=self.way_point_start.time,
+                lon_end=self.way_point_end.lon,
+                lat_end=self.way_point_end.lat,
+                time_end=self.way_point_end.time,
+            )
+            u_wind, v_wind = ds_wind.uw, ds_wind.vw
+        else:
+            u_wind, v_wind = 0, 0
+        if wave_data_set is not None:
+            ds_wave = select_data_for_leg(
+                ds=wave_data_set,
+                lon_start=self.way_point_start.lon,
+                lat_start=self.way_point_start.lat,
+                time_start=self.way_point_start.time,
+                lon_end=self.way_point_end.lon,
+                lat_end=self.way_point_end.lat,
+                time_end=self.way_point_end.time,
+            )
+            w_wave_height = ds_wave.wh
+        else:
+            w_wave_height = 0
+        return any(
+            hazard_conditions_wave_height(
+                u_current_ms=u_current,
+                v_current_ms=v_current,
+                u_wind_ms=u_wind,
+                v_wind_ms=v_wind,
+                w_wave_height=w_wave_height,
+                u_ship_og_ms=u_ship_og,
+                v_ship_og_ms=v_ship_og,
+                ship=ship,
+                physics=physics,
+            )
+        )
+
     def speed_through_water_ms(self, current_data_set: xr.Dataset = None):
         # normalized velocity over ground
         az_rad = np.deg2rad(self.azimuth_degrees)
@@ -586,6 +649,43 @@ class Route:
                 )
                 for l in self.legs
             )
+        )
+
+    def hazard_through(
+        self,
+        current_data_set: xr.Dataset = None,
+        wind_data_set: xr.Dataset = None,
+        wave_data_set: xr.Dataset = None,
+        ship: Ship = SHIP_DEFAULT,
+        physics: Physics = PHYSICS_DEFAULT,
+    ):
+        return any(
+            self.hazard_per_leg_through(
+                current_data_set=current_data_set,
+                wind_data_set=wind_data_set,
+                wave_data_set=wave_data_set,
+                ship=ship,
+                physics=physics,
+            )
+        )
+
+    def hazard_per_leg_through(
+        self,
+        current_data_set: xr.Dataset = None,
+        wind_data_set: xr.Dataset = None,
+        wave_data_set: xr.Dataset = None,
+        ship: Ship = SHIP_DEFAULT,
+        physics: Physics = PHYSICS_DEFAULT,
+    ):
+        return tuple(
+            l.hazard_through(
+                current_data_set=current_data_set,
+                wind_data_set=wind_data_set,
+                wave_data_set=wave_data_set,
+                ship=ship,
+                physics=physics,
+            )
+            for l in self.legs
         )
 
     def waypoint_azimuth(self, n: int = None):
