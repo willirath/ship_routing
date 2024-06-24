@@ -4,7 +4,11 @@ from ship_routing.core import (
     WayPoint,
 )
 
-from ship_routing.currents import load_currents
+from ship_routing.data import (
+    load_currents,
+    load_winds,
+    load_waves,
+)
 
 from dataclasses import FrozenInstanceError
 from pathlib import Path
@@ -366,24 +370,121 @@ def test_leg_overlaps_time():
     assert leg.overlaps_time(time=leg.way_point_end.time)
 
 
-def test_leg_cost_through_zero_currents():
-    leg = Leg(
+def test_leg_cost_through_zero_currents_winds_waves_scaling():
+    # slow and fast leg
+    leg_slow = Leg(
+        way_point_start=WayPoint(
+            lon=0, lat=-1, time=np.datetime64("2001-01-01T00:00:00")
+        ),
+        way_point_end=WayPoint(lon=0, lat=1, time=np.datetime64("2001-01-02T00:00:00")),
+    )
+    leg_fast = Leg(
         way_point_start=WayPoint(
             lon=0, lat=-1, time=np.datetime64("2001-01-01T00:00:00")
         ),
         way_point_end=WayPoint(lon=0, lat=1, time=np.datetime64("2001-01-01T12:00:00")),
     )
+
     # load currents and make zero
     current_data_set = load_currents(
         data_file=TEST_DATA_DIR
         / "currents/cmems_mod_glo_phy-cur_anfc_0.083deg_P1D-m_2021-01_1deg_5day.nc"
     )
     current_data_set["uo"] = (current_data_set["uo"] * 0.0).fillna(0.0)
-    current_data_set["uo"] = (current_data_set["vo"] * 0.0).fillna(0.0)
-    speed_ms = leg.speed_ms
-    cost_true = 12 * 3600.0 * speed_ms**3
-    cost_test = leg.cost_through(current_data_set=current_data_set)
-    np.testing.assert_almost_equal(1.0, cost_true / cost_test, decimal=2)
+    current_data_set["vo"] = (current_data_set["vo"] * 0.0).fillna(0.0)
+
+    # calc cost
+    cost_slow = leg_slow.cost_through(
+        current_data_set=current_data_set,
+    )
+    cost_fast = leg_fast.cost_through(
+        current_data_set=current_data_set,
+    )
+
+    np.testing.assert_almost_equal(4.0, cost_fast / cost_slow, decimal=2)
+
+
+def test_leg_cost_through_nonzero_currents_winds_waves():
+    leg = Leg(
+        way_point_start=WayPoint(
+            lon=0, lat=-1, time=np.datetime64("2001-01-01T00:00:00")
+        ),
+        way_point_end=WayPoint(lon=0, lat=1, time=np.datetime64("2001-01-02T00:00:00")),
+    )
+    current_data_set = load_currents(
+        data_file=TEST_DATA_DIR
+        / "currents/cmems_mod_glo_phy-cur_anfc_0.083deg_P1D-m_2021-01_1deg_5day.nc"
+    )
+    wind_data_set = load_winds(
+        data_file=TEST_DATA_DIR
+        / "winds/cmems_obs-wind_glo_phy_my_l4_0.125deg_PT1H_2021-01_6hours_0.5deg_100W-020E_10N-65N.nc"
+    )
+    wave_data_set = load_waves(
+        data_file=TEST_DATA_DIR
+        / "waves/cmems_mod_glo_wav_my_0.2deg_PT3H-i_VHM0_2021-01_1d-max_100W-020E_10N-65N.nc"
+    )
+    cost = leg.cost_through(
+        current_data_set=current_data_set,
+        wave_data_set=wave_data_set,
+        wind_data_set=wind_data_set,
+    )
+    assert cost > 0.0
+
+
+def test_leg_hazard_throug_extreme_waves():
+    leg = Leg(
+        way_point_start=WayPoint(
+            lon=0, lat=-1, time=np.datetime64("2001-01-01T00:00:00")
+        ),
+        way_point_end=WayPoint(lon=0, lat=1, time=np.datetime64("2001-01-02T00:00:00")),
+    )
+    current_data_set = load_currents(
+        data_file=TEST_DATA_DIR
+        / "currents/cmems_mod_glo_phy-cur_anfc_0.083deg_P1D-m_2021-01_1deg_5day.nc"
+    )
+    wind_data_set = load_winds(
+        data_file=TEST_DATA_DIR
+        / "winds/cmems_obs-wind_glo_phy_my_l4_0.125deg_PT1H_2021-01_6hours_0.5deg_100W-020E_10N-65N.nc"
+    )
+    wave_data_set = load_waves(
+        data_file=TEST_DATA_DIR
+        / "waves/cmems_mod_glo_wav_my_0.2deg_PT3H-i_VHM0_2021-01_1d-max_100W-020E_10N-65N.nc"
+    )
+    wave_data_set["wh"] = 50.0 + 0.0 * wave_data_set["wh"].fillna(0.0)
+    hazard = leg.hazard_through(
+        current_data_set=current_data_set,
+        wave_data_set=wave_data_set,
+        wind_data_set=wind_data_set,
+    )
+    assert hazard
+
+
+def test_leg_hazard_through_zero_waves():
+    leg = Leg(
+        way_point_start=WayPoint(
+            lon=0, lat=-1, time=np.datetime64("2001-01-01T00:00:00")
+        ),
+        way_point_end=WayPoint(lon=0, lat=1, time=np.datetime64("2001-01-02T00:00:00")),
+    )
+    current_data_set = load_currents(
+        data_file=TEST_DATA_DIR
+        / "currents/cmems_mod_glo_phy-cur_anfc_0.083deg_P1D-m_2021-01_1deg_5day.nc"
+    )
+    wind_data_set = load_winds(
+        data_file=TEST_DATA_DIR
+        / "winds/cmems_obs-wind_glo_phy_my_l4_0.125deg_PT1H_2021-01_6hours_0.5deg_100W-020E_10N-65N.nc"
+    )
+    wave_data_set = load_waves(
+        data_file=TEST_DATA_DIR
+        / "waves/cmems_mod_glo_wav_my_0.2deg_PT3H-i_VHM0_2021-01_1d-max_100W-020E_10N-65N.nc"
+    )
+    wave_data_set["wh"] = 0.0 * wave_data_set["wh"].fillna(0.0)
+    hazard = leg.hazard_through(
+        current_data_set=current_data_set,
+        wave_data_set=wave_data_set,
+        wind_data_set=wind_data_set,
+    )
+    assert not hazard
 
 
 def test_leg_cost_over_land_is_nan():
@@ -1076,28 +1177,7 @@ def test_route_move_waypoint_north():
     np.testing.assert_almost_equal(0, route_moved.way_points[0].lat, decimal=3)
 
 
-def test_route_cost_through_zero_currents():
-    route = Route(
-        way_points=(
-            WayPoint(lon=0, lat=-1 / 60.0, time=np.datetime64("2001-01-01")),
-            WayPoint(lon=0, lat=0.0, time=np.datetime64("2001-01-02")),
-            WayPoint(lon=0, lat=1 / 60.0, time=np.datetime64("2001-01-03")),
-        )
-    )
-    current_data_set = load_currents(
-        data_file=TEST_DATA_DIR
-        / "currents/cmems_mod_glo_phy-cur_anfc_0.083deg_P1D-m_2021-01_1deg_5day.nc"
-    )
-    current_data_set["uo"] = (current_data_set["uo"] * 0.0).fillna(0.0)
-    current_data_set["vo"] = (current_data_set["vo"] * 0.0).fillna(0.0)
-    speeds = np.array([l.speed_ms for l in route.legs])
-    durations = np.array([l.duration_seconds for l in route.legs])
-    cost_true = np.sum(durations * speeds**3)
-    cost_test = route.cost_through(current_data_set=current_data_set)
-    np.testing.assert_almost_equal(1.0, cost_true / cost_test, decimal=2)
-
-
-def test_route_cost_through_zero_currents_scaling():
+def test_route_cost_through_zero_currents_winds_waves_scaling():
     route_slow = Route(
         way_points=(
             WayPoint(lon=0, lat=-1 / 60.0, time=np.datetime64("2001-01-01T00:00:00")),
@@ -1112,15 +1192,102 @@ def test_route_cost_through_zero_currents_scaling():
             WayPoint(lon=0, lat=1 / 60.0, time=np.datetime64("2001-01-01T02:00:00")),
         )
     )
+    current_data_set = (
+        0.0
+        * load_currents(
+            data_file=TEST_DATA_DIR
+            / "currents/cmems_mod_glo_phy-cur_anfc_0.083deg_P1D-m_2021-01_1deg_5day.nc"
+        )
+    ).fillna(0.0)
+    cost_slow = route_slow.cost_through(current_data_set=current_data_set)
+    cost_fast = route_fast.cost_through(current_data_set=current_data_set)
+    np.testing.assert_almost_equal(6.0**2, cost_fast / cost_slow, decimal=2)
+
+
+def test_route_cost_through_nonzero_currents_winds_waves():
+    route = Route(
+        way_points=(
+            WayPoint(lon=0, lat=-1 / 60.0, time=np.datetime64("2001-01-01T00:00:00")),
+            WayPoint(lon=0, lat=0.0, time=np.datetime64("2001-01-01T06:00:00")),
+            WayPoint(lon=0, lat=1 / 60.0, time=np.datetime64("2001-01-01T12:00:00")),
+        )
+    )
     current_data_set = load_currents(
         data_file=TEST_DATA_DIR
         / "currents/cmems_mod_glo_phy-cur_anfc_0.083deg_P1D-m_2021-01_1deg_5day.nc"
     )
-    current_data_set["uo"] = (current_data_set["uo"] * 0.0).fillna(0.0)
-    current_data_set["vo"] = (current_data_set["vo"] * 0.0).fillna(0.0)
-    cost_slow = route_slow.cost_through(current_data_set=current_data_set)
-    cost_fast = route_fast.cost_through(current_data_set=current_data_set)
-    np.testing.assert_almost_equal(6.0**2, cost_fast / cost_slow, decimal=2)
+    wind_data_set = load_winds(
+        data_file=TEST_DATA_DIR
+        / "winds/cmems_obs-wind_glo_phy_my_l4_0.125deg_PT1H_2021-01_6hours_0.5deg_100W-020E_10N-65N.nc"
+    )
+    wave_data_set = load_waves(
+        data_file=TEST_DATA_DIR
+        / "waves/cmems_mod_glo_wav_my_0.2deg_PT3H-i_VHM0_2021-01_1d-max_100W-020E_10N-65N.nc"
+    )
+    cost = route.cost_through(
+        current_data_set=current_data_set,
+        wind_data_set=wind_data_set,
+        wave_data_set=wave_data_set,
+    )
+    assert cost > 0.0
+
+
+def test_route_hazard_through_extreme_waves():
+    route = Route(
+        way_points=(
+            WayPoint(lon=0, lat=-1 / 60.0, time=np.datetime64("2001-01-01T00:00:00")),
+            WayPoint(lon=0, lat=0.0, time=np.datetime64("2001-01-01T06:00:00")),
+            WayPoint(lon=0, lat=1 / 60.0, time=np.datetime64("2001-01-01T12:00:00")),
+        )
+    )
+    current_data_set = load_currents(
+        data_file=TEST_DATA_DIR
+        / "currents/cmems_mod_glo_phy-cur_anfc_0.083deg_P1D-m_2021-01_1deg_5day.nc"
+    )
+    wind_data_set = load_winds(
+        data_file=TEST_DATA_DIR
+        / "winds/cmems_obs-wind_glo_phy_my_l4_0.125deg_PT1H_2021-01_6hours_0.5deg_100W-020E_10N-65N.nc"
+    )
+    wave_data_set = load_waves(
+        data_file=TEST_DATA_DIR
+        / "waves/cmems_mod_glo_wav_my_0.2deg_PT3H-i_VHM0_2021-01_1d-max_100W-020E_10N-65N.nc"
+    )
+    wave_data_set["wh"] = 50.0 + 0.0 * wave_data_set["wh"].fillna(0.0)
+    hazard = route.hazard_through(
+        current_data_set=current_data_set,
+        wind_data_set=wind_data_set,
+        wave_data_set=wave_data_set,
+    )
+    assert hazard
+
+
+def test_route_hazard_through_zero_waves():
+    route = Route(
+        way_points=(
+            WayPoint(lon=0, lat=-1 / 60.0, time=np.datetime64("2001-01-01T00:00:00")),
+            WayPoint(lon=0, lat=0.0, time=np.datetime64("2001-01-01T06:00:00")),
+            WayPoint(lon=0, lat=1 / 60.0, time=np.datetime64("2001-01-01T12:00:00")),
+        )
+    )
+    current_data_set = load_currents(
+        data_file=TEST_DATA_DIR
+        / "currents/cmems_mod_glo_phy-cur_anfc_0.083deg_P1D-m_2021-01_1deg_5day.nc"
+    )
+    wind_data_set = load_winds(
+        data_file=TEST_DATA_DIR
+        / "winds/cmems_obs-wind_glo_phy_my_l4_0.125deg_PT1H_2021-01_6hours_0.5deg_100W-020E_10N-65N.nc"
+    )
+    wave_data_set = load_waves(
+        data_file=TEST_DATA_DIR
+        / "waves/cmems_mod_glo_wav_my_0.2deg_PT3H-i_VHM0_2021-01_1d-max_100W-020E_10N-65N.nc"
+    )
+    wave_data_set["wh"] = 0.0 * wave_data_set["wh"].fillna(0.0)
+    hazard = route.hazard_through(
+        current_data_set=current_data_set,
+        wind_data_set=wind_data_set,
+        wave_data_set=wave_data_set,
+    )
+    assert not hazard
 
 
 def test_route_waypoint_azimuth():

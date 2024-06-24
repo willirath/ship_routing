@@ -21,9 +21,16 @@ from .geodesics import (
 
 from .remix import segment_lines_with_each_other
 
-from .currents import select_currents_for_leg
+from .data import select_data_for_leg
 
-from .cost import power_maintain_speed
+from .cost import (
+    power_maintain_speed,
+    hazard_conditions_wave_height,
+    Ship,
+    Physics,
+    SHIP_DEFAULT,
+    PHYSICS_DEFAULT,
+)
 
 
 @dataclass(frozen=True)
@@ -281,29 +288,138 @@ class Leg:
         az_rad = np.deg2rad(self.azimuth_degrees)
         return spd * np.sin(az_rad), spd * np.cos(az_rad)
 
-    def cost_through(self, current_data_set: xr.Dataset = None):
-        us, vs = self.uv_over_ground_ms
-        ds_uovo = select_currents_for_leg(
-            ds=current_data_set,
-            lon_start=self.way_point_start.lon,
-            lat_start=self.way_point_start.lat,
-            time_start=self.way_point_start.time,
-            lon_end=self.way_point_end.lon,
-            lat_end=self.way_point_end.lat,
-            time_end=self.way_point_end.time,
+    def cost_through(
+        self,
+        current_data_set: xr.Dataset = None,
+        wind_data_set: xr.Dataset = None,
+        wave_data_set: xr.Dataset = None,
+        ship: Ship = SHIP_DEFAULT,
+        physics: Physics = PHYSICS_DEFAULT,
+    ):
+        u_ship_og, v_ship_og = self.uv_over_ground_ms
+        if current_data_set is not None:
+            ds_current = select_data_for_leg(
+                ds=current_data_set,
+                lon_start=self.way_point_start.lon,
+                lat_start=self.way_point_start.lat,
+                time_start=self.way_point_start.time,
+                lon_end=self.way_point_end.lon,
+                lat_end=self.way_point_end.lat,
+                time_end=self.way_point_end.time,
+            )
+            u_current, v_current = ds_current.uo, ds_current.vo
+        else:
+            u_current, v_current = 0, 0
+        if wind_data_set is not None:
+            ds_wind = select_data_for_leg(
+                ds=wind_data_set,
+                lon_start=self.way_point_start.lon,
+                lat_start=self.way_point_start.lat,
+                time_start=self.way_point_start.time,
+                lon_end=self.way_point_end.lon,
+                lat_end=self.way_point_end.lat,
+                time_end=self.way_point_end.time,
+            )
+            u_wind, v_wind = ds_wind.uw, ds_wind.vw
+        else:
+            u_wind, v_wind = 0, 0
+        if wave_data_set is not None:
+            ds_wave = select_data_for_leg(
+                ds=wave_data_set,
+                lon_start=self.way_point_start.lon,
+                lat_start=self.way_point_start.lat,
+                time_start=self.way_point_start.time,
+                lon_end=self.way_point_end.lon,
+                lat_end=self.way_point_end.lat,
+                time_end=self.way_point_end.time,
+            )
+            w_wave_height = ds_wave.wh
+        else:
+            w_wave_height = 0
+        pwr = power_maintain_speed(
+            u_current_ms=u_current,
+            v_current_ms=v_current,
+            u_wind_ms=u_wind,
+            v_wind_ms=v_wind,
+            w_wave_height=w_wave_height,
+            u_ship_og_ms=u_ship_og,
+            v_ship_og_ms=v_ship_og,
+            ship=ship,
+            physics=physics,
         )
-        pwr = power_maintain_speed(uo=ds_uovo.uo, vo=ds_uovo.vo, us=us, vs=vs)
         if pwr.isnull().sum() > 0:
             return np.nan
         else:
             return pwr.mean().data[()] * self.duration_seconds
 
+    def hazard_through(
+        self,
+        current_data_set: xr.Dataset = None,
+        wind_data_set: xr.Dataset = None,
+        wave_data_set: xr.Dataset = None,
+        ship: Ship = SHIP_DEFAULT,
+        physics: Physics = PHYSICS_DEFAULT,
+    ):
+        u_ship_og, v_ship_og = self.uv_over_ground_ms
+        if current_data_set is not None:
+            ds_current = select_data_for_leg(
+                ds=current_data_set,
+                lon_start=self.way_point_start.lon,
+                lat_start=self.way_point_start.lat,
+                time_start=self.way_point_start.time,
+                lon_end=self.way_point_end.lon,
+                lat_end=self.way_point_end.lat,
+                time_end=self.way_point_end.time,
+            )
+            u_current, v_current = ds_current.uo, ds_current.vo
+        else:
+            u_current, v_current = 0, 0
+        if wind_data_set is not None:
+            ds_wind = select_data_for_leg(
+                ds=wind_data_set,
+                lon_start=self.way_point_start.lon,
+                lat_start=self.way_point_start.lat,
+                time_start=self.way_point_start.time,
+                lon_end=self.way_point_end.lon,
+                lat_end=self.way_point_end.lat,
+                time_end=self.way_point_end.time,
+            )
+            u_wind, v_wind = ds_wind.uw, ds_wind.vw
+        else:
+            u_wind, v_wind = 0, 0
+        if wave_data_set is not None:
+            ds_wave = select_data_for_leg(
+                ds=wave_data_set,
+                lon_start=self.way_point_start.lon,
+                lat_start=self.way_point_start.lat,
+                time_start=self.way_point_start.time,
+                lon_end=self.way_point_end.lon,
+                lat_end=self.way_point_end.lat,
+                time_end=self.way_point_end.time,
+            )
+            w_wave_height = ds_wave.wh
+        else:
+            w_wave_height = 0
+        return any(
+            hazard_conditions_wave_height(
+                u_current_ms=u_current,
+                v_current_ms=v_current,
+                u_wind_ms=u_wind,
+                v_wind_ms=v_wind,
+                w_wave_height=w_wave_height,
+                u_ship_og_ms=u_ship_og,
+                v_ship_og_ms=v_ship_og,
+                ship=ship,
+                physics=physics,
+            )
+        )
+
     def speed_through_water_ms(self, current_data_set: xr.Dataset = None):
         # normalized velocity over ground
         az_rad = np.deg2rad(self.azimuth_degrees)
         uhat, vhat = np.sin(az_rad), np.cos(az_rad)
-        # parallel component of curretns
-        ds_uovo = select_currents_for_leg(
+        # parallel component of currents
+        ds_uovo = select_data_for_leg(
             ds=current_data_set,
             lon_start=self.way_point_start.lon,
             lat_start=self.way_point_start.lat,
@@ -494,14 +610,82 @@ class Route:
         )
         return self.replace_waypoint(n=n, new_way_point=wp_moved)
 
-    def cost_through(self, current_data_set: xr.Dataset = None):
+    def cost_through(
+        self,
+        current_data_set: xr.Dataset = None,
+        wind_data_set: xr.Dataset = None,
+        wave_data_set: xr.Dataset = None,
+        ship: Ship = SHIP_DEFAULT,
+        physics: Physics = PHYSICS_DEFAULT,
+    ):
         """Cost along whole route."""
-        return sum(self.cost_per_leg_through(current_data_set=current_data_set))
+        return sum(
+            self.cost_per_leg_through(
+                current_data_set=current_data_set,
+                wind_data_set=wind_data_set,
+                wave_data_set=wave_data_set,
+                ship=ship,
+                physics=physics,
+            )
+        )
 
-    def cost_per_leg_through(self, current_data_set: xr.Dataset = None):
+    def cost_per_leg_through(
+        self,
+        current_data_set: xr.Dataset = None,
+        wind_data_set: xr.Dataset = None,
+        wave_data_set: xr.Dataset = None,
+        ship: Ship = SHIP_DEFAULT,
+        physics: Physics = PHYSICS_DEFAULT,
+    ):
         """Cost along each leg."""
         return tuple(
-            (l.cost_through(current_data_set=current_data_set) for l in self.legs)
+            (
+                l.cost_through(
+                    current_data_set=current_data_set,
+                    wind_data_set=wind_data_set,
+                    wave_data_set=wave_data_set,
+                    ship=ship,
+                    physics=physics,
+                )
+                for l in self.legs
+            )
+        )
+
+    def hazard_through(
+        self,
+        current_data_set: xr.Dataset = None,
+        wind_data_set: xr.Dataset = None,
+        wave_data_set: xr.Dataset = None,
+        ship: Ship = SHIP_DEFAULT,
+        physics: Physics = PHYSICS_DEFAULT,
+    ):
+        return any(
+            self.hazard_per_leg_through(
+                current_data_set=current_data_set,
+                wind_data_set=wind_data_set,
+                wave_data_set=wave_data_set,
+                ship=ship,
+                physics=physics,
+            )
+        )
+
+    def hazard_per_leg_through(
+        self,
+        current_data_set: xr.Dataset = None,
+        wind_data_set: xr.Dataset = None,
+        wave_data_set: xr.Dataset = None,
+        ship: Ship = SHIP_DEFAULT,
+        physics: Physics = PHYSICS_DEFAULT,
+    ):
+        return tuple(
+            l.hazard_through(
+                current_data_set=current_data_set,
+                wind_data_set=wind_data_set,
+                wave_data_set=wave_data_set,
+                ship=ship,
+                physics=physics,
+            )
+            for l in self.legs
         )
 
     def waypoint_azimuth(self, n: int = None):
@@ -608,7 +792,11 @@ class Route:
         self,
         n: int = None,
         current_data_set: xr.Dataset = None,
+        wind_data_set: xr.Dataset = None,
+        wave_data_set: xr.Dataset = None,
         distance_meters: float = None,
+        ship: Ship = SHIP_DEFAULT,
+        physics: Physics = PHYSICS_DEFAULT,
     ):
         route_mod_fwd = self.move_waypoint(
             n=n,
@@ -621,15 +809,31 @@ class Route:
             distance_meters=-0.5 * distance_meters,
         )
         return (
-            route_mod_fwd.cost_through(current_data_set=current_data_set)
-            - route_mod_bwd.cost_through(current_data_set=current_data_set)
+            route_mod_fwd.cost_through(
+                current_data_set=current_data_set,
+                wind_data_set=wind_data_set,
+                wave_data_set=wave_data_set,
+                ship=ship,
+                physics=physics,
+            )
+            - route_mod_bwd.cost_through(
+                current_data_set=current_data_set,
+                wind_data_set=wind_data_set,
+                wave_data_set=wave_data_set,
+                ship=ship,
+                physics=physics,
+            )
         ) / distance_meters
 
     def cost_gradient_along_track(
         self,
         n: int = None,
         current_data_set: xr.Dataset = None,
+        wind_data_set: xr.Dataset = None,
+        wave_data_set: xr.Dataset = None,
         distance_meters: float = None,
+        ship: Ship = SHIP_DEFAULT,
+        physics: Physics = PHYSICS_DEFAULT,
     ):
         route_mod_fwd = self.move_waypoint(
             n=n,
@@ -642,15 +846,31 @@ class Route:
             distance_meters=-0.5 * distance_meters,
         )
         return (
-            route_mod_fwd.cost_through(current_data_set=current_data_set)
-            - route_mod_bwd.cost_through(current_data_set=current_data_set)
+            route_mod_fwd.cost_through(
+                current_data_set=current_data_set,
+                wind_data_set=wind_data_set,
+                wave_data_set=wave_data_set,
+                ship=ship,
+                physics=physics,
+            )
+            - route_mod_bwd.cost_through(
+                current_data_set=current_data_set,
+                wind_data_set=wind_data_set,
+                wave_data_set=wave_data_set,
+                ship=ship,
+                physics=physics,
+            )
         ) / distance_meters
 
     def cost_gradient_time_shift(
         self,
         n: int = None,
         current_data_set: xr.Dataset = None,
+        wind_data_set: xr.Dataset = None,
+        wave_data_set: xr.Dataset = None,
         time_shift_seconds: float = None,
+        ship: Ship = SHIP_DEFAULT,
+        physics: Physics = PHYSICS_DEFAULT,
     ):
         # This is important: If we just do 0.5 * np.timedelta65(1, "s") * ..., this will
         # map to timediff=0 in the internal integer representation of np.timedelta64 ...
@@ -665,8 +885,20 @@ class Route:
             new_way_point=self.way_points[n].move_time(time_diff=-0.5 * time_diff_np),
         )
         return (
-            route_mod_fwd.cost_through(current_data_set=current_data_set)
-            - route_mod_bwd.cost_through(current_data_set=current_data_set)
+            route_mod_fwd.cost_through(
+                current_data_set=current_data_set,
+                wind_data_set=wind_data_set,
+                wave_data_set=wave_data_set,
+                ship=ship,
+                physics=physics,
+            )
+            - route_mod_bwd.cost_through(
+                current_data_set=current_data_set,
+                wind_data_set=wind_data_set,
+                wave_data_set=wave_data_set,
+                ship=ship,
+                physics=physics,
+            )
         ) / time_shift_seconds
 
     def move_waypoints_left_nonlocal(
