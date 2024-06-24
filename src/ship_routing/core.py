@@ -19,7 +19,10 @@ from .geodesics import (
     get_leg_azimuth,
 )
 
-from .remix import segment_lines_with_each_other
+from .remix import (
+    segment_lines_with_each_other,
+    SHAPELY_RESOLUTION,
+)
 
 from .data import select_data_for_leg
 
@@ -737,13 +740,18 @@ class Route:
         )
         return split_legs[0].way_point_end
 
-    def segment_at(self, other):
+    def segment_at(
+        self,
+        other,
+        resolution: float = SHAPELY_RESOLUTION,
+    ):
         """Segment route at other route."""
         self_line_string = self.line_string
         other_line_string = other.line_string
         self_seg, other_seg = segment_lines_with_each_other(
             line_0=self_line_string,
             line_1=other_line_string,
+            resolution=resolution,
         )
         self_split_dists = tuple(
             np.cumsum([get_length_meters(s) for s in self_seg[:-1]])
