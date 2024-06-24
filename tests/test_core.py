@@ -15,6 +15,7 @@ from pathlib import Path
 
 import numpy as np
 import pint
+import pandas as pd
 import xarray as xr
 
 import pytest
@@ -1335,6 +1336,22 @@ def test_route_segment_at_assert_matching_wps():
         assert s0.way_points[-1].point == s1.way_points[0].point
     for s0, s1 in zip(segments_of_route_1[:-1], segments_of_route_0[1:]):
         assert s0.way_points[-1].point == s1.way_points[0].point
+
+
+def test_route_segmentation_bad_routes_lead_to_contiguous_segments():
+    route_a = Route.from_data_frame(
+        data_frame=pd.read_csv(
+            TEST_DATA_DIR / "segmentation/bad_segment_route_a.csv",
+            parse_dates=["time", ],
+        ))
+    route_b = Route.from_data_frame(
+        data_frame=pd.read_csv(
+            TEST_DATA_DIR / "segmentation/bad_segment_route_b.csv",
+            parse_dates=["time", ],
+        ))
+    seg_a, seg_b = route_a.segment_at(other=route_b)
+    
+    raise NotImplementedError()
 
 
 def test_route_split_at_distance():
