@@ -1339,20 +1339,28 @@ def test_route_segment_at_assert_matching_wps():
 
 
 def test_route_segmentation_bad_routes_lead_to_contiguous_segments():
-    route_a = Route.from_data_frame(
+    route_0 = Route.from_data_frame(
         data_frame=pd.read_csv(
             TEST_DATA_DIR / "segmentation/bad_segment_route_a.csv",
             parse_dates=["time", ],
         ))
-    route_b = Route.from_data_frame(
+    route_1 = Route.from_data_frame(
         data_frame=pd.read_csv(
             TEST_DATA_DIR / "segmentation/bad_segment_route_b.csv",
             parse_dates=["time", ],
         ))
-    seg_a, seg_b = route_a.segment_at(other=route_b)
-    
-    raise NotImplementedError()
-
+    segments_of_route_0, segments_of_route_1 = route_0.segment_at(other=route_1)
+    # segments of route 0 meet each other
+    for (_n, (s0, s1)) in enumerate(zip(segments_of_route_0[:-1], segments_of_route_0[1:])):
+        assert s0.way_points[-1] == s1.way_points[0]
+    # segments of route 1 meet each other
+    for (_n, (s0, s1)) in enumerate(zip(segments_of_route_0[:-1], segments_of_route_1[1:])):
+        assert s0.way_points[-1] == s1.way_points[0]
+    # ends of segs of r0 meet starts of segs of r1
+    for (_n, (s0, s1)) in enumerate(zip(segments_of_route_0[:-1], segments_of_route_1[1:])):
+        assert s0.way_points[-1].point == s1.way_points[0].point
+    for (_n, (s0, s1)) in enumerate(zip(segments_of_route_1[:-1], segments_of_route_0[1:])):
+        assert s0.way_points[-1].point == s1.way_points[0].point
 
 def test_route_split_at_distance():
     route = Route(
