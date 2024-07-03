@@ -16,7 +16,6 @@ from pathlib import Path
 import numpy as np
 import pint
 import pandas as pd
-import xarray as xr
 
 import pytest
 
@@ -1354,6 +1353,67 @@ def test_route_segment_at_works_for_no_segments():
         )
     )
     _, _ = route_0.segment_at(other=route_1)
+
+
+def test_route_segment_at_for_bad_routes():
+    route_0 = Route.from_data_frame(
+        pd.read_csv(
+            TEST_DATA_DIR / "segmentation/bad_segment_route_a.csv",
+            parse_dates=[
+                "time",
+            ],
+        )
+    )
+    route_1 = Route.from_data_frame(
+        pd.read_csv(
+            TEST_DATA_DIR / "segmentation/bad_segment_route_b.csv",
+            parse_dates=[
+                "time",
+            ],
+        )
+    )
+    segments_of_route_0, segments_of_route_1 = route_0.segment_at(other=route_1)
+    # segments of route 0 meet each other
+    for s0, s1 in zip(segments_of_route_0[:-1], segments_of_route_0[1:]):
+        np.testing.assert_almost_equal(
+            s0.way_points[-1].lon, s1.way_points[0].lon, decimal=3
+        )
+        np.testing.assert_almost_equal(
+            s0.way_points[-1].lat, s1.way_points[0].lat, decimal=3
+        )
+        np.testing.assert_almost_equal(
+            0.0,
+            (s0.way_points[-1].time - s1.way_points[0].time) / np.timedelta64(1, "s"),
+            decimal=3,
+        )
+    # segments of route 1 meet each other
+    for s0, s1 in zip(segments_of_route_1[:-1], segments_of_route_1[1:]):
+        np.testing.assert_almost_equal(
+            s0.way_points[-1].lon, s1.way_points[0].lon, decimal=3
+        )
+        np.testing.assert_almost_equal(
+            s0.way_points[-1].lat, s1.way_points[0].lat, decimal=3
+        )
+        np.testing.assert_almost_equal(
+            0.0,
+            (s0.way_points[-1].time - s1.way_points[0].time) / np.timedelta64(1, "s"),
+            decimal=3,
+        )
+    # ends of segs of r0 meet starts of segs of r1
+    for s0, s1 in zip(segments_of_route_0[:-1], segments_of_route_1[1:]):
+        np.testing.assert_almost_equal(
+            s0.way_points[-1].lon, s1.way_points[0].lon, decimal=3
+        )
+        np.testing.assert_almost_equal(
+            s0.way_points[-1].lat, s1.way_points[0].lat, decimal=3
+        )
+    for s0, s1 in zip(segments_of_route_1[:-1], segments_of_route_0[1:]):
+        np.testing.assert_almost_equal(
+            s0.way_points[-1].lon, s1.way_points[0].lon, decimal=3
+        )
+        np.testing.assert_almost_equal(
+            s0.way_points[-1].lat, s1.way_points[0].lat, decimal=3
+        )
 
 
 def test_route_split_at_distance():

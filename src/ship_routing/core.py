@@ -773,12 +773,6 @@ class Route:
             other_segments_rev.append(s1)
             other_r = s0
         other_segments_rev.append(s0)
-        all_points_in_other_segments = shp_union_all(
-            sum([[w.point for w in s.way_points] for s in other_segments_rev], start=[])
-        )
-        self_segments_rev = [
-            s.snap_at(all_points_in_other_segments) for s in self_segments_rev
-        ]
         return tuple(self_segments_rev[::-1]), tuple(other_segments_rev[::-1])
 
     def snap_at(self, other, tolerance: float = 1e-3):

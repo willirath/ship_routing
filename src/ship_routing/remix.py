@@ -49,6 +49,8 @@ def segment_lines_with_each_other(
         else:
             raise ValueError("Intersection can only contain Points and LineStrings.")
 
+    # split
+
     splitter = shapely.union_all(list(intersection_points))
 
     line_0_segments = tuple(split(line_0, splitter=splitter).geoms)
