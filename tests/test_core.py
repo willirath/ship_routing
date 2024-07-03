@@ -1310,18 +1310,18 @@ def test_route_waypoint_azimuth():
 def test_route_segment_at_assert_matching_wps():
     route_0 = Route(
         way_points=(
-            WayPoint(lon=0.0, lat=0.1, time=np.datetime64("2001-01-01T00:00:00")),
-            WayPoint(lon=1.0, lat=0.0, time=np.datetime64("2001-01-01T00:01:00")),
-            WayPoint(lon=1.0, lat=1.0, time=np.datetime64("2001-01-01T00:02:00")),
-            WayPoint(lon=-0.5, lat=-1.5, time=np.datetime64("2001-01-01T00:03:00")),
+            WayPoint(lon=0.0, lat=0.0, time=np.datetime64("2001-01-01T00:00:00")),
+            WayPoint(lon=0.0, lat=1.0, time=np.datetime64("2001-01-01T00:01:00")),
+            WayPoint(lon=1.0, lat=0.0, time=np.datetime64("2001-01-01T00:02:00")),
+            WayPoint(lon=0.0, lat=-1.5, time=np.datetime64("2001-01-01T00:03:00")),
         )
     )
     route_1 = Route(
         way_points=(
-            WayPoint(lon=0.0, lat=-0.1, time=np.datetime64("2001-01-01T01:00:00")),
-            WayPoint(lon=-0.5, lat=-0.5, time=np.datetime64("2001-01-01T02:00:00")),
-            WayPoint(lon=0.5, lat=-1.0, time=np.datetime64("2001-01-01T03:00:00")),
-            WayPoint(lon=-0.5, lat=-1.5, time=np.datetime64("2001-01-01T03:00:00")),
+            WayPoint(lon=0.0, lat=0.0, time=np.datetime64("2001-01-01T01:00:00")),
+            WayPoint(lon=-0.5, lat=0.5, time=np.datetime64("2001-01-01T02:00:00")),
+            WayPoint(lon=1.5, lat=-1.0, time=np.datetime64("2001-01-01T03:00:00")),
+            WayPoint(lon=0.0, lat=-1.5, time=np.datetime64("2001-01-01T03:00:00")),
         )
     )
     segments_of_route_0, segments_of_route_1 = route_0.segment_at(other=route_1)
@@ -1336,6 +1336,24 @@ def test_route_segment_at_assert_matching_wps():
         assert s0.way_points[-1].point == s1.way_points[0].point
     for s0, s1 in zip(segments_of_route_1[:-1], segments_of_route_0[1:]):
         assert s0.way_points[-1].point == s1.way_points[0].point
+
+
+def test_route_segment_at_works_for_no_segments():
+    route_0 = Route(
+        way_points=(
+            WayPoint(lon=0.0, lat=0.0, time=np.datetime64("2001-01-01T00:00:00")),
+            WayPoint(lon=0.0, lat=1.0, time=np.datetime64("2001-01-02T00:00:00")),
+        )
+    )
+    route_1 = Route(
+        way_points=(
+            WayPoint(lon=0.0, lat=0.0, time=np.datetime64("2001-01-01T00:00:00")),
+            WayPoint(lon=-1.0, lat=0.5, time=np.datetime64("2001-01-01T08:00:00")),
+            WayPoint(lon=1.0, lat=0.5, time=np.datetime64("2001-01-01T16:00:00")),
+            WayPoint(lon=0.0, lat=1.0, time=np.datetime64("2001-01-02T00:00:00")),
+        )
+    )
+    _, _ = route_0.segment_at(other=route_1)
 
 
 def test_route_split_at_distance():
