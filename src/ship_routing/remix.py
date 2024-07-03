@@ -1,8 +1,5 @@
 import shapely
-import shapely.geometry
-import shapely.geometry.multilinestring
-from shapely.ops import split, linemerge
-from shapely import snap
+from shapely.ops import split
 
 SHAPELY_RESOLUTION = 1e-3
 
