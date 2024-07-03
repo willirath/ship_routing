@@ -15,7 +15,7 @@ from pathlib import Path
 
 import numpy as np
 import pint
-import xarray as xr
+import pandas as pd
 
 import pytest
 
@@ -1309,32 +1309,141 @@ def test_route_waypoint_azimuth():
 def test_route_segment_at_assert_matching_wps():
     route_0 = Route(
         way_points=(
-            WayPoint(lon=0.0, lat=0.1, time=np.datetime64("2001-01-01T00:00:00")),
-            WayPoint(lon=1.0, lat=0.0, time=np.datetime64("2001-01-01T00:01:00")),
-            WayPoint(lon=1.0, lat=1.0, time=np.datetime64("2001-01-01T00:02:00")),
-            WayPoint(lon=-0.5, lat=-1.5, time=np.datetime64("2001-01-01T00:03:00")),
+            WayPoint(lon=0.0, lat=0.0, time=np.datetime64("2001-01-01T00:00:00")),
+            WayPoint(lon=0.0, lat=1.0, time=np.datetime64("2001-01-01T00:01:00")),
+            WayPoint(lon=1.0, lat=0.0, time=np.datetime64("2001-01-01T00:02:00")),
+            WayPoint(lon=0.0, lat=-1.5, time=np.datetime64("2001-01-01T00:03:00")),
         )
     )
     route_1 = Route(
         way_points=(
-            WayPoint(lon=0.0, lat=-0.1, time=np.datetime64("2001-01-01T01:00:00")),
-            WayPoint(lon=-0.5, lat=-0.5, time=np.datetime64("2001-01-01T02:00:00")),
-            WayPoint(lon=0.5, lat=-1.0, time=np.datetime64("2001-01-01T03:00:00")),
-            WayPoint(lon=-0.5, lat=-1.5, time=np.datetime64("2001-01-01T03:00:00")),
+            WayPoint(lon=0.0, lat=0.0, time=np.datetime64("2001-01-01T01:00:00")),
+            WayPoint(lon=-0.5, lat=0.5, time=np.datetime64("2001-01-01T02:00:00")),
+            WayPoint(lon=1.5, lat=-1.0, time=np.datetime64("2001-01-01T03:00:00")),
+            WayPoint(lon=0.0, lat=-1.5, time=np.datetime64("2001-01-01T03:00:00")),
         )
     )
     segments_of_route_0, segments_of_route_1 = route_0.segment_at(other=route_1)
     # segments of route 0 meet each other
     for s0, s1 in zip(segments_of_route_0[:-1], segments_of_route_0[1:]):
-        assert s0.way_points[-1] == s1.way_points[0]
+        np.testing.assert_almost_equal(
+            s0.way_points[-1].lon, s1.way_points[0].lon, decimal=3
+        )
+        np.testing.assert_almost_equal(
+            s0.way_points[-1].lat, s1.way_points[0].lat, decimal=3
+        )
+        np.testing.assert_almost_equal(
+            0.0,
+            (s0.way_points[-1].time - s1.way_points[0].time) / np.timedelta64(1, "s"),
+            decimal=3,
+        )
     # segments of route 1 meet each other
     for s0, s1 in zip(segments_of_route_1[:-1], segments_of_route_1[1:]):
-        assert s0.way_points[-1] == s1.way_points[0]
+        np.testing.assert_almost_equal(
+            s0.way_points[-1].lon, s1.way_points[0].lon, decimal=3
+        )
+        np.testing.assert_almost_equal(
+            s0.way_points[-1].lat, s1.way_points[0].lat, decimal=3
+        )
+        np.testing.assert_almost_equal(
+            0.0,
+            (s0.way_points[-1].time - s1.way_points[0].time) / np.timedelta64(1, "s"),
+            decimal=3,
+        )
     # ends of segs of r0 meet starts of segs of r1
     for s0, s1 in zip(segments_of_route_0[:-1], segments_of_route_1[1:]):
-        assert s0.way_points[-1].point == s1.way_points[0].point
+        np.testing.assert_almost_equal(
+            s0.way_points[-1].lon, s1.way_points[0].lon, decimal=3
+        )
+        np.testing.assert_almost_equal(
+            s0.way_points[-1].lat, s1.way_points[0].lat, decimal=3
+        )
     for s0, s1 in zip(segments_of_route_1[:-1], segments_of_route_0[1:]):
-        assert s0.way_points[-1].point == s1.way_points[0].point
+        np.testing.assert_almost_equal(
+            s0.way_points[-1].lon, s1.way_points[0].lon, decimal=3
+        )
+        np.testing.assert_almost_equal(
+            s0.way_points[-1].lat, s1.way_points[0].lat, decimal=3
+        )
+
+
+def test_route_segment_at_works_for_no_segments():
+    route_0 = Route(
+        way_points=(
+            WayPoint(lon=0.0, lat=0.0, time=np.datetime64("2001-01-01T00:00:00")),
+            WayPoint(lon=0.0, lat=1.0, time=np.datetime64("2001-01-02T00:00:00")),
+        )
+    )
+    route_1 = Route(
+        way_points=(
+            WayPoint(lon=0.0, lat=0.0, time=np.datetime64("2001-01-01T00:00:00")),
+            WayPoint(lon=-1.0, lat=0.5, time=np.datetime64("2001-01-01T08:00:00")),
+            WayPoint(lon=1.0, lat=0.5, time=np.datetime64("2001-01-01T16:00:00")),
+            WayPoint(lon=0.0, lat=1.0, time=np.datetime64("2001-01-02T00:00:00")),
+        )
+    )
+    _, _ = route_0.segment_at(other=route_1)
+
+
+def test_route_segment_at_for_bad_routes():
+    route_0 = Route.from_data_frame(
+        pd.read_csv(
+            TEST_DATA_DIR / "segmentation/bad_segment_route_a.csv",
+            parse_dates=[
+                "time",
+            ],
+        )
+    )
+    route_1 = Route.from_data_frame(
+        pd.read_csv(
+            TEST_DATA_DIR / "segmentation/bad_segment_route_b.csv",
+            parse_dates=[
+                "time",
+            ],
+        )
+    )
+    segments_of_route_0, segments_of_route_1 = route_0.segment_at(other=route_1)
+    # segments of route 0 meet each other
+    for s0, s1 in zip(segments_of_route_0[:-1], segments_of_route_0[1:]):
+        np.testing.assert_almost_equal(
+            s0.way_points[-1].lon, s1.way_points[0].lon, decimal=3
+        )
+        np.testing.assert_almost_equal(
+            s0.way_points[-1].lat, s1.way_points[0].lat, decimal=3
+        )
+        np.testing.assert_almost_equal(
+            0.0,
+            (s0.way_points[-1].time - s1.way_points[0].time) / np.timedelta64(1, "s"),
+            decimal=3,
+        )
+    # segments of route 1 meet each other
+    for s0, s1 in zip(segments_of_route_1[:-1], segments_of_route_1[1:]):
+        np.testing.assert_almost_equal(
+            s0.way_points[-1].lon, s1.way_points[0].lon, decimal=3
+        )
+        np.testing.assert_almost_equal(
+            s0.way_points[-1].lat, s1.way_points[0].lat, decimal=3
+        )
+        np.testing.assert_almost_equal(
+            0.0,
+            (s0.way_points[-1].time - s1.way_points[0].time) / np.timedelta64(1, "s"),
+            decimal=3,
+        )
+    # ends of segs of r0 meet starts of segs of r1
+    for s0, s1 in zip(segments_of_route_0[:-1], segments_of_route_1[1:]):
+        np.testing.assert_almost_equal(
+            s0.way_points[-1].lon, s1.way_points[0].lon, decimal=3
+        )
+        np.testing.assert_almost_equal(
+            s0.way_points[-1].lat, s1.way_points[0].lat, decimal=3
+        )
+    for s0, s1 in zip(segments_of_route_1[:-1], segments_of_route_0[1:]):
+        np.testing.assert_almost_equal(
+            s0.way_points[-1].lon, s1.way_points[0].lon, decimal=3
+        )
+        np.testing.assert_almost_equal(
+            s0.way_points[-1].lat, s1.way_points[0].lat, decimal=3
+        )
 
 
 def test_route_split_at_distance():

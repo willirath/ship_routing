@@ -1,6 +1,5 @@
 import shapely
-from shapely.ops import split, linemerge
-from shapely import snap
+from shapely.ops import split
 
 SHAPELY_RESOLUTION = 1e-3
 
@@ -10,39 +9,51 @@ def segment_lines_with_each_other(
     line_1: shapely.geometry.LineString = None,
     resolution: float = SHAPELY_RESOLUTION,
 ) -> tuple:
-    # find intersections (returns points _and_ linestrings if lines are overlapping)
-    _splitter = list(
-        shapely.intersection(line_0, line_1, grid_size=SHAPELY_RESOLUTION).geoms
-    )
+    """Segment line strings with each other.
 
-    # replace linestrings by their endpoints by first splitting linestrings into start / end and
-    # then building one long list of points
-    def _merge_all_ls(s):
-        _ls = []
-        for e in s:
-            if isinstance(e, shapely.geometry.Point):
-                if len(_ls) > 0:
-                    for p in list(linemerge(_ls).boundary.geoms):
-                        yield p
-                    _ls = []
-                yield e
-            else:
-                _ls.append(e)
-        if len(_ls) > 0:
-            for p in list(linemerge(_ls).boundary.geoms):
-                yield p
+    Note that due to our handling of round-off errors, results will differ if lines are
+    permuted.
 
-    splitter = list(_merge_all_ls(_splitter))
+    Parameters
+    ----------
+    line_0: shapely.geometry.LineString
+        First line.
+    line_1: shapely.geometry.LineString
+        Second line.
+    resolution: float
+        Resolution of all operations.
 
-    # cast to proper geometry again
-    splitter = shapely.geometry.MultiPoint(splitter)
+    Returns
+    -------
+    tuple:
+        Segments of line_0, segments of line_1
 
-    # segment by first snapping into splitting points and then
-    line_0_segments = list(
-        split(snap(line_0, splitter, tolerance=SHAPELY_RESOLUTION), splitter).geoms
-    )
-    line_1_segments = list(
-        split(snap(line_1, splitter, tolerance=SHAPELY_RESOLUTION), splitter).geoms
-    )
+    """
+    # set precision
+    line_0 = shapely.set_precision(line_0, resolution)
+    line_1 = shapely.set_precision(line_1, resolution)
+
+    # sanity check: simple geometries (no self-intersection)
+    if not (line_0.is_simple and line_1.is_simple):
+        raise ValueError("Lines need to be simple (e.g. not self-intersecting).")
+
+    # find intersections
+    intersection = list(line_0.intersection(line_1).geoms)
+    intersection_points = set()
+    for geom in intersection:
+        if isinstance(geom, shapely.geometry.Point):
+            intersection_points.add(geom)
+        elif isinstance(geom, shapely.geometry.LineString):
+            for bg in geom.boundary.geoms:
+                intersection_points.add(bg)
+        else:
+            raise ValueError("Intersection can only contain Points and LineStrings.")
+
+    # split
+
+    splitter = shapely.union_all(list(intersection_points))
+
+    line_0_segments = tuple(split(line_0, splitter=splitter).geoms)
+    line_1_segments = tuple(split(line_1, splitter=splitter).geoms)
 
     return line_0_segments, line_1_segments
