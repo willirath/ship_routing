@@ -53,6 +53,10 @@ def segment_lines_with_each_other(
 
     splitter = shapely.union_all(list(intersection_points))
 
+    # snap lines to splitter
+    line_0 = shapely.snap(line_0, reference=splitter, tolerance=2 * resolution)
+    line_1 = shapely.snap(line_1, reference=splitter, tolerance=2 * resolution)
+
     line_0_segments = tuple(split(line_0, splitter=splitter).geoms)
     line_1_segments = tuple(split(line_1, splitter=splitter).geoms)
 
