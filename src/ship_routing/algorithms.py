@@ -2,6 +2,8 @@ from .core import Route
 from .config import (
     SHIP_DEFAULT,
     PHYSICS_DEFAULT,
+    Ship,
+    Physics,
 )
 
 import xarray as xr
@@ -256,3 +258,98 @@ def gradient_descent_across_track_left(
             azimuth_degrees=route.waypoint_azimuth(n=n) - 90.0,
         )
     return _route
+
+
+def crossover_routes_random(
+    route_0: Route = None,
+    route_1: Route = None,
+) -> Route:
+    """Randomly cross over routes.
+
+    Parameters
+    ----------
+    route_0: Route
+        First route.
+    route_1: Route
+        Second Route.
+
+    Returns
+    -------
+    Route:
+        Route of randomly selected segments.
+    """
+    segments_0, segments_1 = route_0.segment_at(route_1)
+    segments_mix = [
+        s0s1[np.random.randint(0, 2)] for s0s1 in zip(segments_0, segments_1)
+    ]
+    route_mix = segments_mix[0]
+    for s in segments_mix[1:]:
+        route_mix = route_mix + s
+    route_mix = route_mix.remove_consecutive_duplicate_timesteps()
+    return route_mix
+
+
+def crossover_routes_minimal_cost(
+    route_0: Route = None,
+    route_1: Route = None,
+    current_data_set: xr.Dataset = None,
+    wind_data_set: xr.Dataset = None,
+    wave_data_set: xr.Dataset = None,
+    ship: Ship = SHIP_DEFAULT,
+    physics: Physics = PHYSICS_DEFAULT,
+) -> Route:
+    """Cross over routes to minimy cost.
+
+    Parameters
+    ----------
+    route_0: Route
+        First route.
+    route_1: Route
+        Second Route.
+    current_data_set: xr.Dataset
+        Current data set.
+    wind_data_set: xr.Dataset
+        Wind data set.
+    wave_data_set: xr.Dataset
+        Wave data set.
+    ship: Ship
+        Ship parameters. Defaults to: SHIP_DEFAULT
+    physics: Physics
+        Physics parameters. Defaults to: PHYSICS_DEFAULT
+
+    Returns
+    -------
+    Route:
+        Route with segments selected such that the cost is minimised.
+
+    """
+    segments_0, segments_1 = route_0.segment_at(route_1)
+    cost_0 = [
+        s.cost_through(
+            current_data_set=current_data_set,
+            wind_data_set=wind_data_set,
+            wave_data_set=wave_data_set,
+            ship=ship,
+            physics=physics,
+        )
+        for s in segments_0
+    ]
+    cost_1 = [
+        s.cost_through(
+            current_data_set=current_data_set,
+            wind_data_set=wind_data_set,
+            wave_data_set=wave_data_set,
+            ship=ship,
+            physics=physics,
+        )
+        for s in segments_1
+    ]
+    segments_mix = [
+        s0s1c0c1[int(s0s1c0c1[-1] < s0s1c0c1[-2])]
+        for s0s1c0c1 in zip(segments_0, segments_1, cost_0, cost_1)
+    ]
+    route_mix = segments_mix[0]
+    for s in segments_mix[1:]:
+        route_mix = route_mix + s
+    route_mix = route_mix.remove_consecutive_duplicate_timesteps()
+    return route_mix
