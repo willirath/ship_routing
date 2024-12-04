@@ -12,8 +12,9 @@ def load_currents(
     time_name: str = "time",
     uo_name: str = "uo",
     vo_name: str = "vo",
+    **kwargs,
 ) -> xr.Dataset:
-    ds = xr.open_dataset(data_file)
+    ds = xr.open_dataset(data_file, **kwargs)
     ds = ds.rename(
         {
             lon_name: "lon",
@@ -33,8 +34,9 @@ def load_winds(
     time_name: str = "time",
     uw_name: str = "eastward_wind",
     vw_name: str = "northward_wind",
+    **kwargs,
 ) -> xr.Dataset:
-    ds = xr.open_dataset(data_file)
+    ds = xr.open_dataset(data_file, **kwargs)
     ds = ds.rename(
         {
             lon_name: "lon",
@@ -53,8 +55,9 @@ def load_waves(
     lat_name: str = "latitude",
     time_name: str = "time",
     wh_name: str = "VHM0",
+    **kwargs,
 ) -> xr.Dataset:
-    ds = xr.open_dataset(data_file)
+    ds = xr.open_dataset(data_file, **kwargs)
     ds = ds.rename(
         {
             lon_name: "lon",

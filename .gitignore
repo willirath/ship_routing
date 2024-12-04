@@ -1,3 +1,4 @@
 *.pyc
 .ipynb_checkpoints
 .coverage
+doc/examples/data_large
