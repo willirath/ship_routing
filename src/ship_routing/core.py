@@ -11,6 +11,8 @@ from scipy.signal.windows import hann
 
 from typing import Iterable, Tuple
 
+from functools import lru_cache
+from .config import MAX_CACHE_SIZE
 from .geodesics import (
     get_length_meters,
     get_distance_meters,
@@ -291,6 +293,7 @@ class Leg:
         az_rad = np.deg2rad(self.azimuth_degrees)
         return spd * np.sin(az_rad), spd * np.cos(az_rad)
 
+    @lru_cache(maxsize=MAX_CACHE_SIZE)
     def cost_through(
         self,
         current_data_set: xr.Dataset = None,
@@ -613,6 +616,7 @@ class Route:
         )
         return self.replace_waypoint(n=n, new_way_point=wp_moved)
 
+    @lru_cache(maxsize=MAX_CACHE_SIZE)
     def cost_through(
         self,
         current_data_set: xr.Dataset = None,
@@ -632,6 +636,7 @@ class Route:
             )
         )
 
+    @lru_cache(maxsize=MAX_CACHE_SIZE)
     def cost_per_leg_through(
         self,
         current_data_set: xr.Dataset = None,
