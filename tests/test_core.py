@@ -8,6 +8,7 @@ from ship_routing.data import (
     load_currents,
     load_winds,
     load_waves,
+    make_hashable,
 )
 
 from dataclasses import FrozenInstanceError
@@ -265,7 +266,8 @@ def test_leg_speed_through_water_zero_currents():
         way_point_end=WayPoint(lon=10, lat=13.0, time=np.datetime64("2001-01-03")),
     )
     np.testing.assert_almost_equal(
-        leg.speed_ms, leg.speed_through_water_ms(current_data_set=currents)
+        leg.speed_ms,
+        leg.speed_through_water_ms(current_data_set=make_hashable(currents)),
     )
 
 
@@ -284,7 +286,7 @@ def test_leg_speed_through_water_nearly_zero_speed_over_ground():
         way_point_end=WayPoint(lon=0 + 1e-6, lat=0.0, time=np.datetime64("2001-12-31")),
     )
     np.testing.assert_almost_equal(
-        -1.0, leg.speed_through_water_ms(current_data_set=currents)
+        -1.0, leg.speed_through_water_ms(current_data_set=make_hashable(currents))
     )
 
 
@@ -395,10 +397,10 @@ def test_leg_cost_through_zero_currents_winds_waves_scaling():
 
     # calc cost
     cost_slow = leg_slow.cost_through(
-        current_data_set=current_data_set,
+        current_data_set=make_hashable(current_data_set),
     )
     cost_fast = leg_fast.cost_through(
-        current_data_set=current_data_set,
+        current_data_set=make_hashable(current_data_set),
     )
 
     np.testing.assert_almost_equal(4.0, cost_fast / cost_slow, decimal=2)
@@ -424,9 +426,9 @@ def test_leg_cost_through_nonzero_currents_winds_waves():
         / "waves/cmems_mod_glo_wav_my_0.2deg_PT3H-i_VHM0_2021-01_1d-max_100W-020E_10N-65N.nc"
     )
     cost = leg.cost_through(
-        current_data_set=current_data_set,
-        wave_data_set=wave_data_set,
-        wind_data_set=wind_data_set,
+        current_data_set=make_hashable(current_data_set),
+        wave_data_set=make_hashable(wave_data_set),
+        wind_data_set=make_hashable(wind_data_set),
     )
     assert cost > 0.0
 
@@ -452,9 +454,9 @@ def test_leg_hazard_throug_extreme_waves():
     )
     wave_data_set["wh"] = 50.0 + 0.0 * wave_data_set["wh"].fillna(0.0)
     hazard = leg.hazard_through(
-        current_data_set=current_data_set,
-        wave_data_set=wave_data_set,
-        wind_data_set=wind_data_set,
+        current_data_set=make_hashable(current_data_set),
+        wave_data_set=make_hashable(wave_data_set),
+        wind_data_set=make_hashable(wind_data_set),
     )
     assert hazard
 
@@ -480,9 +482,9 @@ def test_leg_hazard_through_zero_waves():
     )
     wave_data_set["wh"] = 0.0 * wave_data_set["wh"].fillna(0.0)
     hazard = leg.hazard_through(
-        current_data_set=current_data_set,
-        wave_data_set=wave_data_set,
-        wind_data_set=wind_data_set,
+        current_data_set=make_hashable(current_data_set),
+        wave_data_set=make_hashable(wave_data_set),
+        wind_data_set=make_hashable(wind_data_set),
     )
     assert not hazard
 
@@ -496,7 +498,7 @@ def test_leg_cost_over_land_is_nan():
         way_point_start=WayPoint(lon=-180, lat=0, time=np.datetime64("2001-01-01")),
         way_point_end=WayPoint(lon=0, lat=0, time=np.datetime64("2001-02-01")),
     )
-    assert np.isnan(leg.cost_through(current_data_set=current_data_set))
+    assert np.isnan(leg.cost_through(current_data_set=make_hashable(current_data_set)))
 
 
 def test_leg_azimuth_degrees_north_east_south_west():
@@ -1199,8 +1201,12 @@ def test_route_cost_through_zero_currents_winds_waves_scaling():
             / "currents/cmems_mod_glo_phy-cur_anfc_0.083deg_P1D-m_2021-01_1deg_5day.nc"
         )
     ).fillna(0.0)
-    cost_slow = route_slow.cost_through(current_data_set=current_data_set)
-    cost_fast = route_fast.cost_through(current_data_set=current_data_set)
+    cost_slow = route_slow.cost_through(
+        current_data_set=make_hashable(current_data_set)
+    )
+    cost_fast = route_fast.cost_through(
+        current_data_set=make_hashable(current_data_set)
+    )
     np.testing.assert_almost_equal(6.0**2, cost_fast / cost_slow, decimal=2)
 
 
@@ -1225,9 +1231,9 @@ def test_route_cost_through_nonzero_currents_winds_waves():
         / "waves/cmems_mod_glo_wav_my_0.2deg_PT3H-i_VHM0_2021-01_1d-max_100W-020E_10N-65N.nc"
     )
     cost = route.cost_through(
-        current_data_set=current_data_set,
-        wind_data_set=wind_data_set,
-        wave_data_set=wave_data_set,
+        current_data_set=make_hashable(current_data_set),
+        wind_data_set=make_hashable(wind_data_set),
+        wave_data_set=make_hashable(wave_data_set),
     )
     assert cost > 0.0
 
@@ -1254,9 +1260,9 @@ def test_route_hazard_through_extreme_waves():
     )
     wave_data_set["wh"] = 50.0 + 0.0 * wave_data_set["wh"].fillna(0.0)
     hazard = route.hazard_through(
-        current_data_set=current_data_set,
-        wind_data_set=wind_data_set,
-        wave_data_set=wave_data_set,
+        current_data_set=make_hashable(current_data_set),
+        wind_data_set=make_hashable(wind_data_set),
+        wave_data_set=make_hashable(wave_data_set),
     )
     assert hazard
 
@@ -1283,9 +1289,9 @@ def test_route_hazard_through_zero_waves():
     )
     wave_data_set["wh"] = 0.0 * wave_data_set["wh"].fillna(0.0)
     hazard = route.hazard_through(
-        current_data_set=current_data_set,
-        wind_data_set=wind_data_set,
-        wave_data_set=wave_data_set,
+        current_data_set=make_hashable(current_data_set),
+        wind_data_set=make_hashable(wind_data_set),
+        wave_data_set=make_hashable(wave_data_set),
     )
     assert not hazard
 
@@ -1567,7 +1573,7 @@ def test_route_calc_gradient_across_track_left_zero_currents_at_optimum():
     # With zero currents, a straight line has minimal cost already.
     # So we expect a zero gradient independent of the length of the shift.
     cost_gradient_across_track_left = route.cost_gradient_across_track_left(
-        n=1, distance_meters=100.0, current_data_set=currents
+        n=1, distance_meters=100.0, current_data_set=make_hashable(currents)
     )
     np.testing.assert_almost_equal(0.0, cost_gradient_across_track_left)
 
@@ -1590,7 +1596,7 @@ def test_route_calc_gradient_along_track_zero_currents_at_optimum():
     # With zero currents, a straight line has minimal cost already.
     # So we expect a zero gradient independent of the length of the shift.
     cost_gradient_along_track = route.cost_gradient_along_track(
-        n=1, distance_meters=100.0, current_data_set=currents
+        n=1, distance_meters=100.0, current_data_set=make_hashable(currents)
     )
     np.testing.assert_almost_equal(0.0, cost_gradient_along_track)
 
@@ -1613,7 +1619,7 @@ def test_route_calc_gradient_time_shift_zero_currents_at_optimum():
     # With zero currents, a straight line has minimal cost already.
     # So we expect a zero gradient independent of the length of the shift.
     cost_gradient_time_shift = route.cost_gradient_time_shift(
-        n=1, time_shift_seconds=1200.0, current_data_set=currents
+        n=1, time_shift_seconds=1200.0, current_data_set=make_hashable(currents)
     )
     np.testing.assert_almost_equal(0.0, cost_gradient_time_shift)
 
@@ -1639,7 +1645,7 @@ def test_route_calc_gradient_time_shift_zero_currents_sign():
     # So shifting the time of the middle way point forward will increase cost.
     # Hence we expect a _positive_ time gradient for the middle way point.
     cost_gradient_time_shift = route.cost_gradient_time_shift(
-        n=1, time_shift_seconds=1200.0, current_data_set=currents
+        n=1, time_shift_seconds=1200.0, current_data_set=make_hashable(currents)
     )
     assert cost_gradient_time_shift > 0.0
 
@@ -1666,7 +1672,7 @@ def test_route_calc_gradient_along_track_zero_currents_sign():
     # because it acts to equalize speed of the two legs.
     # Hence we expect a _negative_ along-track gradient for the middle way point.
     cost_gradient_along_track = route.cost_gradient_along_track(
-        n=1, distance_meters=100.0, current_data_set=currents
+        n=1, distance_meters=100.0, current_data_set=make_hashable(currents)
     )
     assert cost_gradient_along_track < 0.0
 
@@ -1694,7 +1700,7 @@ def test_route_calc_gradient_along_track_zero_currents_sign():
     # increase the lenght of the route and thereby decrease cost.
     # Hence we expect a _positive_ across-track gradient for the middle way point.
     cost_gradient_across_track_left = route.cost_gradient_across_track_left(
-        n=1, distance_meters=100.0, current_data_set=currents
+        n=1, distance_meters=100.0, current_data_set=make_hashable(currents)
     )
     assert cost_gradient_across_track_left > 0.0
 
