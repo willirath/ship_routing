@@ -12,6 +12,7 @@ from ship_routing.data import (
     load_currents,
     load_waves,
     load_winds,
+    make_hashable,
 )
 
 import numpy as np
@@ -40,7 +41,7 @@ def test_gradient_descent_across_track_left_zero_gradients_error():
     with pytest.raises(ZeroGradientsError):
         _ = gradient_descent_across_track_left(
             route=route_0,
-            current_data_set=zero_currents,
+            current_data_set=make_hashable(zero_currents),
             distance_meters=2_000.0,
             learning_rate_percent=0.1,
         )
@@ -64,7 +65,7 @@ def test_gradient_descent_along_track_zero_gradients_error():
     with pytest.raises(ZeroGradientsError):
         _ = gradient_descent_along_track(
             route=route_0,
-            current_data_set=zero_currents,
+            current_data_set=make_hashable(zero_currents),
             distance_meters=2_000.0,
             learning_rate_percent=0.1,
         )
@@ -88,7 +89,7 @@ def test_gradient_descent_time_shift_zero_gradients_error():
     with pytest.raises(ZeroGradientsError):
         _ = gradient_descent_time_shift(
             route=route_0,
-            current_data_set=zero_currents,
+            current_data_set=make_hashable(zero_currents),
             time_shift_seconds=1_000.0,
             learning_rate_percent=0.1,
         )
@@ -112,7 +113,7 @@ def test_gradient_descent_across_track_left_large_increment_error():
     with pytest.raises(LargeIncrementError):
         _ = gradient_descent_across_track_left(
             route=route_0,
-            current_data_set=zero_currents,
+            current_data_set=make_hashable(zero_currents),
             distance_meters=2_000.0,
             learning_rate_percent=10,
         )
@@ -136,7 +137,7 @@ def test_gradient_descent_along_track_large_increment_error():
     with pytest.raises(LargeIncrementError):
         _ = gradient_descent_along_track(
             route=route_0,
-            current_data_set=zero_currents,
+            current_data_set=make_hashable(zero_currents),
             distance_meters=2_000.0,
             learning_rate_percent=10,
         )
@@ -160,7 +161,7 @@ def test_gradient_descent_time_shift_large_increment_error():
     with pytest.raises(LargeIncrementError):
         _ = gradient_descent_time_shift(
             route=route_0,
-            current_data_set=zero_currents,
+            current_data_set=make_hashable(zero_currents),
             time_shift_seconds=100.0,
             learning_rate_percent=10.0,
         )
@@ -185,7 +186,7 @@ def test_gradient_descent_across_track_left_invalid_gradient_error():
     with pytest.raises(InvalidGradientError):
         _ = gradient_descent_across_track_left(
             route=route_0,
-            current_data_set=zero_currents_with_invalid_region,
+            current_data_set=make_hashable(zero_currents_with_invalid_region),
             distance_meters=100_000.0,
             learning_rate_percent=0.1,
         )
@@ -214,7 +215,7 @@ def test_gradient_descent_along_track_invalid_gradient_error():
     with pytest.raises(InvalidGradientError):
         _ = gradient_descent_along_track(
             route=route_0,
-            current_data_set=zero_currents_with_invalid_region,
+            current_data_set=make_hashable(zero_currents_with_invalid_region),
             distance_meters=100_000.0,
             learning_rate_percent=0.1,
         )
