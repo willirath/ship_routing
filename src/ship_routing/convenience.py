@@ -1,5 +1,14 @@
 from .core import Route, WayPoint
 
+from .algorithms import (
+    gradient_descent_across_track_left,
+    gradient_descent_along_track,
+    gradient_descent_time_shift,
+    InvalidGradientError,
+    LargeIncrementError,
+    ZeroGradientsError,
+)
+
 import numpy as np
 import pandas as pd
 import xarray as xr
@@ -129,5 +138,130 @@ def stochastic_search(
             max_move_meters *= refinement_factor
 
         n_reset += 1
+
+    return route, logs_routes
+
+
+def gradient_descent(
+    route: Route = None,
+    num_iterations: int = 1,
+    learning_rate_percent_time: float = 0.5,
+    time_increment: float = 1_200,
+    learning_rate_percent_along: float = 0.5,
+    dist_shift_along: float = 10_000,
+    learning_rate_percent_across: float = 0.5,
+    dist_shift_across: float = 10_000,
+    include_logs_routes: bool = True,
+    current_data_set: xr.Dataset = None,
+    wave_data_set: xr.Dataset = None,
+    wind_data_set: xr.Dataset = None,
+) -> tuple[Route, Logs]:
+    if include_logs_routes:
+        logs_routes = []
+    else:
+        logs_routes = None
+
+    for iteration in tqdm.tqdm(range(num_iterations)):
+        try:
+            route = gradient_descent_time_shift(
+                route=route,
+                current_data_set=current_data_set,
+                wave_data_set=wave_data_set,
+                wind_data_set=wind_data_set,
+                time_shift_seconds=time_increment,
+                learning_rate_percent=learning_rate_percent_time,
+            )
+            if include_logs_routes:
+                cost = route.cost_through(
+                    current_data_set=current_data_set,
+                    wave_data_set=wave_data_set,
+                    wind_data_set=wind_data_set,
+                )
+                logs_routes.append(
+                    LogsRoute(
+                        logs=Logs(
+                            iteration=iteration,
+                            cost=cost,
+                            method="gradient_descent_time_shift",
+                        ),
+                        route=route,
+                    )
+                )
+        except ZeroGradientsError:
+            # converged, just pass
+            pass
+        except InvalidGradientError:
+            time_increment /= 2.0
+            learning_rate_percent_time /= 2.0
+        except LargeIncrementError:
+            learning_rate_percent_time /= 2.0
+
+        try:
+            route = gradient_descent_across_track_left(
+                route=route,
+                current_data_set=current_data_set,
+                wave_data_set=wave_data_set,
+                wind_data_set=wind_data_set,
+                distance_meters=dist_shift_across,
+                learning_rate_percent=learning_rate_percent_across,
+            )
+            if include_logs_routes:
+                cost = route.cost_through(
+                    current_data_set=current_data_set,
+                    wave_data_set=wave_data_set,
+                    wind_data_set=wind_data_set,
+                )
+                logs_routes.append(
+                    LogsRoute(
+                        logs=Logs(
+                            iteration=iteration,
+                            cost=cost,
+                            method="gradient_descent_across_track_left",
+                        ),
+                        route=route,
+                    )
+                )
+        except ZeroGradientsError:
+            # converged, just pass
+            pass
+        except InvalidGradientError:
+            dist_shift_across /= 2.0
+            learning_rate_percent_across /= 2.0
+        except LargeIncrementError:
+            learning_rate_percent_across /= 2.0
+
+        try:
+            route = gradient_descent_along_track(
+                route=route,
+                current_data_set=current_data_set,
+                wave_data_set=wave_data_set,
+                wind_data_set=wind_data_set,
+                distance_meters=dist_shift_along,
+                learning_rate_percent=learning_rate_percent_along,
+            )
+            if include_logs_routes:
+                cost = route.cost_through(
+                    current_data_set=current_data_set,
+                    wave_data_set=wave_data_set,
+                    wind_data_set=wind_data_set,
+                )
+                logs_routes.append(
+                    LogsRoute(
+                        logs=Logs(
+                            iteration=iteration,
+                            cost=cost,
+                            method="gradient_descent_across_track_left",
+                        ),
+                        route=route,
+                    )
+                )
+        except ZeroGradientsError:
+            # converged, just pass
+            pass
+        except InvalidGradientError:
+            dist_shift_along /= 2.0
+            learning_rate_percent_along /= 2.0
+        except LargeIncrementError:
+            learning_rate_percent_along /= 2.0
 
     return route, logs_routes
