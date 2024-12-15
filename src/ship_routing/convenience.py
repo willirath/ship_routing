@@ -1,4 +1,4 @@
-from .core import Route, WayPoint
+from .core import Route, WayPoint, Leg
 
 from .algorithms import (
     gradient_descent_across_track_left,
@@ -51,8 +51,21 @@ def create_route(
     time_end: str | np.datetime64 = None,
     time_resolution_hours: float = 6.0,
 ) -> Route:
-    dt = (time_end - time_start) / (len(lon_waypoints) - 1)
-    time_waypoints = [time_start + n * dt for n in range(len(lon_waypoints))]
+    # construct intermediate time points from leg lengths
+    leg_lengths = [
+        Leg(
+            WayPoint(lon=lon0, lat=lat0, time=0), WayPoint(lon=lon1, lat=lat1, time=0)
+        ).length_meters
+        for lon0, lat0, lon1, lat1 in zip(
+            lon_waypoints[:-1], lat_waypoints[:-1], lon_waypoints[1:], lat_waypoints[1:]
+        )
+    ]
+    route_length = sum(leg_lengths)
+    relative_time_offsets = [0] + [ll / route_length for ll in leg_lengths]
+    time_waypoints = time_start + np.timedelta64(1, "s") * (
+        (time_end - time_start) / np.timedelta64(1, "s")
+    ) * np.cumsum(relative_time_offsets)
+    # create GC route
     route_gc = Route(
         way_points=tuple(
             WayPoint(lon=lon, lat=lat, time=time)
@@ -63,6 +76,7 @@ def create_route(
             )
         )
     )
+    # resample to desired resolution
     refine_to_dist = (
         np.mean([l.speed_ms for l in route_gc.legs]) * time_resolution_hours * 3600.0
     )
