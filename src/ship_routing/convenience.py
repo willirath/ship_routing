@@ -22,6 +22,18 @@ from dataclasses import dataclass, asdict
 class Logs:
     iteration: int = 0
     cost: float = 0.0
+    stoch_acceptance_rate_target: float = None
+    stoch_acceptance_rate_for_increase_cost: float = None
+    stoch_refinement_factor: float = None
+    stoch_mod_width: float = None
+    stoch_max_move_meters: float = None
+    grad_learning_rate_percent_time: float = None
+    grad_time_increment: float = None
+    grad_learning_rate_percent_along: float = None
+    grad_dist_shift_along: float = None
+    grad_learning_rate_percent_across: float = None
+    grad_dist_shift_across: float = None
+
     method: str = "initial"
 
     @property
@@ -109,14 +121,23 @@ def stochastic_search(
     if include_logs_routes:
         logs_routes.append(
             LogsRoute(
-                logs=Logs(iteration=-1, cost=cost, method="initial"),
+                logs=Logs(
+                    iteration=0,
+                    cost=cost,
+                    stoch_acceptance_rate_target=acceptance_rate_target,
+                    stoch_acceptance_rate_for_increase_cost=acceptance_rate_for_increase_cost,
+                    stoch_refinement_factor=refinement_factor,
+                    stoch_mod_width=mod_width,
+                    stoch_max_move_meters=max_move_meters,
+                    method="stochastic_search_initial",
+                ),
                 route=route,
             )
         )
 
     accepted = 0
     n_reset = 0
-    for iteration in tqdm.tqdm(range(number_of_iterations)):
+    for iteration in tqdm.tqdm(range(1, number_of_iterations + 1)):
         route_ = route.move_waypoints_left_nonlocal(
             center_distance_meters=np.random.uniform(
                 mod_width / 2.0, route.length_meters - mod_width / 2.0
@@ -140,7 +161,14 @@ def stochastic_search(
                 logs_routes.append(
                     LogsRoute(
                         logs=Logs(
-                            iteration=iteration, cost=cost, method="stochastic_search"
+                            iteration=iteration,
+                            cost=cost,
+                            stoch_acceptance_rate_target=acceptance_rate_target,
+                            stoch_acceptance_rate_for_increase_cost=acceptance_rate_for_increase_cost,
+                            stoch_refinement_factor=refinement_factor,
+                            stoch_mod_width=mod_width,
+                            stoch_max_move_meters=max_move_meters,
+                            method="stochastic_search",
                         ),
                         route=route,
                     )
@@ -171,11 +199,31 @@ def gradient_descent(
     wind_data_set: xr.Dataset = None,
 ) -> tuple[Route, Logs]:
     if include_logs_routes:
-        logs_routes = []
+        iteration = 0
+        logs_routes = [
+            LogsRoute(
+                logs=Logs(
+                    iteration=iteration,
+                    cost=route.cost_through(
+                        current_data_set=current_data_set,
+                        wave_data_set=wave_data_set,
+                        wind_data_set=wind_data_set,
+                    ),
+                    grad_learning_rate_percent_time=learning_rate_percent_time,
+                    grad_time_increment=time_increment,
+                    grad_learning_rate_percent_along=learning_rate_percent_along,
+                    grad_dist_shift_along=dist_shift_along,
+                    grad_learning_rate_percent_across=learning_rate_percent_across,
+                    grad_dist_shift_across=dist_shift_across,
+                    method="gradient_descent_initial",
+                ),
+                route=route,
+            )
+        ]
     else:
         logs_routes = None
 
-    for iteration in tqdm.tqdm(range(num_iterations)):
+    for _ in tqdm.tqdm(range(num_iterations)):
         try:
             route = gradient_descent_time_shift(
                 route=route,
@@ -186,6 +234,7 @@ def gradient_descent(
                 learning_rate_percent=learning_rate_percent_time,
             )
             if include_logs_routes:
+                iteration += 1
                 cost = route.cost_through(
                     current_data_set=current_data_set,
                     wave_data_set=wave_data_set,
@@ -196,6 +245,12 @@ def gradient_descent(
                         logs=Logs(
                             iteration=iteration,
                             cost=cost,
+                            grad_learning_rate_percent_time=learning_rate_percent_time,
+                            grad_time_increment=time_increment,
+                            grad_learning_rate_percent_along=learning_rate_percent_along,
+                            grad_dist_shift_along=dist_shift_along,
+                            grad_learning_rate_percent_across=learning_rate_percent_across,
+                            grad_dist_shift_across=dist_shift_across,
                             method="gradient_descent_time_shift",
                         ),
                         route=route,
@@ -220,6 +275,7 @@ def gradient_descent(
                 learning_rate_percent=learning_rate_percent_across,
             )
             if include_logs_routes:
+                iteration += 1
                 cost = route.cost_through(
                     current_data_set=current_data_set,
                     wave_data_set=wave_data_set,
@@ -230,6 +286,12 @@ def gradient_descent(
                         logs=Logs(
                             iteration=iteration,
                             cost=cost,
+                            grad_learning_rate_percent_time=learning_rate_percent_time,
+                            grad_time_increment=time_increment,
+                            grad_learning_rate_percent_along=learning_rate_percent_along,
+                            grad_dist_shift_along=dist_shift_along,
+                            grad_learning_rate_percent_across=learning_rate_percent_across,
+                            grad_dist_shift_across=dist_shift_across,
                             method="gradient_descent_across_track_left",
                         ),
                         route=route,
@@ -254,6 +316,7 @@ def gradient_descent(
                 learning_rate_percent=learning_rate_percent_along,
             )
             if include_logs_routes:
+                iteration += 1
                 cost = route.cost_through(
                     current_data_set=current_data_set,
                     wave_data_set=wave_data_set,
@@ -264,6 +327,12 @@ def gradient_descent(
                         logs=Logs(
                             iteration=iteration,
                             cost=cost,
+                            grad_learning_rate_percent_time=learning_rate_percent_time,
+                            grad_time_increment=time_increment,
+                            grad_learning_rate_percent_along=learning_rate_percent_along,
+                            grad_dist_shift_along=dist_shift_along,
+                            grad_learning_rate_percent_across=learning_rate_percent_across,
+                            grad_dist_shift_across=dist_shift_across,
                             method="gradient_descent_across_track_left",
                         ),
                         route=route,
