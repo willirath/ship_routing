@@ -13,6 +13,7 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 import tqdm
+import pint
 
 
 from dataclasses import dataclass, asdict
@@ -61,9 +62,11 @@ def create_route(
     lat_waypoints: list = None,
     time_start: str | np.datetime64 = None,
     time_end: str | np.datetime64 = None,
+    speed_knots: float = None,
     time_resolution_hours: float = 6.0,
 ) -> Route:
-    # construct intermediate time points from leg lengths
+
+    # construct prelim leg and route lengths (no time known yet)
     leg_lengths = [
         Leg(
             WayPoint(lon=lon0, lat=lat0, time=0), WayPoint(lon=lon1, lat=lat1, time=0)
@@ -73,11 +76,29 @@ def create_route(
         )
     ]
     route_length = sum(leg_lengths)
+
+    # find duration
+    if time_start is not None and time_end is not None:
+        if speed_knots is not None:
+            raise ValueError(
+                "Only two of time_start, time_end, speed_knots can be given."
+            )
+    if time_start is not None and speed_knots is not None:
+        ureg = pint.UnitRegistry()
+        speed_ms = float((speed_knots * ureg.knot) / ureg.meter_per_second)
+        time_end = time_start + np.timedelta64(1, "s") * route_length / speed_ms
+    if time_end is not None and speed_knots is not None:
+        ureg = pint.UnitRegistry()
+        speed_ms = float((speed_knots * ureg.knot) / ureg.meter_per_second)
+        time_start = time_end - np.timedelta64(1, "s") * route_length / speed_ms
+
+    # construct times of waypoints
     relative_time_offsets = [0] + [ll / route_length for ll in leg_lengths]
     time_waypoints = time_start + np.timedelta64(1, "s") * (
         (time_end - time_start) / np.timedelta64(1, "s")
     ) * np.cumsum(relative_time_offsets)
-    # create GC route
+
+    # create GC segment route
     route_gc = Route(
         way_points=tuple(
             WayPoint(lon=lon, lat=lat, time=time)
