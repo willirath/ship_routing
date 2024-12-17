@@ -354,7 +354,7 @@ def gradient_descent(
                             grad_dist_shift_along=dist_shift_along,
                             grad_learning_rate_percent_across=learning_rate_percent_across,
                             grad_dist_shift_across=dist_shift_across,
-                            method="gradient_descent_across_track_left",
+                            method="gradient_descent_along_track",
                         ),
                         route=route,
                     )
