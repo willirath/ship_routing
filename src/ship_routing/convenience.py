@@ -83,6 +83,10 @@ def create_route(
             raise ValueError(
                 "Only two of time_start, time_end, speed_knots can be given."
             )
+    if time_start is not None and isinstance(time_start, str):
+        time_start = np.datetime64(time_start)
+    if time_end is not None and isinstance(time_end, str):
+        time_end = np.datetime64(time_end)
     if time_start is not None and speed_knots is not None:
         ureg = pint.UnitRegistry()
         speed_ms = float((speed_knots * ureg.knot) / ureg.meter_per_second)
