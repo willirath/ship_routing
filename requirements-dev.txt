@@ -1,8 +1,11 @@
 black
 black[jupyter]
+bokeh
+cartopy
 dask
 distributed
 jupyterlab
+matplotlib
 netcdf4
 numpy
 pandas
@@ -14,3 +17,4 @@ scipy
 shapely
 tqdm
 xarray
+zarr

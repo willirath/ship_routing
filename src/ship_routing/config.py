@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 
 
-MAX_CACHE_SIZE = 100_000
+MAX_CACHE_SIZE = 10_000
 
 
 @dataclass(frozen=True)
