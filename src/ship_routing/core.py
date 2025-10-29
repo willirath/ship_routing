@@ -11,6 +11,8 @@ from scipy.signal.windows import hann
 
 from typing import Iterable, Tuple
 
+from functools import lru_cache
+from .config import MAX_CACHE_SIZE
 from .geodesics import (
     get_length_meters,
     get_distance_meters,
@@ -291,6 +293,7 @@ class Leg:
         az_rad = np.deg2rad(self.azimuth_degrees)
         return spd * np.sin(az_rad), spd * np.cos(az_rad)
 
+    @lru_cache(maxsize=MAX_CACHE_SIZE)
     def cost_through(
         self,
         current_data_set: xr.Dataset = None,
@@ -555,7 +558,7 @@ class Route:
         """Return route with waypoints sorted in time in ascending order."""
         return Route(way_points=tuple(sorted(self.way_points, key=lambda w: w.time)))
 
-    def remove_consecutive_duplicate_timesteps(self):
+    def remove_consecutive_duplicate_timesteps(self, min_time_diff_seconds=600):
         """Route with the first of each 2 consecutive way points having the same time stamp."""
 
         def generate_non_dupe_wps(wps):
@@ -565,7 +568,7 @@ class Route:
             while n < len(wps) - 1:
                 n += 1
                 candidate_wp = wps[n]
-                if candidate_wp.time > current_wp.time:
+                if (candidate_wp.time - current_wp.time) >= min_time_diff_seconds * np.timedelta64(1, "s"):
                     current_wp = candidate_wp
                     yield current_wp
 
@@ -613,6 +616,7 @@ class Route:
         )
         return self.replace_waypoint(n=n, new_way_point=wp_moved)
 
+    @lru_cache(maxsize=MAX_CACHE_SIZE)
     def cost_through(
         self,
         current_data_set: xr.Dataset = None,
@@ -632,6 +636,7 @@ class Route:
             )
         )
 
+    @lru_cache(maxsize=MAX_CACHE_SIZE)
     def cost_per_leg_through(
         self,
         current_data_set: xr.Dataset = None,

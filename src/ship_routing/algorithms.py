@@ -285,7 +285,8 @@ def crossover_routes_random(
     route_mix = segments_mix[0]
     for s in segments_mix[1:]:
         route_mix = route_mix + s
-    route_mix = route_mix.remove_consecutive_duplicate_timesteps()
+    ref_timestep_seconds = route_0.data_frame.time.diff().mean() / np.timedelta64(1, "s")
+    route_mix = route_mix.remove_consecutive_duplicate_timesteps(min_time_diff_seconds=ref_timestep_seconds / 5)
     return route_mix
 
 

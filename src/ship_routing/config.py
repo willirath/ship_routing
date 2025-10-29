@@ -1,6 +1,9 @@
 from dataclasses import dataclass
 
 
+MAX_CACHE_SIZE = 10_000
+
+
 @dataclass(frozen=True)
 class Physics:
     """Physical constants used in power estimation."""
