@@ -4,8 +4,9 @@ from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
 from typing import Any, Sequence
 
-from .config import RoutingConfig
+from .config import ForcingConfig, ForcingData, RoutingConfig
 from .core import Route
+from .data import load_currents, load_waves, load_winds
 
 
 @dataclass
@@ -60,24 +61,62 @@ class RoutingApp:
     def run(self) -> RoutingResult:
         """Execute the optimisation pipeline."""
         self._log_stage_metrics("run", 0, message="starting routing run")
-        environment = self._load_environment()
-        population = self._initialize_population(environment)
-        population = self._run_ga_generations(population, environment)
-        best_routes = self._refine_with_gradient(population, environment)
+        forcing = self._load_forcing()
+        population = self._initialize_population(forcing)
+        population = self._run_ga_generations(population, forcing)
+        best_routes = self._refine_with_gradient(population, forcing)
         return RoutingResult(best_routes=best_routes, logs=self.log)
 
-    def _load_environment(self) -> Any:
+    def _load_forcing(self) -> ForcingData:
         """Load wind, wave, and current fields according to the config."""
-        raise NotImplementedError
+        forcing_config = self.config.forcing
+        forcing = ForcingData(
+            currents=(
+                load_currents(
+                    data_file=forcing_config.currents_path,
+                    engine=forcing_config.engine,
+                    chunks=forcing_config.chunks,
+                )
+                if forcing_config.currents_path
+                else None
+            ),
+            waves=(
+                load_waves(
+                    data_file=forcing_config.waves_path,
+                    engine=forcing_config.engine,
+                    chunks=forcing_config.chunks,
+                )
+                if forcing_config.waves_path
+                else None
+            ),
+            winds=(
+                load_winds(
+                    data_file=forcing_config.winds_path,
+                    engine=forcing_config.engine,
+                    chunks=forcing_config.chunks,
+                )
+                if forcing_config.winds_path
+                else None
+            ),
+        )
+        self._log_stage_metrics(
+            "load_forcing",
+            0,
+            currents=bool(forcing.currents),
+            waves=bool(forcing.waves),
+            winds=bool(forcing.winds),
+        )
+        return forcing
 
-    def _initialize_population(self, environment: Any) -> Sequence[Route]:
+
+    def _initialize_population(self, forcing: Any) -> Sequence[Route]:
         """Seed the initial population using the configured journey."""
         raise NotImplementedError
 
     def _run_ga_generations(
         self,
         population: Sequence[Route],
-        environment: Any,
+        forcing: Any,
     ) -> Sequence[Route]:
         """Apply stochastic search, crossover, and selection loops."""
         raise NotImplementedError
@@ -85,7 +124,7 @@ class RoutingApp:
     def _refine_with_gradient(
         self,
         population: Sequence[Route],
-        environment: Any,
+        forcing: Any,
     ) -> Sequence[Route]:
         """Run gradient descent on the elites and return them."""
         raise NotImplementedError

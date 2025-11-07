@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Tuple
+from typing import Any, Tuple
 
 
 MAX_CACHE_SIZE = 10_000
@@ -41,14 +41,23 @@ class JourneyConfig:
 
 
 @dataclass(frozen=True)
-class EnvironmentConfig:
-    """Paths and IO settings for environmental forcing."""
+class ForcingConfig:
+    """Paths and IO settings for currents, winds, and waves."""
 
     currents_path: str | None = None
     waves_path: str | None = None
     winds_path: str | None = None
     engine: str = "zarr"
     chunks: str = "auto"
+
+
+@dataclass
+class ForcingData:
+    """Loaded forcing datasets."""
+
+    currents: Any | None = None
+    waves: Any | None = None
+    winds: Any | None = None
 
 
 @dataclass(frozen=True)
@@ -121,7 +130,7 @@ class RoutingConfig:
     """Top-level configuration consumed by the routing application."""
 
     journey: JourneyConfig = JourneyConfig()
-    environment: EnvironmentConfig = EnvironmentConfig()
+    forcing: ForcingConfig = ForcingConfig()
     ship: Ship = Ship()
     physics: Physics = Physics()
     population: PopulationConfig = PopulationConfig()

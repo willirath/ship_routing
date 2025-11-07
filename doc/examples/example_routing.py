@@ -8,11 +8,7 @@ starting point for future integrations.
 from pathlib import Path
 
 from ship_routing.app import RoutingApp, RoutingResult
-from ship_routing.config import (
-    EnvironmentConfig,
-    JourneyConfig,
-    RoutingConfig,
-)
+from ship_routing.config import ForcingConfig, JourneyConfig, RoutingConfig
 
 
 def run_example() -> RoutingResult:
@@ -25,7 +21,7 @@ def run_example() -> RoutingResult:
         time_resolution_hours=12.0,
     )
     base = Path(__file__).resolve().parent / "data_large"
-    environment = EnvironmentConfig(
+    forcing = ForcingConfig(
         currents_path=str(
             base
             / "cmems_mod_glo_phy_my_0.083deg_P1D-m_time_2021_lat_+10_+65_lon_-100_+010_uo-vo.zarr"
@@ -39,7 +35,7 @@ def run_example() -> RoutingResult:
             / "cmems_obs-wind_glo_phy_my_l4_0.125deg_PT1H_time_2021_lat_+10_+65_lon_-100_+010_eastward_wind-northward_wind.zarr"
         ),
     )
-    config = RoutingConfig(journey=journey, environment=environment)
+    config = RoutingConfig(journey=journey, forcing=forcing)
     app = RoutingApp(config=config)
     return app.run()
 
