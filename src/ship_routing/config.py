@@ -2,7 +2,7 @@ from dataclasses import dataclass
 from typing import Any, Tuple
 
 
-MAX_CACHE_SIZE = 10_000
+MAX_CACHE_SIZE = 100
 
 
 @dataclass(frozen=True)
@@ -32,8 +32,8 @@ class Ship:
 class JourneyConfig:
     """Definition of the trip that needs to be routed."""
 
-    lon_waypoints: Tuple[float, ...] = (-80.5, -12.0)
-    lat_waypoints: Tuple[float, ...] = (30.0, 45.0)
+    lon_waypoints: Tuple[float, ...] = (-80.5, -75.5)
+    lat_waypoints: Tuple[float, ...] = (30.0, 30.0)
     time_start: str = "2021-01-01T00:00"
     time_end: str | None = None
     speed_knots: float | None = 10.0
@@ -49,6 +49,8 @@ class ForcingConfig:
     winds_path: str | None = None
     engine: str = "zarr"
     chunks: str = "auto"
+    time_steps: int | None = 5
+    load_eagerly: bool = True
 
 
 @dataclass
@@ -64,7 +66,7 @@ class ForcingData:
 class PopulationConfig:
     """Population-level optimisation settings."""
 
-    size: int = 16
+    size: int = 4
     random_seed: int | None = 345
     mix_seed_route_each_generation: bool = True
 
@@ -73,8 +75,8 @@ class PopulationConfig:
 class StochasticStageConfig:
     """Parameters for the stochastic (mutation) stage."""
 
-    num_generations: int = 4
-    num_iterations: int = 3
+    num_generations: int = 2
+    num_iterations: int = 2
     acceptance_rate_target: float = 0.3
     acceptance_rate_for_increase_cost: float = 0.0
     refinement_factor: float = 0.7
@@ -108,14 +110,14 @@ class GradientConfig:
     """Gradient-descent refinement settings."""
 
     enabled: bool = True
-    num_iterations: int = 3
+    num_iterations: int = 2
     learning_rate_percent_time: float = 0.5
     time_increment: float = 1_200.0
     learning_rate_percent_along: float = 0.5
     dist_shift_along: float = 10_000.0
     learning_rate_percent_across: float = 0.5
     dist_shift_across: float = 10_000.0
-    num_elites: int = 1
+    num_elites: int = 2
 
 
 @dataclass(frozen=True)
