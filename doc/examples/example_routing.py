@@ -5,6 +5,8 @@ The RoutingApp currently only contains scaffolding, so this file is a
 starting point for future integrations.
 """
 
+from pathlib import Path
+
 from ship_routing.app import RoutingApp, RoutingResult
 from ship_routing.config import (
     EnvironmentConfig,
@@ -22,10 +24,20 @@ def run_example() -> RoutingResult:
         speed_knots=10.0,
         time_resolution_hours=12.0,
     )
+    base = Path(__file__).resolve().parent / "data_large"
     environment = EnvironmentConfig(
-        currents_path="PATH/TO/CURRENTS.zarr",
-        waves_path="PATH/TO/WAVES.zarr",
-        winds_path="PATH/TO/WINDS.zarr",
+        currents_path=str(
+            base
+            / "cmems_mod_glo_phy_my_0.083deg_P1D-m_time_2021_lat_+10_+65_lon_-100_+010_uo-vo.zarr"
+        ),
+        waves_path=str(
+            base
+            / "cmems_mod_glo_wav_my_0.2deg_PT3H-i_time_2021_lat_+10_+65_lon_-100_+010_VHM0-VMDR.zarr"
+        ),
+        winds_path=str(
+            base
+            / "cmems_obs-wind_glo_phy_my_l4_0.125deg_PT1H_time_2021_lat_+10_+65_lon_-100_+010_eastward_wind-northward_wind.zarr"
+        ),
     )
     config = RoutingConfig(journey=journey, environment=environment)
     app = RoutingApp(config=config)
