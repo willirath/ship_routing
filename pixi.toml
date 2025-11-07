@@ -1,4 +1,4 @@
-[project]
+[workspace]
 name = "ship-routing"
 version = "2024.04.10.1"
 description = "Ship Route Optimisation"
@@ -32,6 +32,7 @@ zarr = "*"
 tests = "pytest -q"
 lint = "black --check src tests"
 format = "black src tests"
+jupyterlab = "jupyter lab"
 
 [pypi-dependencies]
 "ship_routing" = { path = ".", editable = true }
