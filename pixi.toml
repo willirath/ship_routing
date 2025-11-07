@@ -1,0 +1,37 @@
+[project]
+name = "ship-routing"
+version = "2024.04.10.1"
+description = "Ship Route Optimisation"
+authors = ["Willi Rath <wrath@geomar.de>"]
+channels = ["conda-forge"]
+platforms = ["linux-64", "osx-64", "osx-arm64"]
+
+[dependencies]
+python = "3.11.*"
+black = "24.*"
+bokeh = "*"
+cartopy = "*"
+dask = "*"
+distributed = "*"
+jupyterlab = "*"
+matplotlib = "*"
+netcdf4 = "*"
+numpy = "*"
+pandas = "*"
+pint = "*"
+pyproj = "*"
+pytest = "*"
+"pytest-datafiles" = "*"
+scipy = "*"
+shapely = "*"
+tqdm = "*"
+xarray = "*"
+zarr = "*"
+
+[tasks]
+tests = "pytest -q"
+lint = "black --check src tests"
+format = "black src tests"
+
+[pypi-dependencies]
+"ship_routing" = { path = ".", editable = true }

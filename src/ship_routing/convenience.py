@@ -162,7 +162,7 @@ def stochastic_search(
 
     accepted = 0
     n_reset = 0
-    for iteration in (range(1, number_of_iterations + 1)):
+    for iteration in range(1, number_of_iterations + 1):
         route_ = route.move_waypoints_left_nonlocal(
             center_distance_meters=np.random.uniform(
                 mod_width / 2.0, route.length_meters - mod_width / 2.0
@@ -248,7 +248,7 @@ def gradient_descent(
     else:
         logs_routes = None
 
-    for _ in (range(num_iterations)):
+    for _ in range(num_iterations):
         try:
             route = gradient_descent_time_shift(
                 route=route,
