@@ -3,3 +3,4 @@
 .coverage
 doc/examples/data_large
 .pixi/
+*.tex
