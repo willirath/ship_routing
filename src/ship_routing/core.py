@@ -568,7 +568,9 @@ class Route:
             while n < len(wps) - 1:
                 n += 1
                 candidate_wp = wps[n]
-                if (candidate_wp.time - current_wp.time) >= min_time_diff_seconds * np.timedelta64(1, "s"):
+                if (
+                    candidate_wp.time - current_wp.time
+                ) >= min_time_diff_seconds * np.timedelta64(1, "s"):
                     current_wp = candidate_wp
                     yield current_wp
 
