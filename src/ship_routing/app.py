@@ -1,10 +1,13 @@
 from __future__ import annotations
 
+from copy import deepcopy
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
+import logging
 from typing import Any, Sequence
 
 from .config import ForcingConfig, ForcingData, RoutingConfig
+from .convenience import create_route
 from .core import Route
 from .data import load_currents, load_waves, load_winds
 
@@ -108,10 +111,28 @@ class RoutingApp:
         )
         return forcing
 
-
     def _initialize_population(self, forcing: Any) -> Sequence[Route]:
         """Seed the initial population using the configured journey."""
-        raise NotImplementedError
+        journey = self.config.journey
+        route = create_route(
+            lon_waypoints=journey.lon_waypoints,
+            lat_waypoints=journey.lat_waypoints,
+            time_start=journey.time_start,
+            time_end=journey.time_end,
+            speed_knots=journey.speed_knots,
+            time_resolution_hours=journey.time_resolution_hours,
+        )
+        self._log_stage_metrics(
+            "initialize_population",
+            0,
+            population_size=self.config.population.size,
+            seed_route_cost=route.cost_through(
+                current_data_set=forcing.currents,
+                wave_data_set=forcing.waves,
+                wind_data_set=forcing.winds,
+            ),
+        )
+        return [deepcopy(route) for _ in range(self.config.population.size)]
 
     def _run_ga_generations(
         self,
@@ -136,4 +157,5 @@ class RoutingApp:
         **metrics: Any,
     ) -> None:
         """Convenience wrapper for stage-level logging."""
+        logging.info("%s[%s] %s", name, iteration, metrics)
         self.log.add_stage(name=name, iteration=iteration, **metrics)

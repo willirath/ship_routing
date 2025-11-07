@@ -5,6 +5,7 @@ The RoutingApp currently only contains scaffolding, so this file is a
 starting point for future integrations.
 """
 
+import logging
 from pathlib import Path
 
 from ship_routing.app import RoutingApp, RoutingResult
@@ -13,6 +14,7 @@ from ship_routing.config import ForcingConfig, JourneyConfig, RoutingConfig
 
 def run_example() -> RoutingResult:
     """Configure and run a routing experiment."""
+    logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
     journey = JourneyConfig(
         lon_waypoints=(-80.5, -12.0),
         lat_waypoints=(30.0, 45.0),
