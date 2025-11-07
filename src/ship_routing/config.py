@@ -139,3 +139,8 @@ class RoutingConfig:
     selection: SelectionConfig = SelectionConfig()
     gradient: GradientConfig = GradientConfig()
     concurrency: ConcurrencyConfig = ConcurrencyConfig()
+
+
+PHYSICS_DEFAULT = Physics()  # TODO: drop once legacy imports are cleaned up
+
+SHIP_DEFAULT = Ship()  # TODO: drop once legacy imports are cleaned up

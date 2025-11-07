@@ -4,7 +4,7 @@ from .config import (
     PHYSICS_DEFAULT,
     Ship,
     Physics,
-)
+)  # TODO: replace globals with explicit config wiring
 
 import xarray as xr
 import numpy as np

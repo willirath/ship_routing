@@ -1,4 +1,9 @@
-from .config import Ship, Physics, SHIP_DEFAULT, PHYSICS_DEFAULT
+from .config import (
+    Ship,
+    Physics,
+    SHIP_DEFAULT,
+    PHYSICS_DEFAULT,
+)  # TODO: replace globals with explicit config wiring
 
 
 def power_maintain_speed_ufunc(
