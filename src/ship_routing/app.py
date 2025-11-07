@@ -187,17 +187,17 @@ class RoutingApp:
         if population_config.random_seed is not None:
             random.seed(population_config.random_seed)
             np.random.seed(population_config.random_seed)
-        num_generations = getattr(stochastic_config, "num_generations", 1) or 1
+        num_generations = stochastic_config.num_generations or 1
         for generation in range(num_generations):
             mutated = self._mutate_population(members, forcing, stochastic_config)
             offspring = mutated
-            crossover_rounds = getattr(crossover_config, "generations", 1) or 1
+            crossover_rounds = crossover_config.generations or 1
             for _ in range(crossover_rounds):
                 offspring = self._crossover_population(
                     offspring, forcing, crossover_config
                 )
             combined = members + mutated + offspring
-            if getattr(population_config, "mix_seed_route_each_generation", False):
+            if population_config.mix_seed_route_each_generation:
                 combined.append(
                     PopulationMember(
                         route=deepcopy(seed_member.route),
@@ -221,11 +221,11 @@ class RoutingApp:
         gradient_config,
     ) -> Sequence[Route]:
         """Run gradient descent on the elites and return them."""
-        num_elites = getattr(gradient_config, "num_elites", 1) or 1
+        num_elites = gradient_config.num_elites or 1
         sorted_population = sorted(population, key=lambda m: m.cost)
         elite_count = min(max(1, num_elites), len(sorted_population) or 1)
         elites = sorted_population[:elite_count]
-        if not getattr(gradient_config, "enabled", True):
+        if not gradient_config.enabled:
             self._log_stage_metrics(
                 "gradient_refinement",
                 0,
@@ -244,19 +244,13 @@ class RoutingApp:
         for idx, member in enumerate(elites):
             route, _ = gradient_descent(
                 route=member.route,
-                num_iterations=getattr(gradient_config, "num_iterations", 1),
-                learning_rate_percent_time=getattr(
-                    gradient_config, "learning_rate_percent_time", 0.5
-                ),
-                time_increment=getattr(gradient_config, "time_increment", 1_200),
-                learning_rate_percent_along=getattr(
-                    gradient_config, "learning_rate_percent_along", 0.5
-                ),
-                dist_shift_along=getattr(gradient_config, "dist_shift_along", 10_000),
-                learning_rate_percent_across=getattr(
-                    gradient_config, "learning_rate_percent_across", 0.5
-                ),
-                dist_shift_across=getattr(gradient_config, "dist_shift_across", 10_000),
+                num_iterations=gradient_config.num_iterations,
+                learning_rate_percent_time=gradient_config.learning_rate_percent_time,
+                time_increment=gradient_config.time_increment,
+                learning_rate_percent_along=gradient_config.learning_rate_percent_along,
+                dist_shift_along=gradient_config.dist_shift_along,
+                learning_rate_percent_across=gradient_config.learning_rate_percent_across,
+                dist_shift_across=gradient_config.dist_shift_across,
                 include_logs_routes=False,
                 current_data_set=forcing.currents,
                 wave_data_set=forcing.waves,
@@ -282,27 +276,19 @@ class RoutingApp:
         for member in population:
             length = getattr(member.route, "length_meters", None) or 1.0
             mod_width = max(
-                getattr(stochastic_config, "warmup_mod_width_fraction", 0.9) * length,
+                stochastic_config.warmup_mod_width_fraction * length,
                 1.0,
             )
             max_move = max(
-                getattr(stochastic_config, "warmup_max_move_fraction", 0.1) * length,
+                stochastic_config.warmup_max_move_fraction * length,
                 1.0,
             )
             route, _ = stochastic_search(
                 route=member.route,
-                number_of_iterations=max(
-                    1, getattr(stochastic_config, "num_iterations", 1)
-                ),
-                acceptance_rate_target=getattr(
-                    stochastic_config, "acceptance_rate_target", 0.05
-                ),
-                acceptance_rate_for_increase_cost=getattr(
-                    stochastic_config, "acceptance_rate_for_increase_cost", 0.0
-                ),
-                refinement_factor=getattr(
-                    stochastic_config, "refinement_factor", 0.5
-                ),
+                number_of_iterations=stochastic_config.num_iterations,
+                acceptance_rate_target=stochastic_config.acceptance_rate_target,
+                acceptance_rate_for_increase_cost=stochastic_config.acceptance_rate_for_increase_cost,
+                refinement_factor=stochastic_config.refinement_factor,
                 mod_width=mod_width,
                 max_move_meters=max_move,
                 include_logs_routes=False,
@@ -323,7 +309,7 @@ class RoutingApp:
     ) -> list[PopulationMember]:
         if len(population) < 2:
             return list(population)
-        strategy = getattr(crossover_config, "strategy", "minimal_cost")
+        strategy = crossover_config.strategy
         offspring = []
         for _ in range(len(population)):
             parent_a, parent_b = random.sample(population, 2)
@@ -352,11 +338,11 @@ class RoutingApp:
             return []
         size = target_size or len(population)
         sorted_pop = sorted(population, key=lambda member: member.cost)
-        elite_fraction = getattr(selection_config, "elite_fraction", 0.0) or 0.0
+        elite_fraction = selection_config.elite_fraction or 0.0
         elite_count = min(size, int(size * elite_fraction))
         elites = sorted_pop[:elite_count]
         remaining = sorted_pop[elite_count:]
-        quantile = getattr(selection_config, "quantile", 0.2)
+        quantile = selection_config.quantile
         pool_count = max(1, int(size * quantile)) if quantile else len(remaining)
         pool = remaining[:pool_count] if remaining else []
         survivors = elites.copy()
@@ -365,7 +351,7 @@ class RoutingApp:
             return survivors[:size]
         if not pool:
             pool = remaining if remaining else sorted_pop
-        if getattr(selection_config, "with_replacement", True):
+        if selection_config.with_replacement:
             survivors.extend(random.choices(pool, k=needed))
         else:
             survivors.extend(pool[:needed])
