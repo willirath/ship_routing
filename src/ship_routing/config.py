@@ -75,7 +75,7 @@ class PopulationConfig:
 class StochasticStageConfig:
     """Parameters for the stochastic (mutation) stage."""
 
-    num_generations: int = 2
+    num_generations: int = 5
     num_iterations: int = 2
     acceptance_rate_target: float = 0.3
     acceptance_rate_for_increase_cost: float = 0.0

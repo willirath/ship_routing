@@ -61,6 +61,10 @@ class RoutingLog:
         """Store high-level metadata such as dataset descriptions."""
         self.metadata.update(metadata)
 
+    def stages_named(self, name: str) -> list[StageLog]:
+        """Return all stage logs matching the provided name."""
+        return [stage for stage in self.stages if stage.name == name]
+
 
 @dataclass
 class PopulationMember:

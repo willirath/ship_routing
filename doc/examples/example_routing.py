@@ -8,6 +8,9 @@ starting point for future integrations.
 import logging
 from pathlib import Path
 
+import matplotlib.pyplot as plt
+import pandas as pd
+
 from ship_routing.app import RoutingApp, RoutingResult
 from ship_routing.config import ForcingConfig, JourneyConfig, RoutingConfig
 
@@ -45,3 +48,14 @@ def run_example() -> RoutingResult:
 if __name__ == "__main__":
     result = run_example()
     print(result)
+    if result.logs:
+        ga_stages = result.logs.stages_named("ga_generation")
+        if ga_stages and "cost_mean" in ga_stages[0].metrics:
+            cost_series = pd.Series(
+                data=[stage.metrics["cost_mean"] for stage in ga_stages],
+                index=[stage.iteration for stage in ga_stages],
+                name="Mean cost",
+            )
+            cost_series.index.name = "Generation"
+            cost_series.plot(marker="o", figsize=(8, 4))
+            plt.show()
