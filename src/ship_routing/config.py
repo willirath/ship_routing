@@ -101,8 +101,6 @@ class SelectionConfig:
     """Selection operator settings."""
 
     quantile: float = 0.2
-    with_replacement: bool = True
-    elite_fraction: float = 0.0
 
 
 @dataclass(frozen=True)

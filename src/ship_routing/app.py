@@ -76,6 +76,8 @@ class RoutingApp:
     """High-level orchestrator wrapping the routing workflow."""
 
     def __init__(self, config: RoutingConfig):
+        if not (0 < config.selection.quantile <= 1):
+            raise ValueError("selection.quantile must be in (0, 1].")
         self.config = config
         self.log = RoutingLog(config=asdict(config))
 
@@ -332,28 +334,12 @@ class RoutingApp:
         selection_config,
         target_size: int,
     ) -> list[PopulationMember]:
-        if not population:
-            return []
-        size = target_size or len(population)
+        # TODO: document that this may shrink or expand the population when target_size differs
         sorted_pop = sorted(population, key=lambda member: member.cost)
-        elite_fraction = selection_config.elite_fraction or 0.0
-        elite_count = min(size, int(size * elite_fraction))
-        elites = sorted_pop[:elite_count]
-        remaining = sorted_pop[elite_count:]
-        quantile = selection_config.quantile
-        pool_count = max(1, int(size * quantile)) if quantile else len(remaining)
-        pool = remaining[:pool_count] if remaining else []
-        survivors = elites.copy()
-        needed = size - len(survivors)
-        if needed <= 0:
-            return survivors[:size]
-        if not pool:
-            pool = remaining if remaining else sorted_pop
-        if selection_config.with_replacement:
-            survivors.extend(random.choices(pool, k=needed))
-        else:
-            survivors.extend(pool[:needed])
-        return survivors[:size]
+        elite_count = int(np.ceil(len(population) * selection_config.quantile))
+        elite_pool = sorted_pop[:elite_count]
+        selected = random.choices(elite_pool, k=target_size)
+        return selected
 
     def _log_stage_metrics(
         self,
