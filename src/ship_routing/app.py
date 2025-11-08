@@ -59,10 +59,9 @@ class RoutingResult:
 
 @dataclass
 class StageLog:
-    """Record of a single optimisation stage (per generation/iteration)."""
+    """Record of a single optimisation stage event."""
 
     name: str
-    iteration: int
     metrics: dict[str, Any]
     timestamp: str = field(
         default_factory=lambda: datetime.now(timezone.utc).isoformat(timespec="seconds")
@@ -78,9 +77,9 @@ class RoutingLog:
     metadata: dict[str, Any] = field(default_factory=dict)
     notes: list[str] = field(default_factory=list)
 
-    def add_stage(self, name: str, iteration: int, **metrics: Any) -> None:
+    def add_stage(self, name: str, **metrics: Any) -> None:
         """Append a stage log entry."""
-        self.stages.append(StageLog(name=name, iteration=iteration, metrics=metrics))
+        self.stages.append(StageLog(name=name, metrics=dict(metrics)))
 
     def add_note(self, message: str) -> None:
         """Attach a free-form note (e.g., warnings, manual tweaks)."""
@@ -101,7 +100,6 @@ class RoutingLog:
             "stages": [
                 {
                     "name": stage.name,
-                    "iteration": stage.iteration,
                     "metrics": stage.metrics,
                     "timestamp": stage.timestamp,
                 }
@@ -129,7 +127,7 @@ class RoutingApp:
 
     def run(self) -> RoutingResult:
         """Execute the optimisation pipeline."""
-        self._log_stage_metrics("run", 0, message="starting routing run")
+        self._log_stage_metrics("run", message="starting routing run")
         seed_route = create_route(
             lon_waypoints=self.config.journey.lon_waypoints,
             lat_waypoints=self.config.journey.lat_waypoints,
@@ -186,7 +184,6 @@ class RoutingApp:
         )
         self._log_stage_metrics(
             "load_forcing",
-            0,
             currents=bool(forcing.currents),
             waves=bool(forcing.waves),
             winds=bool(forcing.winds),
@@ -221,7 +218,6 @@ class RoutingApp:
         seed_cost = self._route_cost(proto_route, forcing)
         self._log_stage_metrics(
             "initialize_population",
-            0,
             population_size=population_config.size,
             seed_route_cost=seed_cost,
         )
@@ -275,7 +271,7 @@ class RoutingApp:
             )
             self._log_stage_metrics(
                 "ga_generation",
-                generation,
+                generation=generation,
                 **self._population_stats(members),
             )
         return members
@@ -294,7 +290,6 @@ class RoutingApp:
         if not gradient_config.enabled:
             self._log_stage_metrics(
                 "gradient_refinement",
-                0,
                 population_size=len(population),
                 elites=elite_count,
                 skipped=True,
@@ -302,7 +297,6 @@ class RoutingApp:
             return [member.route for member in elites]
         self._log_stage_metrics(
             "gradient_refinement",
-            0,
             population_size=len(population),
             elites=elite_count,
         )
@@ -326,9 +320,10 @@ class RoutingApp:
             refined_routes.append(route)
             self._log_stage_metrics(
                 "gradient_step",
-                idx,
                 pre_cost=member.cost,
                 post_cost=cost,
+                elite_index=idx,
+                member_seed_cost=member.cost,
             )
         return refined_routes
 
@@ -411,12 +406,11 @@ class RoutingApp:
     def _log_stage_metrics(
         self,
         name: str,
-        iteration: int,
         **metrics: Any,
     ) -> None:
         """Convenience wrapper for stage-level logging."""
-        logging.info("%s[%s] %s", name, iteration, metrics)
-        self.log.add_stage(name=name, iteration=iteration, **metrics)
+        logging.info("%s %s", name, metrics)
+        self.log.add_stage(name=name, **metrics)
 
     def _route_cost(self, route: Route, forcing: ForcingData) -> float:
         return route.cost_through(

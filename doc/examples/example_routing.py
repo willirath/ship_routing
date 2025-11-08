@@ -56,7 +56,10 @@ if __name__ == "__main__":
         if ga_stages and "cost_mean" in ga_stages[0].metrics:
             cost_series = pd.Series(
                 data=[stage.metrics["cost_mean"] for stage in ga_stages],
-                index=[stage.iteration for stage in ga_stages],
+                index=[
+                    stage.metrics.get("generation", idx)
+                    for idx, stage in enumerate(ga_stages)
+                ],
                 name="Mean cost",
             )
             cost_series.index.name = "Generation"
