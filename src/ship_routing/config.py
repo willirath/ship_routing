@@ -49,7 +49,6 @@ class ForcingConfig:
     winds_path: str | None = None
     engine: str = "zarr"
     chunks: str = "auto"
-    time_steps: int | None = 5
     load_eagerly: bool = True
 
 

@@ -14,7 +14,7 @@ from .algorithms import (
     crossover_routes_minimal_cost,
     crossover_routes_random,
 )
-from .config import ForcingConfig, ForcingData, RoutingConfig
+from .config import ForcingConfig, ForcingData, RoutingConfig, JourneyConfig
 from .convenience import create_route, gradient_descent, stochastic_search
 from .core import Route
 from .data import load_currents, load_waves, load_winds
@@ -84,9 +84,17 @@ class RoutingApp:
     def run(self) -> RoutingResult:
         """Execute the optimisation pipeline."""
         self._log_stage_metrics("run", 0, message="starting routing run")
-        forcing = self._load_forcing()
+        proto_route = create_route(
+            lon_waypoints=self.config.journey.lon_waypoints,
+            lat_waypoints=self.config.journey.lat_waypoints,
+            time_start=self.config.journey.time_start,
+            time_end=self.config.journey.time_end,
+            speed_knots=self.config.journey.speed_knots,
+            time_resolution_hours=self.config.journey.time_resolution_hours,
+        )
+        forcing = self._load_forcing(proto_route)
         population, seed_member = self._initialize_population(
-            forcing, self.config.journey, self.config.population
+            forcing, proto_route, self.config.population
         )
         population = self._run_ga_generations(
             population,
@@ -102,24 +110,32 @@ class RoutingApp:
         )
         return RoutingResult(best_routes=best_routes, logs=self.log)
 
-    def _load_forcing(self) -> ForcingData:
+    def _load_forcing(self, proto_route) -> ForcingData:
         """Load wind, wave, and current fields according to the config."""
         forcing_config = self.config.forcing
+        _time_start = proto_route.way_points[0].time
+        _time_end = proto_route.way_points[-1].time
         forcing = ForcingData(
             currents=self._load_single_forcing(
                 forcing_config,
                 forcing_config.currents_path,
                 load_currents,
+                time_start=_time_start,
+                time_end=_time_end,
             ),
             waves=self._load_single_forcing(
                 forcing_config,
                 forcing_config.waves_path,
                 load_waves,
+                time_start=_time_start,
+                time_end=_time_end,
             ),
             winds=self._load_single_forcing(
                 forcing_config,
                 forcing_config.winds_path,
                 load_winds,
+                time_start=_time_start,
+                time_end=_time_end,
             ),
         )
         self._log_stage_metrics(
@@ -131,7 +147,7 @@ class RoutingApp:
         )
         return forcing
 
-    def _load_single_forcing(self, config: ForcingConfig, path: str | None, loader):
+    def _load_single_forcing(self, config: ForcingConfig, path: str | None, loader, time_start, time_end):
         if not path:
             return None
         ds = loader(
@@ -139,36 +155,34 @@ class RoutingApp:
             engine=config.engine,
             chunks=config.chunks,
         )
-        if config.time_steps is not None and "time" in ds.dims:
-            ds = ds.isel(time=slice(None, config.time_steps))
+        max_time_step = ds.time.diff("time").max().load().data[()]
+        time_mask = (
+            ((ds.time - max_time_step) >= np.datetime64(time_start))
+            & ((ds.time + max_time_step) <= np.datetime64(time_end))
+        )
+        # TODO: this is awkward, because we have no clean subclassing of xarray for hashable datasets
+        # ds.sel works, but ds.where will return standard xr dataset instead of hashable
+        time_axis = ds.time.where(time_mask, drop=True).compute()
+        ds = ds.sel(time=time_axis)
         if config.load_eagerly:
             ds = ds.load()
         return ds
 
     def _initialize_population(
-        self, forcing: ForcingData, journey_config, population_config
+        self, forcing: ForcingData, proto_route, population_config
     ) -> tuple[list[PopulationMember], PopulationMember]:
         """Seed the initial population using the configured journey."""
-        journey = journey_config
-        route = create_route(
-            lon_waypoints=journey.lon_waypoints,
-            lat_waypoints=journey.lat_waypoints,
-            time_start=journey.time_start,
-            time_end=journey.time_end,
-            speed_knots=journey.speed_knots,
-            time_resolution_hours=journey.time_resolution_hours,
-        )
-        seed_cost = self._route_cost(route, forcing)
+        seed_cost = self._route_cost(proto_route, forcing)
         self._log_stage_metrics(
             "initialize_population",
             0,
             population_size=population_config.size,
             seed_route_cost=seed_cost,
         )
-        seed_member = PopulationMember(route=route, cost=seed_cost)
+        seed_member = PopulationMember(route=proto_route, cost=seed_cost)
         members = [seed_member]
         for _ in range(1, population_config.size):
-            member_route = deepcopy(route)
+            member_route = deepcopy(proto_route)
             members.append(
                 PopulationMember(
                     route=member_route,
