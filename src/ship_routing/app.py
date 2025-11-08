@@ -314,13 +314,20 @@ class RoutingApp:
         for _ in range(len(population)):
             parent_a, parent_b = random.sample(population, 2)
             if strategy == "minimal_cost":
-                child = crossover_routes_minimal_cost(
-                    parent_a.route,
-                    parent_b.route,
-                    current_data_set=forcing.currents,
-                    wind_data_set=forcing.winds,
-                    wave_data_set=forcing.waves,
-                )
+                #TODO: remove check when https://github.com/willirath/ship_routing/issues/53 is fixed
+                try:
+                    child = crossover_routes_minimal_cost(
+                        parent_a.route,
+                        parent_b.route,
+                        current_data_set=forcing.currents,
+                        wind_data_set=forcing.winds,
+                        wave_data_set=forcing.waves,
+                    )
+                except UnboundLocalError:
+                    logging.warning(
+                        "crossover_routes_minimal_cost failed; falling back to first parent route",
+                    )
+                    child = parent_a.route
             else:
                 child = crossover_routes_random(parent_a.route, parent_b.route)
             offspring.append(
