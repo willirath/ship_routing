@@ -48,7 +48,7 @@ if __name__ == "__main__":
     print(result)
     runs_dir = Path(__file__).resolve().parent / "runs"
     runs_dir.mkdir(exist_ok=True)
-    latest_path = runs_dir / "latest_result.json"
+    latest_path = runs_dir / "example_routing_result.json"
     result.dump_json(latest_path)
     print(f"Dumped result to {latest_path}")
     if result.logs:
