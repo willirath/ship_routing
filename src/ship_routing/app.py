@@ -278,15 +278,9 @@ class RoutingApp:
     ) -> list[PopulationMember]:
         mutated = []
         for member in population:
-            length = getattr(member.route, "length_meters", None) or 1.0
-            mod_width = max(
-                stochastic_config.warmup_mod_width_fraction * length,
-                1.0,
-            )
-            max_move = max(
-                stochastic_config.warmup_max_move_fraction * length,
-                1.0,
-            )
+            length = member.route.length_meters
+            mod_width = stochastic_config.warmup_mod_width_fraction * length
+            max_move = stochastic_config.warmup_max_move_fraction * length
             route, _ = stochastic_search(
                 route=member.route,
                 number_of_iterations=stochastic_config.num_iterations,
