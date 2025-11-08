@@ -1,8 +1,6 @@
 """Minimal routing script for experimentation.
 
 Adapt the placeholders below to point to your own datasets and journey.
-The RoutingApp currently only contains scaffolding, so this file is a
-starting point for future integrations.
 """
 
 import logging
