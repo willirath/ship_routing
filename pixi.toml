@@ -27,6 +27,7 @@ shapely = "*"
 tqdm = "*"
 xarray = "*"
 zarr = "*"
+ipdb = ">=0.13.13,<0.14"
 
 [tasks]
 tests = "pytest -q"

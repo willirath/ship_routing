@@ -9,7 +9,7 @@ from shapely.ops import snap
 from scipy.interpolate import interp1d
 from scipy.signal.windows import hann
 
-from typing import Iterable, Tuple
+from typing import Iterable, Tuple, Any
 
 from functools import lru_cache
 from .config import MAX_CACHE_SIZE
@@ -511,6 +511,16 @@ class Route:
     def data_frame(self):
         """Data frame with columns lon, lat, time."""
         return pd.concat((wp.data_frame for wp in self.way_points), ignore_index=True)
+
+    def to_dict(self) -> dict[str, Any]:
+        """Simple dict representation of the route."""
+        return {"way_points": self.data_frame.to_dict(orient="records")}
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]):
+        """Construct route from dict."""
+        frame = pd.DataFrame(data["way_points"])
+        return cls.from_data_frame(frame)
 
     @classmethod
     def from_data_frame(cls, data_frame: pd.DataFrame = None):

@@ -1,4 +1,9 @@
-from .config import Ship, Physics, SHIP_DEFAULT, PHYSICS_DEFAULT
+from .config import (
+    Ship,
+    Physics,
+    SHIP_DEFAULT,
+    PHYSICS_DEFAULT,
+)  # TODO: replace globals with explicit config wiring
 from .cost_ufuncs import power_maintain_speed_ufunc, hazard_conditions_wave_height_ufunc
 
 

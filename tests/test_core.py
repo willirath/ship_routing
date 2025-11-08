@@ -778,6 +778,25 @@ def test_route_from_data_frame_roundtrip(num_way_points):
 
 
 @pytest.mark.parametrize("num_way_points", (2, 3, 15))
+def test_route_dict_roundtrip(num_way_points):
+    route_orig = Route(
+        way_points=tuple(
+            (
+                WayPoint(
+                    lon=np.random.uniform(-180, 180),
+                    lat=np.random.uniform(-90, 90),
+                    time=n * np.timedelta64(1, "D") + np.datetime64("2001-01-01"),
+                )
+                for n in range(num_way_points)
+            )
+        )
+    )
+    route_new = Route.from_dict(route_orig.to_dict())
+
+    assert route_new == route_orig
+
+
+@pytest.mark.parametrize("num_way_points", (2, 3, 15))
 def test_route_line_string_len(num_way_points):
     route = Route(
         way_points=tuple(
