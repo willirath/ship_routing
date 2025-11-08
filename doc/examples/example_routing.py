@@ -46,6 +46,11 @@ def run_example() -> RoutingResult:
 if __name__ == "__main__":
     result = run_example()
     print(result)
+    runs_dir = Path(__file__).resolve().parent / "runs"
+    runs_dir.mkdir(exist_ok=True)
+    latest_path = runs_dir / "latest_result.json"
+    result.dump_json(latest_path)
+    print(f"Dumped result to {latest_path}")
     if result.logs:
         ga_stages = result.logs.stages_named("ga_generation")
         if ga_stages and "cost_mean" in ga_stages[0].metrics:

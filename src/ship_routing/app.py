@@ -3,8 +3,10 @@ from __future__ import annotations
 from copy import deepcopy
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
+import json
 import logging
 import random
+from pathlib import Path
 from statistics import mean
 from typing import Any, Sequence
 
@@ -26,6 +28,33 @@ class RoutingResult:
 
     best_routes: Sequence[Route] | None
     logs: "RoutingLog | None" = None
+    seed_route: Route | None = None
+
+    def to_dict(self) -> dict[str, Any]:
+        """Return a JSON-friendly representation."""
+        return {
+            "best_routes": [route.to_dict() for route in (self.best_routes or [])],
+            "seed_route": self.seed_route.to_dict() if self.seed_route else None,
+            "log": self.logs.to_dict() if self.logs else None,
+        }
+
+    def dump_json(self, path: Path | str, *, indent: int = 2) -> None:
+        """Write routes and logs to JSON."""
+
+        def _default(obj: Any):
+            if isinstance(obj, np.generic):
+                return obj.item()
+            if isinstance(obj, datetime):
+                return obj.isoformat()
+            if isinstance(obj, Path):
+                return str(obj)
+            raise TypeError(f"Object of type {type(obj)!r} is not JSON serialisable")
+
+        data = self.to_dict()
+        path = Path(path)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with path.open("w", encoding="utf-8") as fh:
+            json.dump(data, fh, indent=indent, default=_default)
 
 
 @dataclass
@@ -65,6 +94,23 @@ class RoutingLog:
         """Return all stage logs matching the provided name."""
         return [stage for stage in self.stages if stage.name == name]
 
+    def to_dict(self) -> dict[str, Any]:
+        """Return log contents as plain dict."""
+        return {
+            "config": self.config,
+            "stages": [
+                {
+                    "name": stage.name,
+                    "iteration": stage.iteration,
+                    "metrics": stage.metrics,
+                    "timestamp": stage.timestamp,
+                }
+                for stage in self.stages
+            ],
+            "metadata": self.metadata,
+            "notes": self.notes,
+        }
+
 
 @dataclass
 class PopulationMember:
@@ -84,7 +130,7 @@ class RoutingApp:
     def run(self) -> RoutingResult:
         """Execute the optimisation pipeline."""
         self._log_stage_metrics("run", 0, message="starting routing run")
-        proto_route = create_route(
+        seed_route = create_route(
             lon_waypoints=self.config.journey.lon_waypoints,
             lat_waypoints=self.config.journey.lat_waypoints,
             time_start=self.config.journey.time_start,
@@ -92,9 +138,9 @@ class RoutingApp:
             speed_knots=self.config.journey.speed_knots,
             time_resolution_hours=self.config.journey.time_resolution_hours,
         )
-        forcing = self._load_forcing(proto_route)
+        forcing = self._load_forcing(seed_route)
         population, seed_member = self._initialize_population(
-            forcing, proto_route, self.config.population
+            forcing, seed_route, self.config.population
         )
         population = self._run_ga_generations(
             population,
@@ -108,13 +154,13 @@ class RoutingApp:
         best_routes = self._refine_with_gradient(
             population, forcing, self.config.gradient
         )
-        return RoutingResult(best_routes=best_routes, logs=self.log)
+        return RoutingResult(best_routes=best_routes, logs=self.log, seed_route=seed_route)
 
-    def _load_forcing(self, proto_route) -> ForcingData:
+    def _load_forcing(self, seed_route) -> ForcingData:
         """Load wind, wave, and current fields according to the config."""
         forcing_config = self.config.forcing
-        _time_start = proto_route.way_points[0].time
-        _time_end = proto_route.way_points[-1].time
+        _time_start = seed_route.way_points[0].time
+        _time_end = seed_route.way_points[-1].time
         forcing = ForcingData(
             currents=self._load_single_forcing(
                 forcing_config,
