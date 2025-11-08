@@ -212,9 +212,8 @@ class RoutingApp:
             chunks=config.chunks,
         )
         max_time_step = ds.time.diff("time").max().load().data[()]
-        time_mask = (
-            ((ds.time - max_time_step) >= np.datetime64(time_start))
-            & ((ds.time + max_time_step) <= np.datetime64(time_end))
+        time_mask = ((ds.time - max_time_step) >= np.datetime64(time_start)) & (
+            (ds.time + max_time_step) <= np.datetime64(time_end)
         )
         # TODO: this is awkward, because we have no clean subclassing of xarray for hashable datasets
         # ds.sel works, but ds.where will return standard xr dataset instead of hashable
@@ -300,7 +299,7 @@ class RoutingApp:
         if not population:
             return []
         sorted_population = sorted(population, key=lambda m: m.cost)
-        elites = sorted_population[:gradient_config.num_elites]
+        elites = sorted_population[: gradient_config.num_elites]
         if not gradient_config.enabled:
             self._log_stage_metrics(
                 "gradient_refinement",
@@ -386,7 +385,7 @@ class RoutingApp:
             parent_a = population[idx_a]
             parent_b = population[idx_b]
             if strategy == "minimal_cost":
-                #TODO: remove check when https://github.com/willirath/ship_routing/issues/53 is fixed
+                # TODO: remove check when https://github.com/willirath/ship_routing/issues/53 is fixed
                 try:
                     child = crossover_routes_minimal_cost(
                         parent_a.route,
@@ -440,7 +439,9 @@ class RoutingApp:
             wind_data_set=forcing.winds,
         )
 
-    def _population_stats(self, population: Sequence[PopulationMember]) -> dict[str, Any]:
+    def _population_stats(
+        self, population: Sequence[PopulationMember]
+    ) -> dict[str, Any]:
         if not population:
             return {"population_size": 0}
         costs = [member.cost for member in population]

@@ -7,6 +7,7 @@ from .hashable_dataset import HashableDataset
 
 MAX_CACHE_SIZE = 100
 
+
 @dataclass(frozen=True)
 class Physics:
     """Physical constants used in power estimation."""
