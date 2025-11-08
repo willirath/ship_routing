@@ -21,7 +21,7 @@ inherits the same setup.
 
 The repository contains a minimal script at `doc/examples/example_routing.py`
 that demonstrates how to configure a journey, point the routing app to forcing
-datasets, and run the (work-in-progress) optimisation pipeline. To run it:
+datasets, and run the optimisation pipeline. To run it:
 
 1. Clone or otherwise obtain the forcing datasets (currents, winds, waves) and
    place them under `doc/examples/data_large/`. For example, you can mirror

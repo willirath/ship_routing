@@ -6,18 +6,7 @@ from pathlib import Path
 
 from functools import lru_cache
 from .config import MAX_CACHE_SIZE
-
-
-class HashableDataset(xr.Dataset):
-    __slots__ = []
-
-    def __hash__(self):
-        # Note that there's a _lot_ of assumptions going into this...
-        return hash(id(self))
-
-
-def make_hashable(ds):
-    return HashableDataset(ds)
+from .hashable_dataset import HashableDataset, make_hashable
 
 
 def load_currents(

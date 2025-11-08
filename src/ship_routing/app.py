@@ -5,10 +5,9 @@ from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
 import json
 import logging
-import random
 from pathlib import Path
 from statistics import mean
-from typing import Any, Sequence
+from typing import Any, Callable, Sequence
 
 import numpy as np
 
@@ -16,25 +15,25 @@ from .algorithms import (
     crossover_routes_minimal_cost,
     crossover_routes_random,
 )
-from .config import ForcingConfig, ForcingData, RoutingConfig, JourneyConfig
+from .config import ForcingConfig, ForcingData, RoutingConfig
 from .convenience import create_route, gradient_descent, stochastic_search
 from .core import Route
-from .data import load_currents, load_waves, load_winds
+from .data import HashableDataset, load_currents, load_waves, load_winds
 
 
 @dataclass
 class RoutingResult:
     """Container returned by RoutingApp.run."""
 
-    best_routes: Sequence[Route] | None
-    logs: "RoutingLog | None" = None
     seed_route: Route | None = None
+    best_routes: Sequence[Route] | None = None
+    logs: "RoutingLog | None" = None
 
     def to_dict(self) -> dict[str, Any]:
         """Return a JSON-friendly representation."""
         return {
-            "best_routes": [route.to_dict() for route in (self.best_routes or [])],
             "seed_route": self.seed_route.to_dict() if self.seed_route else None,
+            "best_routes": [route.to_dict() for route in (self.best_routes or [])],
             "log": self.logs.to_dict() if self.logs else None,
         }
 
@@ -120,14 +119,14 @@ class RoutingApp:
     """High-level orchestrator wrapping the routing workflow."""
 
     def __init__(self, config: RoutingConfig):
-        if not (0 < config.selection.quantile <= 1):
-            raise ValueError("selection.quantile must be in (0, 1].")
         self.config = config
         self.log = RoutingLog(config=asdict(config))
+        self._rng: np.random.Generator | None = None
 
     def run(self) -> RoutingResult:
         """Execute the optimisation pipeline."""
         self._log_stage_metrics("run", message="starting routing run")
+        self._rng = np.random.default_rng(self.config.population.random_seed)
         seed_route = create_route(
             lon_waypoints=self.config.journey.lon_waypoints,
             lat_waypoints=self.config.journey.lat_waypoints,
@@ -152,7 +151,11 @@ class RoutingApp:
         best_routes = self._refine_with_gradient(
             population, forcing, self.config.gradient
         )
-        return RoutingResult(best_routes=best_routes, logs=self.log, seed_route=seed_route)
+        return RoutingResult(
+            seed_route=seed_route,
+            best_routes=best_routes,
+            logs=self.log,
+        )
 
     def _load_forcing(self, seed_route) -> ForcingData:
         """Load wind, wave, and current fields according to the config."""
@@ -160,24 +163,24 @@ class RoutingApp:
         _time_start = seed_route.way_points[0].time
         _time_end = seed_route.way_points[-1].time
         forcing = ForcingData(
-            currents=self._load_single_forcing(
-                forcing_config,
-                forcing_config.currents_path,
-                load_currents,
+            currents=self._load_forcing_for_period(
+                config=forcing_config,
+                path=forcing_config.currents_path,
+                loader=load_currents,
                 time_start=_time_start,
                 time_end=_time_end,
             ),
-            waves=self._load_single_forcing(
-                forcing_config,
-                forcing_config.waves_path,
-                load_waves,
+            waves=self._load_forcing_for_period(
+                config=forcing_config,
+                path=forcing_config.waves_path,
+                loader=load_waves,
                 time_start=_time_start,
                 time_end=_time_end,
             ),
-            winds=self._load_single_forcing(
-                forcing_config,
-                forcing_config.winds_path,
-                load_winds,
+            winds=self._load_forcing_for_period(
+                config=forcing_config,
+                path=forcing_config.winds_path,
+                loader=load_winds,
                 time_start=_time_start,
                 time_end=_time_end,
             ),
@@ -190,7 +193,15 @@ class RoutingApp:
         )
         return forcing
 
-    def _load_single_forcing(self, config: ForcingConfig, path: str | None, loader, time_start, time_end):
+    def _load_forcing_for_period(
+        self,
+        *,
+        config: ForcingConfig,
+        path: str | None,
+        loader: Callable[..., HashableDataset],
+        time_start: np.datetime64 | str,
+        time_end: np.datetime64 | str,
+    ) -> HashableDataset | None:
         if not path:
             return None
         ds = loader(
@@ -246,28 +257,29 @@ class RoutingApp:
         """Apply stochastic search, crossover, and selection loops."""
         members = list(population)
         target_size = population_config.size
-        if population_config.random_seed is not None:
-            random.seed(population_config.random_seed)
-            np.random.seed(population_config.random_seed)
-        num_generations = stochastic_config.num_generations or 1
+        num_generations = max(stochastic_config.num_generations or 0, 0)
         for generation in range(num_generations):
             mutated = self._mutate_population(members, forcing, stochastic_config)
             offspring = mutated
-            crossover_rounds = crossover_config.generations or 1
+            crossover_rounds = max(crossover_config.generations or 0, 0)
             for _ in range(crossover_rounds):
                 offspring = self._crossover_population(
-                    offspring, forcing, crossover_config
+                    offspring,
+                    forcing,
+                    crossover_config,
                 )
             combined = members + mutated + offspring
-            if population_config.mix_seed_route_each_generation:
+            if self.config.mix_seed_route_each_generation:
                 combined.append(
                     PopulationMember(
                         route=deepcopy(seed_member.route),
-                        cost=self._route_cost(seed_member.route, forcing),
+                        cost=seed_member.cost,
                     )
                 )
             members = self._select_population(
-                combined, selection_config, target_size=target_size
+                combined,
+                selection_config,
+                target_size=target_size,
             )
             self._log_stage_metrics(
                 "ga_generation",
@@ -283,22 +295,22 @@ class RoutingApp:
         gradient_config,
     ) -> Sequence[Route]:
         """Run gradient descent on the elites and return them."""
-        num_elites = gradient_config.num_elites or 1
+        if not population:
+            return []
         sorted_population = sorted(population, key=lambda m: m.cost)
-        elite_count = min(max(1, num_elites), len(sorted_population) or 1)
-        elites = sorted_population[:elite_count]
+        elites = sorted_population[:gradient_config.num_elites]
         if not gradient_config.enabled:
             self._log_stage_metrics(
                 "gradient_refinement",
                 population_size=len(population),
-                elites=elite_count,
+                elites=len(elites),
                 skipped=True,
             )
             return [member.route for member in elites]
         self._log_stage_metrics(
             "gradient_refinement",
             population_size=len(population),
-            elites=elite_count,
+            elites=len(elites),
         )
         refined_routes = []
         for idx, member in enumerate(elites):
@@ -366,8 +378,11 @@ class RoutingApp:
             return list(population)
         strategy = crossover_config.strategy
         offspring = []
+        rng = self._ensure_rng()
         for _ in range(len(population)):
-            parent_a, parent_b = random.sample(population, 2)
+            idx_a, idx_b = rng.choice(len(population), size=2, replace=False)
+            parent_a = population[idx_a]
+            parent_b = population[idx_b]
             if strategy == "minimal_cost":
                 #TODO: remove check when https://github.com/willirath/ship_routing/issues/53 is fixed
                 try:
@@ -394,14 +409,18 @@ class RoutingApp:
         self,
         population: Sequence[PopulationMember],
         selection_config,
+        *,
         target_size: int,
     ) -> list[PopulationMember]:
-        # TODO: document that this may shrink or expand the population when target_size differs
+        if not population:
+            return []
         sorted_pop = sorted(population, key=lambda member: member.cost)
-        elite_count = int(np.ceil(len(population) * selection_config.quantile))
+        quantile = selection_config.quantile
+        elite_count = int(np.ceil(len(sorted_pop) * quantile))
         elite_pool = sorted_pop[:elite_count]
-        selected = random.choices(elite_pool, k=target_size)
-        return selected
+        rng = self._ensure_rng()
+        indices = rng.integers(0, len(elite_pool), size=target_size)
+        return [elite_pool[idx] for idx in indices]
 
     def _log_stage_metrics(
         self,
@@ -429,3 +448,8 @@ class RoutingApp:
             "cost_max": max(costs),
             "cost_mean": mean(costs),
         }
+
+    def _ensure_rng(self) -> np.random.Generator:
+        if self._rng is None:
+            self._rng = np.random.default_rng(self.config.population.random_seed)
+        return self._rng

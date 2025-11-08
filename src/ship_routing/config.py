@@ -1,9 +1,11 @@
-from dataclasses import dataclass
-from typing import Any, Tuple
+from __future__ import annotations
 
+from dataclasses import dataclass
+from typing import Tuple
+
+from .hashable_dataset import HashableDataset
 
 MAX_CACHE_SIZE = 100
-
 
 @dataclass(frozen=True)
 class Physics:
@@ -56,9 +58,9 @@ class ForcingConfig:
 class ForcingData:
     """Loaded forcing datasets."""
 
-    currents: Any | None = None
-    waves: Any | None = None
-    winds: Any | None = None
+    currents: HashableDataset | None = None
+    waves: HashableDataset | None = None
+    winds: HashableDataset | None = None
 
 
 @dataclass(frozen=True)
@@ -67,7 +69,6 @@ class PopulationConfig:
 
     size: int = 4
     random_seed: int | None = 345
-    mix_seed_route_each_generation: bool = True
 
 
 @dataclass(frozen=True)
@@ -118,13 +119,6 @@ class GradientConfig:
 
 
 @dataclass(frozen=True)
-class ConcurrencyConfig:
-    """Execution backend options."""
-
-    process_pool_workers: int = 2
-
-
-@dataclass(frozen=True)
 class RoutingConfig:
     """Top-level configuration consumed by the routing application."""
 
@@ -133,11 +127,11 @@ class RoutingConfig:
     ship: Ship = Ship()
     physics: Physics = Physics()
     population: PopulationConfig = PopulationConfig()
+    mix_seed_route_each_generation: bool = True
     stochastic: StochasticStageConfig = StochasticStageConfig()
     crossover: CrossoverConfig = CrossoverConfig()
     selection: SelectionConfig = SelectionConfig()
     gradient: GradientConfig = GradientConfig()
-    concurrency: ConcurrencyConfig = ConcurrencyConfig()
 
 
 PHYSICS_DEFAULT = Physics()  # TODO: drop once legacy imports are cleaned up
