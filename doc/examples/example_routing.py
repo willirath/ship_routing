@@ -30,7 +30,7 @@ def run_example() -> RoutingResult:
         lon_waypoints=(-80.5, -62.0),
         lat_waypoints=(30.0, 35.0),
         time_start="2021-01-01T00:00",
-        speed_knots=10.0,
+        speed_knots=7.0,
         time_resolution_hours=12.0,
     )
     base = Path(__file__).resolve().parent / "data_large"
@@ -51,11 +51,11 @@ def run_example() -> RoutingResult:
     config = RoutingConfig(
         journey=journey,
         forcing=forcing,
-        population=PopulationConfig(size=6, random_seed=345),
-        stochastic=StochasticStageConfig(num_generations=4, num_iterations=4),
-        crossover=CrossoverConfig(strategy="minimal_cost", generations=2),
+        population=PopulationConfig(size=32, random_seed=345),
+        stochastic=StochasticStageConfig(num_generations=8, num_iterations=2),
+        crossover=CrossoverConfig(strategy="minimal_cost", generations=4),
         selection=SelectionConfig(quantile=0.5),
-        gradient=GradientConfig(enabled=True, num_elites=2),
+        gradient=GradientConfig(enabled=True, num_elites=4),
     )
     app = RoutingApp(config=config)
     return app.run()

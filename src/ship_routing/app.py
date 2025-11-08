@@ -20,6 +20,8 @@ from .convenience import create_route, gradient_descent, stochastic_search
 from .core import Route
 from .data import HashableDataset, load_currents, load_waves, load_winds
 
+np.seterr(divide="ignore", invalid="ignore")
+
 
 @dataclass
 class RoutingResult:
