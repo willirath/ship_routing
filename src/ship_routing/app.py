@@ -196,19 +196,19 @@ class RoutingApp:
         return forcing
 
     def _initialize_population(
-        self, forcing: ForcingData, proto_route, population_config
+        self, forcing: ForcingData, seed_route, population_config
     ) -> tuple[list[PopulationMember], PopulationMember]:
         """Seed the initial population using the configured journey."""
-        seed_cost = self._route_cost(proto_route, forcing)
+        seed_cost = self._route_cost(seed_route, forcing)
         self._log_stage_metrics(
             "initialize_population",
             population_size=population_config.size,
             seed_route_cost=seed_cost,
         )
-        seed_member = PopulationMember(route=proto_route, cost=seed_cost)
+        seed_member = PopulationMember(route=seed_route, cost=seed_cost)
         members = [seed_member]
         for _ in range(1, population_config.size):
-            member_route = deepcopy(proto_route)
+            member_route = deepcopy(seed_route)
             members.append(
                 PopulationMember(
                     route=member_route,
