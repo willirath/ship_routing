@@ -161,31 +161,31 @@ class RoutingApp:
 
     def _load_forcing(self, seed_route) -> ForcingData:
         """Load wind, wave, and current fields according to the config."""
-        forcing_config = self.config.forcing
-        _time_start = seed_route.way_points[0].time
-        _time_end = seed_route.way_points[-1].time
+        config = self.config.forcing
+        time_start = seed_route.way_points[0].time
+        time_end = seed_route.way_points[-1].time
+
+        def load_and_filter(path: str | None, loader: Callable[..., HashableDataset]) -> HashableDataset | None:
+            """Load dataset and filter to time period of interest."""
+            if not path:
+                return None
+            ds = loader(data_file=path, engine=config.engine, chunks=config.chunks)
+            max_time_step = ds.time.diff("time").max().load().data[()]
+            time_mask = ((ds.time - max_time_step) >= np.datetime64(time_start)) & (
+                (ds.time + max_time_step) <= np.datetime64(time_end)
+            )
+            # TODO: this is awkward, because we have no clean subclassing of xarray for hashable datasets
+            # ds.sel works, but ds.where will return standard xr dataset instead of hashable
+            time_axis = ds.time.where(time_mask, drop=True).compute()
+            ds = ds.sel(time=time_axis)
+            if config.load_eagerly:
+                ds = ds.load()
+            return ds
+
         forcing = ForcingData(
-            currents=self._load_forcing_for_period(
-                config=forcing_config,
-                path=forcing_config.currents_path,
-                loader=load_currents,
-                time_start=_time_start,
-                time_end=_time_end,
-            ),
-            waves=self._load_forcing_for_period(
-                config=forcing_config,
-                path=forcing_config.waves_path,
-                loader=load_waves,
-                time_start=_time_start,
-                time_end=_time_end,
-            ),
-            winds=self._load_forcing_for_period(
-                config=forcing_config,
-                path=forcing_config.winds_path,
-                loader=load_winds,
-                time_start=_time_start,
-                time_end=_time_end,
-            ),
+            currents=load_and_filter(config.currents_path, load_currents),
+            waves=load_and_filter(config.waves_path, load_waves),
+            winds=load_and_filter(config.winds_path, load_winds),
         )
         self._log_stage_metrics(
             "load_forcing",
@@ -194,34 +194,6 @@ class RoutingApp:
             winds=bool(forcing.winds),
         )
         return forcing
-
-    def _load_forcing_for_period(
-        self,
-        *,
-        config: ForcingConfig,
-        path: str | None,
-        loader: Callable[..., HashableDataset],
-        time_start: np.datetime64 | str,
-        time_end: np.datetime64 | str,
-    ) -> HashableDataset | None:
-        if not path:
-            return None
-        ds = loader(
-            data_file=path,
-            engine=config.engine,
-            chunks=config.chunks,
-        )
-        max_time_step = ds.time.diff("time").max().load().data[()]
-        time_mask = ((ds.time - max_time_step) >= np.datetime64(time_start)) & (
-            (ds.time + max_time_step) <= np.datetime64(time_end)
-        )
-        # TODO: this is awkward, because we have no clean subclassing of xarray for hashable datasets
-        # ds.sel works, but ds.where will return standard xr dataset instead of hashable
-        time_axis = ds.time.where(time_mask, drop=True).compute()
-        ds = ds.sel(time=time_axis)
-        if config.load_eagerly:
-            ds = ds.load()
-        return ds
 
     def _initialize_population(
         self, forcing: ForcingData, proto_route, population_config
