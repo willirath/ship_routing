@@ -76,20 +76,10 @@ class RoutingLog:
 
     config: dict[str, Any]
     stages: list[StageLog] = field(default_factory=list)
-    metadata: dict[str, Any] = field(default_factory=dict)
-    notes: list[str] = field(default_factory=list)
 
     def add_stage(self, name: str, **metrics: Any) -> None:
         """Append a stage log entry."""
         self.stages.append(StageLog(name=name, metrics=dict(metrics)))
-
-    def add_note(self, message: str) -> None:
-        """Attach a free-form note (e.g., warnings, manual tweaks)."""
-        self.notes.append(message)
-
-    def set_metadata(self, **metadata: Any) -> None:
-        """Store high-level metadata such as dataset descriptions."""
-        self.metadata.update(metadata)
 
     def stages_named(self, name: str) -> list[StageLog]:
         """Return all stage logs matching the provided name."""
@@ -107,8 +97,6 @@ class RoutingLog:
                 }
                 for stage in self.stages
             ],
-            "metadata": self.metadata,
-            "notes": self.notes,
         }
 
 
