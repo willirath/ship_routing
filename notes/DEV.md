@@ -1,5 +1,38 @@
 # Dev Notes
 
+## Algorighm
+
+```mermaid
+flowchart LR
+    start([Start])
+
+    subgraph seeding_phase[Seeding]
+        seed_route["**Seeding**<br/>Build seed great-circle route"]
+        seed_route --> init_population["**Initialization**<br/>Clone seed to form population P of size M"]
+    end
+
+    start --> seed_route
+
+    init_population --> generation_loop{"**Stochastic Genetic Optimisation**<br/>For generation g &le; G"}
+
+    subgraph genetic_phase[Stochastic Genetic Optimisation]
+        generation_loop --> mutate_stage["**Mutation**<br/>Mutate each route r ∈ P -> P_mutated"]
+        mutate_stage --> crossover_stage["**Crossover**<br/>Route pairs create offspring"]
+        crossover_stage --> combine_stage["**Combine**<br/>Merge P, P_mutated, offspring, seed"]
+        combine_stage --> selection_stage["**Selection**<br/>S(q, M) yields updated population P"]
+        selection_stage --> generation_loop
+    end
+
+    generation_loop -->|after G iterations| sort_stage["**Refinement**<br/>Sort population by energy"]
+
+    subgraph refinement_phase[Refinement]
+        sort_stage --> elite_selection["**Elite Selection**<br/>Pick top k routes"]
+        elite_selection --> gradient_stage["**Gradient Descent**<br/>Tweak time and space"]
+    end
+
+    gradient_stage --> finish([Return refined elite routes])
+```
+
 ## `config.py`
 
 ```mermaid
