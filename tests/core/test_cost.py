@@ -1,4 +1,4 @@
-from ship_routing.cost import (
+from ship_routing.core.cost import (
     align_along_track_arrays,
     maybe_cast_number_to_data_array,
     power_maintain_speed,

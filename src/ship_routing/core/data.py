@@ -3,6 +3,7 @@ import pandas as pd
 import numpy as np
 
 from pathlib import Path
+from typing import Callable
 
 from functools import lru_cache
 from .config import MAX_CACHE_SIZE
@@ -71,6 +72,71 @@ def load_waves(
         }
     )
     return make_hashable(ds)
+
+
+def load_and_filter_forcing(
+    path: str | None,
+    loader: Callable[..., HashableDataset],
+    time_start: np.datetime64,
+    time_end: np.datetime64,
+    engine: str | None = None,
+    chunks: dict | None = None,
+    load_eagerly: bool = False,
+) -> HashableDataset | None:
+    """Load dataset and filter to time period of interest.
+
+    Parameters
+    ----------
+    path : str | None
+        Path to the data file. If None, returns None.
+    loader : Callable
+        Function to load the dataset (e.g., load_currents, load_waves, load_winds).
+    time_start : np.datetime64
+        Start time for filtering.
+    time_end : np.datetime64
+        End time for filtering.
+    engine : str | None
+        Engine to use for opening the dataset (passed to xr.open_dataset).
+    chunks : dict | None
+        Chunking specification (passed to xr.open_dataset).
+    load_eagerly : bool
+        If True, load the dataset into memory. Default is False.
+
+    Returns
+    -------
+    HashableDataset | None
+        Filtered dataset, or None if path is None.
+    """
+    if not path:
+        return None
+
+    # Build kwargs for the loader
+    kwargs = {}
+    if engine is not None:
+        kwargs["engine"] = engine
+    if chunks is not None:
+        kwargs["chunks"] = chunks
+
+    ds = loader(data_file=path, **kwargs)
+
+    # Calculate maximum time step for buffer
+    max_time_step = ds.time.diff("time").max().load().data[()]
+
+    # Create time mask with buffer
+    time_mask = ((ds.time - max_time_step) >= time_start) & (
+        (ds.time + max_time_step) <= time_end
+    )
+
+    # Filter time axis
+    # Note: ds.where returns standard xr.Dataset instead of HashableDataset,
+    # so we use this workaround to maintain the hashable type
+    time_axis = ds.time.where(time_mask, drop=True).compute()
+    ds = ds.sel(time=time_axis)
+
+    if load_eagerly:
+        ds = ds.load()
+
+    return ds
 
 
 @lru_cache(maxsize=MAX_CACHE_SIZE)

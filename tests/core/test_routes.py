@@ -4,7 +4,7 @@ from ship_routing.core import (
     WayPoint,
 )
 
-from ship_routing.data import (
+from ship_routing.core.data import (
     load_currents,
     load_winds,
     load_waves,
@@ -23,7 +23,7 @@ import pytest
 
 # fixtures etc.
 
-TEST_DATA_DIR = Path(__file__).parent.resolve() / "test_data"
+TEST_DATA_DIR = Path(__file__).parent.parent.resolve() / "test_data"
 
 
 # way points

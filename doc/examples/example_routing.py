@@ -10,8 +10,9 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 import pandas as pd
 
-from ship_routing.app import RoutingApp, RoutingResult
-from ship_routing.config import (
+from ship_routing.app import (
+    RoutingApp,
+    RoutingResult,
     CrossoverConfig,
     ForcingConfig,
     GradientConfig,

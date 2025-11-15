@@ -1,4 +1,4 @@
-from ship_routing.remix import segment_lines_with_each_other
+from ship_routing.core.remix import segment_lines_with_each_other
 
 import shapely
 import pandas as pd
@@ -6,7 +6,7 @@ import pandas as pd
 from pathlib import Path
 
 
-TEST_DATA_DIR = Path(__file__).parent.resolve() / "test_data"
+TEST_DATA_DIR = Path(__file__).parent.parent.resolve() / "test_data"
 
 
 def test_segmentation_returns_simple_line_strings():

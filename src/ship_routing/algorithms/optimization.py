@@ -1,5 +1,5 @@
-from .core import Route
-from .config import (
+from ..core.routes import Route
+from ..core.config import (
     SHIP_DEFAULT,
     PHYSICS_DEFAULT,
     Ship,
@@ -358,3 +358,189 @@ def crossover_routes_minimal_cost(
         route_mix = route_mix + s
     route_mix = route_mix.remove_consecutive_duplicate_timesteps()
     return route_mix
+
+
+def stochastic_mutation(
+    route: Route = None,
+    number_of_iterations: int = 10,
+    acceptance_rate_target: float = 0.05,
+    acceptance_rate_for_increase_cost: float = 0.0,
+    refinement_factor: float = 0.5,
+    mod_width: float = None,
+    max_move_meters: float = None,
+    current_data_set: xr.Dataset = None,
+    wave_data_set: xr.Dataset = None,
+    wind_data_set: xr.Dataset = None,
+) -> Route:
+    """Stochastic search optimization using non-local route mutations.
+
+    Parameters
+    ----------
+    route : Route
+        Initial route.
+    number_of_iterations : int
+        Number of iterations to run. Defaults to: 10
+    acceptance_rate_target : float
+        Target acceptance rate. Defaults to: 0.05
+    acceptance_rate_for_increase_cost : float
+        Probability of accepting cost increase. Defaults to: 0.0
+    refinement_factor : float
+        Factor to reduce mutation width when acceptance rate too low. Defaults to: 0.5
+    mod_width : float
+        Width of modification window in meters.
+    max_move_meters : float
+        Maximum movement distance in meters.
+    current_data_set : xr.Dataset
+        Current data set.
+    wave_data_set : xr.Dataset
+        Wave data set.
+    wind_data_set : xr.Dataset
+        Wind data set.
+
+    Returns
+    -------
+    Route
+        The optimized route.
+    """
+    cost = route.cost_through(
+        current_data_set=current_data_set,
+        wave_data_set=wave_data_set,
+        wind_data_set=wind_data_set,
+    )
+
+    accepted = 0
+    n_reset = 0
+    for iteration in range(1, number_of_iterations + 1):
+        route_ = route.move_waypoints_left_nonlocal(
+            center_distance_meters=np.random.uniform(
+                mod_width / 2.0, route.length_meters - mod_width / 2.0
+            ),
+            width_meters=mod_width,
+            max_move_meters=max_move_meters * np.random.uniform(-1, 1),
+        )
+        cost_ = route_.cost_through(
+            current_data_set=current_data_set,
+            wave_data_set=wave_data_set,
+            wind_data_set=wind_data_set,
+        )
+        if not np.isnan(cost_) and (
+            (cost_ < cost)
+            or (np.random.uniform(0, 1) < acceptance_rate_for_increase_cost)
+        ):
+            route = route_
+            cost = cost_
+            accepted += 1
+        if (accepted + 1) / (n_reset + 1) < acceptance_rate_target:
+            n_reset = 0
+            accepted = 0
+            mod_width *= refinement_factor
+            max_move_meters *= refinement_factor
+
+        n_reset += 1
+
+    return route
+
+
+def gradient_descent(
+    route: Route = None,
+    num_iterations: int = 1,
+    learning_rate_percent_time: float = 0.5,
+    time_increment: float = 1_200,
+    learning_rate_percent_along: float = 0.5,
+    dist_shift_along: float = 10_000,
+    learning_rate_percent_across: float = 0.5,
+    dist_shift_across: float = 10_000,
+    current_data_set: xr.Dataset = None,
+    wave_data_set: xr.Dataset = None,
+    wind_data_set: xr.Dataset = None,
+) -> Route:
+    """Execute multiple iterations of gradient descent optimization.
+
+    Combines time_shift, along_track, and across_track gradient descent methods.
+
+    Parameters
+    ----------
+    route : Route
+        Initial route.
+    num_iterations : int
+        Number of iterations. Defaults to: 1
+    learning_rate_percent_time : float
+        Learning rate for time shifts. Defaults to: 0.5
+    time_increment : float
+        Time increment for gradient estimation. Defaults to: 1_200
+    learning_rate_percent_along : float
+        Learning rate for along-track shifts. Defaults to: 0.5
+    dist_shift_along : float
+        Distance for along-track gradient estimation. Defaults to: 10_000
+    learning_rate_percent_across : float
+        Learning rate for across-track shifts. Defaults to: 0.5
+    dist_shift_across : float
+        Distance for across-track gradient estimation. Defaults to: 10_000
+    current_data_set : xr.Dataset
+        Current data set.
+    wave_data_set : xr.Dataset
+        Wave data set.
+    wind_data_set : xr.Dataset
+        Wind data set.
+
+    Returns
+    -------
+    Route
+        The optimized route.
+    """
+    for _ in range(num_iterations):
+        try:
+            route = gradient_descent_time_shift(
+                route=route,
+                current_data_set=current_data_set,
+                wave_data_set=wave_data_set,
+                wind_data_set=wind_data_set,
+                time_shift_seconds=time_increment,
+                learning_rate_percent=learning_rate_percent_time,
+            )
+        except ZeroGradientsError:
+            # converged, just pass
+            pass
+        except InvalidGradientError:
+            time_increment /= 2.0
+            learning_rate_percent_time /= 2.0
+        except LargeIncrementError:
+            learning_rate_percent_time /= 2.0
+
+        try:
+            route = gradient_descent_across_track_left(
+                route=route,
+                current_data_set=current_data_set,
+                wave_data_set=wave_data_set,
+                wind_data_set=wind_data_set,
+                distance_meters=dist_shift_across,
+                learning_rate_percent=learning_rate_percent_across,
+            )
+        except ZeroGradientsError:
+            # converged, just pass
+            pass
+        except InvalidGradientError:
+            dist_shift_across /= 2.0
+            learning_rate_percent_across /= 2.0
+        except LargeIncrementError:
+            learning_rate_percent_across /= 2.0
+
+        try:
+            route = gradient_descent_along_track(
+                route=route,
+                current_data_set=current_data_set,
+                wave_data_set=wave_data_set,
+                wind_data_set=wind_data_set,
+                distance_meters=dist_shift_along,
+                learning_rate_percent=learning_rate_percent_along,
+            )
+        except ZeroGradientsError:
+            # converged, just pass
+            pass
+        except InvalidGradientError:
+            dist_shift_along /= 2.0
+            learning_rate_percent_along /= 2.0
+        except LargeIncrementError:
+            learning_rate_percent_along /= 2.0
+
+    return route
