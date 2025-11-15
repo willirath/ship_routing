@@ -13,4 +13,4 @@ Examples
 >>> from ship_routing.app import RoutingApp, RoutingConfig
 """
 
-__version__ = "2024.04.10.1"
+__version__ = "2025dev"
