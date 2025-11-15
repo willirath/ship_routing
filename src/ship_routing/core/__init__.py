@@ -12,7 +12,13 @@ from .geodesics import (
 )
 from .cost import power_maintain_speed, hazard_conditions_wave_height
 from .cost_ufuncs import power_maintain_speed_ufunc, hazard_conditions_wave_height_ufunc
-from .data import load_currents, load_winds, load_waves, select_data_for_leg
+from .data import (
+    load_currents,
+    load_winds,
+    load_waves,
+    select_data_for_leg,
+    load_and_filter_forcing,
+)
 from .hashable_dataset import HashableDataset, make_hashable
 from .remix import segment_lines_with_each_other, SHAPELY_RESOLUTION
 from .population import PopulationMember, Population
@@ -40,6 +46,7 @@ __all__ = [
     "load_winds",
     "load_waves",
     "select_data_for_leg",
+    "load_and_filter_forcing",
     "HashableDataset",
     "make_hashable",
     "segment_lines_with_each_other",

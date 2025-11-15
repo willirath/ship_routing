@@ -7,7 +7,7 @@ import json
 import logging
 from pathlib import Path
 from statistics import mean
-from typing import Any, Callable, Sequence
+from typing import Any, Sequence
 
 import numpy as np
 
@@ -19,12 +19,16 @@ from ..algorithms.optimization import (
 )
 from .config import ForcingConfig, ForcingData, RoutingConfig
 from ..core.routes import Route
-from ..core.data import HashableDataset, load_currents, load_waves, load_winds
+from ..core.data import load_currents, load_waves, load_winds, load_and_filter_forcing
 from ..core.population import Population, PopulationMember
 
 np.seterr(divide="ignore", invalid="ignore")
 
 
+# TODO: Refactor to contain seed_member instead of seed_route and
+# elite_population instead of best_routes.  Note that this will
+# also include creating a PopulationMember .to_dict() and a
+# Population.to_dict() method.
 @dataclass
 class RoutingResult:
     """Container returned by RoutingApp.run."""
@@ -113,6 +117,7 @@ class RoutingApp:
         """Execute the optimisation pipeline."""
         self._log_stage_metrics("run", message="starting routing run")
         self._rng = np.random.default_rng(self.config.population.random_seed)
+        forcing = self._load_forcing(self.config.journey)
         seed_route = Route.create_route(
             lon_waypoints=self.config.journey.lon_waypoints,
             lat_waypoints=self.config.journey.lat_waypoints,
@@ -121,8 +126,6 @@ class RoutingApp:
             speed_knots=self.config.journey.speed_knots,
             time_resolution_hours=self.config.journey.time_resolution_hours,
         )
-        forcing = self._load_forcing(seed_route)
-        # Create seed member for potential re-injection during GA
         seed_member = PopulationMember(
             route=seed_route, cost=self._route_cost(seed_route, forcing)
         )
@@ -147,37 +150,40 @@ class RoutingApp:
             logs=self.log,
         )
 
-    def _load_forcing(self, seed_route) -> ForcingData:
+    def _load_forcing(self, journey_config) -> ForcingData:
         """Load wind, wave, and current fields according to the config."""
         config = self.config.forcing
-        time_start = seed_route.way_points[0].time
-        time_end = seed_route.way_points[-1].time
-
-        # TODO: This should go into the helpers of the core module and
-        # then be used in the laod_currents/winds/waves functinos
-        def load_and_filter(
-            path: str | None, loader: Callable[..., HashableDataset]
-        ) -> HashableDataset | None:
-            """Load dataset and filter to time period of interest."""
-            if not path:
-                return None
-            ds = loader(data_file=path, engine=config.engine, chunks=config.chunks)
-            max_time_step = ds.time.diff("time").max().load().data[()]
-            time_mask = ((ds.time - max_time_step) >= np.datetime64(time_start)) & (
-                (ds.time + max_time_step) <= np.datetime64(time_end)
-            )
-            # TODO: this is awkward, because we have no clean subclassing of xarray for hashable datasets
-            # ds.sel works, but ds.where will return standard xr dataset instead of hashable
-            time_axis = ds.time.where(time_mask, drop=True).compute()
-            ds = ds.sel(time=time_axis)
-            if config.load_eagerly:
-                ds = ds.load()
-            return ds
+        time_start = np.datetime64(journey_config.time_start)
+        time_end = np.datetime64(journey_config.time_end)
 
         forcing = ForcingData(
-            currents=load_and_filter(config.currents_path, load_currents),
-            waves=load_and_filter(config.waves_path, load_waves),
-            winds=load_and_filter(config.winds_path, load_winds),
+            currents=load_and_filter_forcing(
+                path=config.currents_path,
+                loader=load_currents,
+                time_start=time_start,
+                time_end=time_end,
+                engine=config.engine,
+                chunks=config.chunks,
+                load_eagerly=config.load_eagerly,
+            ),
+            waves=load_and_filter_forcing(
+                path=config.waves_path,
+                loader=load_waves,
+                time_start=time_start,
+                time_end=time_end,
+                engine=config.engine,
+                chunks=config.chunks,
+                load_eagerly=config.load_eagerly,
+            ),
+            winds=load_and_filter_forcing(
+                path=config.winds_path,
+                loader=load_winds,
+                time_start=time_start,
+                time_end=time_end,
+                engine=config.engine,
+                chunks=config.chunks,
+                load_eagerly=config.load_eagerly,
+            ),
         )
         self._log_stage_metrics(
             "load_forcing",
@@ -198,7 +204,7 @@ class RoutingApp:
         )
 
         population = Population.from_seed_member(
-            seed_route=seed_member.route,
+            seed_member=seed_member,
             size=population_config.size,
         )
 
