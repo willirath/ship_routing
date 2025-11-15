@@ -50,6 +50,25 @@ classDiagram
     }
 ```
 
+## `population.py`
+
+```mermaid
+classDiagram
+    direction LR
+
+    PopulationMember *-- Route
+    Population "1" *-- "1..*" PopulationMember
+
+    class PopulationMember {
+        + Route : route
+        + float : cost
+    }
+
+    class Population {
+        + [PopulationMember] : members
+    }
+```
+
 ## `routes.py`
 
 ```mermaid
