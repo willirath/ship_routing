@@ -11,14 +11,15 @@ from typing import Any, Callable, Sequence
 
 import numpy as np
 
-from .algorithms import (
+from ..algorithms.optimization import (
     crossover_routes_minimal_cost,
     crossover_routes_random,
+    gradient_descent,
+    stochastic_search,
 )
 from .config import ForcingConfig, ForcingData, RoutingConfig
-from .convenience import create_route, gradient_descent, stochastic_search
-from .core import Route
-from .data import HashableDataset, load_currents, load_waves, load_winds
+from ..core.routes import Route
+from ..core.data import HashableDataset, load_currents, load_waves, load_winds
 
 np.seterr(divide="ignore", invalid="ignore")
 
@@ -129,7 +130,7 @@ class RoutingApp:
         """Execute the optimisation pipeline."""
         self._log_stage_metrics("run", message="starting routing run")
         self._rng = np.random.default_rng(self.config.population.random_seed)
-        seed_route = create_route(
+        seed_route = Route.create_route(
             lon_waypoints=self.config.journey.lon_waypoints,
             lat_waypoints=self.config.journey.lat_waypoints,
             time_start=self.config.journey.time_start,
@@ -165,7 +166,9 @@ class RoutingApp:
         time_start = seed_route.way_points[0].time
         time_end = seed_route.way_points[-1].time
 
-        def load_and_filter(path: str | None, loader: Callable[..., HashableDataset]) -> HashableDataset | None:
+        def load_and_filter(
+            path: str | None, loader: Callable[..., HashableDataset]
+        ) -> HashableDataset | None:
             """Load dataset and filter to time period of interest."""
             if not path:
                 return None

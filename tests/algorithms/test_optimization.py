@@ -8,7 +8,7 @@ from ship_routing.algorithms import (
 )
 
 from ship_routing.core import Route, WayPoint
-from ship_routing.data import (
+from ship_routing.core.data import (
     load_currents,
     load_waves,
     load_winds,
@@ -20,7 +20,7 @@ import pytest
 
 from pathlib import Path
 
-TEST_DATA_DIR = Path(__file__).parent.resolve() / "test_data"
+TEST_DATA_DIR = Path(__file__).parent.parent.resolve() / "test_data"
 
 
 def test_gradient_descent_across_track_left_zero_gradients_error():

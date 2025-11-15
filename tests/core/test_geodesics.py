@@ -1,4 +1,4 @@
-from ship_routing.geodesics import (
+from ship_routing.core.geodesics import (
     get_refinement_factor,
 )
 
