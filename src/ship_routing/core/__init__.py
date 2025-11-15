@@ -15,6 +15,7 @@ from .cost_ufuncs import power_maintain_speed_ufunc, hazard_conditions_wave_heig
 from .data import load_currents, load_winds, load_waves, select_data_for_leg
 from .hashable_dataset import HashableDataset, make_hashable
 from .remix import segment_lines_with_each_other, SHAPELY_RESOLUTION
+from .population import PopulationMember, Population
 
 __all__ = [
     "WayPoint",
@@ -43,4 +44,6 @@ __all__ = [
     "make_hashable",
     "segment_lines_with_each_other",
     "SHAPELY_RESOLUTION",
+    "PopulationMember",
+    "Population",
 ]

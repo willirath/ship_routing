@@ -20,6 +20,7 @@ from ..algorithms.optimization import (
 from .config import ForcingConfig, ForcingData, RoutingConfig
 from ..core.routes import Route
 from ..core.data import HashableDataset, load_currents, load_waves, load_winds
+from ..core.population import Population, PopulationMember
 
 np.seterr(divide="ignore", invalid="ignore")
 
@@ -100,13 +101,6 @@ class RoutingLog:
         }
 
 
-# TODO put in core.
-@dataclass
-class PopulationMember:
-    route: Route
-    cost: float
-
-
 class RoutingApp:
     """High-level orchestrator wrapping the routing workflow."""
 
@@ -128,8 +122,12 @@ class RoutingApp:
             time_resolution_hours=self.config.journey.time_resolution_hours,
         )
         forcing = self._load_forcing(seed_route)
-        population, seed_member = self._initialize_population(
-            forcing, seed_route, self.config.population
+        # Create seed member for potential re-injection during GA
+        seed_member = PopulationMember(
+            route=seed_route, cost=self._route_cost(seed_route, forcing)
+        )
+        population = self._initialize_population(
+            forcing, seed_member, self.config.population
         )
         population = self._run_ga_generations(
             population,
@@ -189,42 +187,36 @@ class RoutingApp:
         )
         return forcing
 
-    # TODO: Population class method.
     def _initialize_population(
-        self, forcing: ForcingData, seed_route, population_config
-    ) -> tuple[list[PopulationMember], PopulationMember]:
+        self, forcing: ForcingData, seed_member: PopulationMember, population_config
+    ) -> Population:
         """Seed the initial population using the configured journey."""
-        seed_cost = self._route_cost(seed_route, forcing)
         self._log_stage_metrics(
             "initialize_population",
             population_size=population_config.size,
-            seed_route_cost=seed_cost,
+            seed_route_cost=seed_member.cost,
         )
-        seed_member = PopulationMember(route=seed_route, cost=seed_cost)
-        members = [seed_member]
-        for _ in range(1, population_config.size):
-            member_route = deepcopy(seed_route)
-            members.append(
-                PopulationMember(
-                    route=member_route,
-                    cost=self._route_cost(member_route, forcing),
-                )
-            )
-        return members, seed_member
+
+        population = Population.from_seed_member(
+            seed_route=seed_member.route,
+            size=population_config.size,
+        )
+
+        return population
 
     # TODO: Needs to become a thin wrapper around a population method.
     def _run_ga_generations(
         self,
-        population: Sequence[PopulationMember],
+        population: Population,
         seed_member: PopulationMember,
         forcing: ForcingData,
         population_config,
         stochastic_config,
         crossover_config,
         selection_config,
-    ) -> Sequence[PopulationMember]:
+    ) -> Population:
         """Apply stochastic search, crossover, and selection loops."""
-        members = list(population)
+        members = population.members
         target_size = population_config.size
         num_generations = max(stochastic_config.num_generations or 0, 0)
         for generation in range(num_generations):
@@ -255,32 +247,30 @@ class RoutingApp:
                 generation=generation,
                 **self._population_stats(members),
             )
-        return members
+        return Population(members=members)
 
-    # TODO: factor out the elite selection.
-    # Again with a core Population class, this will be easier.
     def _refine_with_gradient(
         self,
-        population: Sequence[PopulationMember],
+        population: Population,
         forcing: ForcingData,
         gradient_config,
     ) -> Sequence[Route]:
         """Run gradient descent on the elites and return them."""
-        if not population:
+        if not population.members:
             return []
-        sorted_population = sorted(population, key=lambda m: m.cost)
-        elites = sorted_population[: gradient_config.num_elites]
+        sorted_population = population.sort()
+        elites = sorted_population.members[: gradient_config.num_elites]
         if not gradient_config.enabled:
             self._log_stage_metrics(
                 "gradient_refinement",
-                population_size=len(population),
+                population_size=population.size,
                 elites=len(elites),
                 skipped=True,
             )
             return [member.route for member in elites]
         self._log_stage_metrics(
             "gradient_refinement",
-            population_size=len(population),
+            population_size=population.size,
             elites=len(elites),
         )
         refined_routes = []
