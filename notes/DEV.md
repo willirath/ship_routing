@@ -33,52 +33,38 @@ flowchart LR
     gradient_stage --> finish([Return refined elite routes])
 ```
 
-## `config.py`
-
-```mermaid
-classDiagram
-    class Physics
-    class Ship
-```
-
-## `hashable_dataset.py`
-
-```mermaid
-classDiagram
-    class HashableDataset {
-        +\_\_hash\_\_()
-    }
-```
-
-## `population.py`
+## `population.py` and `routes.py`
 
 ```mermaid
 classDiagram
     direction LR
 
-    PopulationMember *-- Route
-    Population "1" *-- "1..*" PopulationMember
+    PopulationMember "1" *-- "1" Route : route
+    Population "1" *-- "1..*" PopulationMember : members
 
     class PopulationMember {
         + Route : route
         + float : cost
+
+        #from_dict()
+        +to_dict()
     }
 
     class Population {
         + [PopulationMember] : members
+
+        $size
+        #from_seed_member()
+        +sort()
+        #from_dict()
+        +to_dict()
     }
-```
 
-## `routes.py`
-
-```mermaid
-classDiagram
-    direction LR
-
-    Leg *-- WayPoint : way_point_start
-    Leg *-- WayPoint : way_point_end
+    Leg "1" *-- "1" WayPoint : way_point_start
+    Leg "1" *-- "1" WayPoint : way_point_end
     Route "1" *-- "2..*" WayPoint : way_points
-    Route --> Leg : to/from
+    Route ..> Leg : /derived/ legs
+    Leg ..> Route : /create from/
 
     class WayPoint{
         +float : lon
