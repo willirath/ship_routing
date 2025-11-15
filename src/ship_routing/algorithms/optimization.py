@@ -360,7 +360,7 @@ def crossover_routes_minimal_cost(
     return route_mix
 
 
-def stochastic_search(
+def stochastic_mutation(
     route: Route = None,
     number_of_iterations: int = 10,
     acceptance_rate_target: float = 0.05,
@@ -368,7 +368,6 @@ def stochastic_search(
     refinement_factor: float = 0.5,
     mod_width: float = None,
     max_move_meters: float = None,
-    include_logs_routes: bool = True,
     current_data_set: xr.Dataset = None,
     wave_data_set: xr.Dataset = None,
     wind_data_set: xr.Dataset = None,
@@ -391,8 +390,6 @@ def stochastic_search(
         Width of modification window in meters.
     max_move_meters : float
         Maximum movement distance in meters.
-    include_logs_routes : bool
-        Whether to include logs. Defaults to: True
     current_data_set : xr.Dataset
         Current data set.
     wave_data_set : xr.Dataset
@@ -402,39 +399,14 @@ def stochastic_search(
 
     Returns
     -------
-    tuple
-        (route, logs_routes) where route is the optimized Route and logs_routes
-        is a list of LogsRoute objects if include_logs_routes is True, else None.
+    Route
+        The optimized route.
     """
-    # Import here to avoid circular dependency
-    from .logging import Logs, LogsRoute
-
-    if include_logs_routes:
-        logs_routes = []
-    else:
-        logs_routes = None
-
     cost = route.cost_through(
         current_data_set=current_data_set,
         wave_data_set=wave_data_set,
         wind_data_set=wind_data_set,
     )
-    if include_logs_routes:
-        logs_routes.append(
-            LogsRoute(
-                logs=Logs(
-                    iteration=0,
-                    cost=cost,
-                    stoch_acceptance_rate_target=acceptance_rate_target,
-                    stoch_acceptance_rate_for_increase_cost=acceptance_rate_for_increase_cost,
-                    stoch_refinement_factor=refinement_factor,
-                    stoch_mod_width=mod_width,
-                    stoch_max_move_meters=max_move_meters,
-                    method="stochastic_search_initial",
-                ),
-                route=route,
-            )
-        )
 
     accepted = 0
     n_reset = 0
@@ -458,22 +430,6 @@ def stochastic_search(
             route = route_
             cost = cost_
             accepted += 1
-            if include_logs_routes:
-                logs_routes.append(
-                    LogsRoute(
-                        logs=Logs(
-                            iteration=iteration,
-                            cost=cost,
-                            stoch_acceptance_rate_target=acceptance_rate_target,
-                            stoch_acceptance_rate_for_increase_cost=acceptance_rate_for_increase_cost,
-                            stoch_refinement_factor=refinement_factor,
-                            stoch_mod_width=mod_width,
-                            stoch_max_move_meters=max_move_meters,
-                            method="stochastic_search",
-                        ),
-                        route=route,
-                    )
-                )
         if (accepted + 1) / (n_reset + 1) < acceptance_rate_target:
             n_reset = 0
             accepted = 0
@@ -482,7 +438,7 @@ def stochastic_search(
 
         n_reset += 1
 
-    return route, logs_routes
+    return route
 
 
 def gradient_descent(
@@ -494,11 +450,10 @@ def gradient_descent(
     dist_shift_along: float = 10_000,
     learning_rate_percent_across: float = 0.5,
     dist_shift_across: float = 10_000,
-    include_logs_routes: bool = True,
     current_data_set: xr.Dataset = None,
     wave_data_set: xr.Dataset = None,
     wind_data_set: xr.Dataset = None,
-) -> tuple[Route, list]:
+) -> Route:
     """Execute multiple iterations of gradient descent optimization.
 
     Combines time_shift, along_track, and across_track gradient descent methods.
@@ -521,8 +476,6 @@ def gradient_descent(
         Learning rate for across-track shifts. Defaults to: 0.5
     dist_shift_across : float
         Distance for across-track gradient estimation. Defaults to: 10_000
-    include_logs_routes : bool
-        Whether to include logs. Defaults to: True
     current_data_set : xr.Dataset
         Current data set.
     wave_data_set : xr.Dataset
@@ -532,38 +485,9 @@ def gradient_descent(
 
     Returns
     -------
-    tuple
-        (route, logs_routes) where route is the optimized Route and logs_routes
-        is a list of LogsRoute objects if include_logs_routes is True, else None.
+    Route
+        The optimized route.
     """
-    # Import here to avoid circular dependency
-    from .logging import Logs, LogsRoute
-
-    if include_logs_routes:
-        iteration = 0
-        logs_routes = [
-            LogsRoute(
-                logs=Logs(
-                    iteration=iteration,
-                    cost=route.cost_through(
-                        current_data_set=current_data_set,
-                        wave_data_set=wave_data_set,
-                        wind_data_set=wind_data_set,
-                    ),
-                    grad_learning_rate_percent_time=learning_rate_percent_time,
-                    grad_time_increment=time_increment,
-                    grad_learning_rate_percent_along=learning_rate_percent_along,
-                    grad_dist_shift_along=dist_shift_along,
-                    grad_learning_rate_percent_across=learning_rate_percent_across,
-                    grad_dist_shift_across=dist_shift_across,
-                    method="gradient_descent_initial",
-                ),
-                route=route,
-            )
-        ]
-    else:
-        logs_routes = None
-
     for _ in range(num_iterations):
         try:
             route = gradient_descent_time_shift(
@@ -574,29 +498,6 @@ def gradient_descent(
                 time_shift_seconds=time_increment,
                 learning_rate_percent=learning_rate_percent_time,
             )
-            if include_logs_routes:
-                iteration += 1
-                cost = route.cost_through(
-                    current_data_set=current_data_set,
-                    wave_data_set=wave_data_set,
-                    wind_data_set=wind_data_set,
-                )
-                logs_routes.append(
-                    LogsRoute(
-                        logs=Logs(
-                            iteration=iteration,
-                            cost=cost,
-                            grad_learning_rate_percent_time=learning_rate_percent_time,
-                            grad_time_increment=time_increment,
-                            grad_learning_rate_percent_along=learning_rate_percent_along,
-                            grad_dist_shift_along=dist_shift_along,
-                            grad_learning_rate_percent_across=learning_rate_percent_across,
-                            grad_dist_shift_across=dist_shift_across,
-                            method="gradient_descent_time_shift",
-                        ),
-                        route=route,
-                    )
-                )
         except ZeroGradientsError:
             # converged, just pass
             pass
@@ -615,29 +516,6 @@ def gradient_descent(
                 distance_meters=dist_shift_across,
                 learning_rate_percent=learning_rate_percent_across,
             )
-            if include_logs_routes:
-                iteration += 1
-                cost = route.cost_through(
-                    current_data_set=current_data_set,
-                    wave_data_set=wave_data_set,
-                    wind_data_set=wind_data_set,
-                )
-                logs_routes.append(
-                    LogsRoute(
-                        logs=Logs(
-                            iteration=iteration,
-                            cost=cost,
-                            grad_learning_rate_percent_time=learning_rate_percent_time,
-                            grad_time_increment=time_increment,
-                            grad_learning_rate_percent_along=learning_rate_percent_along,
-                            grad_dist_shift_along=dist_shift_along,
-                            grad_learning_rate_percent_across=learning_rate_percent_across,
-                            grad_dist_shift_across=dist_shift_across,
-                            method="gradient_descent_across_track_left",
-                        ),
-                        route=route,
-                    )
-                )
         except ZeroGradientsError:
             # converged, just pass
             pass
@@ -656,29 +534,6 @@ def gradient_descent(
                 distance_meters=dist_shift_along,
                 learning_rate_percent=learning_rate_percent_along,
             )
-            if include_logs_routes:
-                iteration += 1
-                cost = route.cost_through(
-                    current_data_set=current_data_set,
-                    wave_data_set=wave_data_set,
-                    wind_data_set=wind_data_set,
-                )
-                logs_routes.append(
-                    LogsRoute(
-                        logs=Logs(
-                            iteration=iteration,
-                            cost=cost,
-                            grad_learning_rate_percent_time=learning_rate_percent_time,
-                            grad_time_increment=time_increment,
-                            grad_learning_rate_percent_along=learning_rate_percent_along,
-                            grad_dist_shift_along=dist_shift_along,
-                            grad_learning_rate_percent_across=learning_rate_percent_across,
-                            grad_dist_shift_across=dist_shift_across,
-                            method="gradient_descent_along_track",
-                        ),
-                        route=route,
-                    )
-                )
         except ZeroGradientsError:
             # converged, just pass
             pass
@@ -688,4 +543,4 @@ def gradient_descent(
         except LargeIncrementError:
             learning_rate_percent_along /= 2.0
 
-    return route, logs_routes
+    return route

@@ -15,7 +15,7 @@ from ..algorithms.optimization import (
     crossover_routes_minimal_cost,
     crossover_routes_random,
     gradient_descent,
-    stochastic_search,
+    stochastic_mutation,
 )
 from .config import ForcingConfig, ForcingData, RoutingConfig
 from ..core.routes import Route
@@ -100,6 +100,7 @@ class RoutingLog:
         }
 
 
+# TODO put in core.
 @dataclass
 class PopulationMember:
     route: Route
@@ -154,6 +155,8 @@ class RoutingApp:
         time_start = seed_route.way_points[0].time
         time_end = seed_route.way_points[-1].time
 
+        # TODO: This should go into the helpers of the core module and
+        # then be used in the laod_currents/winds/waves functinos
         def load_and_filter(
             path: str | None, loader: Callable[..., HashableDataset]
         ) -> HashableDataset | None:
@@ -186,6 +189,7 @@ class RoutingApp:
         )
         return forcing
 
+    # TODO: Population class method.
     def _initialize_population(
         self, forcing: ForcingData, seed_route, population_config
     ) -> tuple[list[PopulationMember], PopulationMember]:
@@ -208,6 +212,7 @@ class RoutingApp:
             )
         return members, seed_member
 
+    # TODO: Needs to become a thin wrapper around a population method.
     def _run_ga_generations(
         self,
         population: Sequence[PopulationMember],
@@ -252,6 +257,8 @@ class RoutingApp:
             )
         return members
 
+    # TODO: factor out the elite selection.
+    # Again with a core Population class, this will be easier.
     def _refine_with_gradient(
         self,
         population: Sequence[PopulationMember],
@@ -278,7 +285,7 @@ class RoutingApp:
         )
         refined_routes = []
         for idx, member in enumerate(elites):
-            route, _ = gradient_descent(
+            route = gradient_descent(
                 route=member.route,
                 num_iterations=gradient_config.num_iterations,
                 learning_rate_percent_time=gradient_config.learning_rate_percent_time,
@@ -287,7 +294,6 @@ class RoutingApp:
                 dist_shift_along=gradient_config.dist_shift_along,
                 learning_rate_percent_across=gradient_config.learning_rate_percent_across,
                 dist_shift_across=gradient_config.dist_shift_across,
-                include_logs_routes=False,
                 current_data_set=forcing.currents,
                 wave_data_set=forcing.waves,
                 wind_data_set=forcing.winds,
@@ -303,6 +309,7 @@ class RoutingApp:
             )
         return refined_routes
 
+    # TODO: Put largely into core with a Population class.
     def _mutate_population(
         self,
         population: Sequence[PopulationMember],
@@ -312,9 +319,10 @@ class RoutingApp:
         mutated = []
         for member in population:
             length = member.route.length_meters
+            # TODO: we want to more explicitly expose refinement to the user / optimizer.
             mod_width = stochastic_config.warmup_mod_width_fraction * length
             max_move = stochastic_config.warmup_max_move_fraction * length
-            route, _ = stochastic_search(
+            route = stochastic_mutation(
                 route=member.route,
                 number_of_iterations=stochastic_config.num_iterations,
                 acceptance_rate_target=stochastic_config.acceptance_rate_target,
@@ -322,7 +330,6 @@ class RoutingApp:
                 refinement_factor=stochastic_config.refinement_factor,
                 mod_width=mod_width,
                 max_move_meters=max_move,
-                include_logs_routes=False,
                 current_data_set=forcing.currents,
                 wave_data_set=forcing.waves,
                 wind_data_set=forcing.winds,
@@ -332,6 +339,7 @@ class RoutingApp:
             )
         return mutated
 
+    # TODO: Large parts of this logic should go into the core module.
     def _crossover_population(
         self,
         population: Sequence[PopulationMember],
@@ -369,6 +377,8 @@ class RoutingApp:
             )
         return offspring
 
+    # TODO: This should go into the core submodule.
+    # We'll probably need a population class there.
     def _select_population(
         self,
         population: Sequence[PopulationMember],
@@ -406,7 +416,12 @@ class RoutingApp:
         self, population: Sequence[PopulationMember]
     ) -> dict[str, Any]:
         if not population:
-            return {"population_size": 0}
+            return {
+                "population_size": 0,
+                "cost_min": np.nan,
+                "cost_max": np.nan,
+                "cost_mean": np.nan,
+            }
         costs = [member.cost for member in population]
         return {
             "population_size": len(population),

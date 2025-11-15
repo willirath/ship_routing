@@ -9,10 +9,9 @@ from .optimization import (
     gradient_descent_across_track_left,
     crossover_routes_random,
     crossover_routes_minimal_cost,
-    stochastic_search,
+    stochastic_mutation,
     gradient_descent,
 )
-from .logging import Logs, LogsRoute
 
 __all__ = [
     "InvalidGradientError",
@@ -23,8 +22,6 @@ __all__ = [
     "gradient_descent_across_track_left",
     "crossover_routes_random",
     "crossover_routes_minimal_cost",
-    "stochastic_search",
+    "stochastic_mutation",
     "gradient_descent",
-    "Logs",
-    "LogsRoute",
 ]
