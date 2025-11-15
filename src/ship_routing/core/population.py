@@ -26,6 +26,38 @@ class PopulationMember:
     route: Route
     cost: float = np.nan
 
+    @classmethod
+    def from_dict(cls, data: dict) -> PopulationMember:
+        """Construct PopulationMember from dict.
+
+        Parameters
+        ----------
+        data : dict
+            Dictionary with 'route' and 'cost' keys.
+
+        Returns
+        -------
+        PopulationMember
+            A new PopulationMember instance.
+        """
+        return cls(
+            route=Route.from_dict(data["route"]),
+            cost=float(data["cost"]),
+        )
+
+    def to_dict(self) -> dict:
+        """Return a JSON-friendly representation.
+
+        Returns
+        -------
+        dict
+            Dictionary with 'route' and 'cost' keys.
+        """
+        return {
+            "route": self.route.to_dict(),
+            "cost": float(self.cost),
+        }
+
 
 @dataclass
 class Population:
@@ -80,3 +112,34 @@ class Population:
         """
         sorted_members = sorted(self.members, key=lambda m: m.cost)
         return Population(members=sorted_members)
+
+    @classmethod
+    def from_dict(cls, data: dict) -> Population:
+        """Construct Population from dict.
+
+        Parameters
+        ----------
+        data : dict
+            Dictionary with 'members' key containing list of member dicts.
+
+        Returns
+        -------
+        Population
+            A new Population instance.
+        """
+        members = [
+            PopulationMember.from_dict(member_data) for member_data in data["members"]
+        ]
+        return cls(members=members)
+
+    def to_dict(self) -> dict:
+        """Return a JSON-friendly representation.
+
+        Returns
+        -------
+        dict
+            Dictionary with 'members' key containing list of member dicts.
+        """
+        return {
+            "members": [member.to_dict() for member in self.members],
+        }

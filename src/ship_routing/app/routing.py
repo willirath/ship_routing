@@ -25,23 +25,21 @@ from ..core.population import Population, PopulationMember
 np.seterr(divide="ignore", invalid="ignore")
 
 
-# TODO: Refactor to contain seed_member instead of seed_route and
-# elite_population instead of best_routes.  Note that this will
-# also include creating a PopulationMember .to_dict() and a
-# Population.to_dict() method.
 @dataclass
 class RoutingResult:
     """Container returned by RoutingApp.run."""
 
-    seed_route: Route | None = None
-    best_routes: Sequence[Route] | None = None
+    seed_member: PopulationMember | None = None
+    elite_population: Population | None = None
     logs: "RoutingLog | None" = None
 
     def to_dict(self) -> dict[str, Any]:
         """Return a JSON-friendly representation."""
         return {
-            "seed_route": self.seed_route.to_dict() if self.seed_route else None,
-            "best_routes": [route.to_dict() for route in (self.best_routes or [])],
+            "seed_member": self.seed_member.to_dict() if self.seed_member else None,
+            "elite_population": (
+                self.elite_population.to_dict() if self.elite_population else None
+            ),
             "log": self.logs.to_dict() if self.logs else None,
         }
 
@@ -141,12 +139,12 @@ class RoutingApp:
             self.config.crossover,
             self.config.selection,
         )
-        best_routes = self._refine_with_gradient(
+        elite_population = self._refine_with_gradient(
             population, forcing, self.config.gradient
         )
         return RoutingResult(
-            seed_route=seed_route,
-            best_routes=best_routes,
+            seed_member=seed_member,
+            elite_population=elite_population,
             logs=self.log,
         )
 
@@ -260,10 +258,10 @@ class RoutingApp:
         population: Population,
         forcing: ForcingData,
         gradient_config,
-    ) -> Sequence[Route]:
-        """Run gradient descent on the elites and return them."""
+    ) -> Population:
+        """Run gradient descent on the elites and return them as a Population."""
         if not population.members:
-            return []
+            return Population(members=[])
         sorted_population = population.sort()
         elites = sorted_population.members[: gradient_config.num_elites]
         if not gradient_config.enabled:
@@ -273,13 +271,13 @@ class RoutingApp:
                 elites=len(elites),
                 skipped=True,
             )
-            return [member.route for member in elites]
+            return Population(members=list(elites))
         self._log_stage_metrics(
             "gradient_refinement",
             population_size=population.size,
             elites=len(elites),
         )
-        refined_routes = []
+        refined_members = []
         for idx, member in enumerate(elites):
             route = gradient_descent(
                 route=member.route,
@@ -295,7 +293,7 @@ class RoutingApp:
                 wind_data_set=forcing.winds,
             )
             cost = self._route_cost(route, forcing)
-            refined_routes.append(route)
+            refined_members.append(PopulationMember(route=route, cost=cost))
             self._log_stage_metrics(
                 "gradient_step",
                 pre_cost=member.cost,
@@ -303,7 +301,7 @@ class RoutingApp:
                 elite_index=idx,
                 member_seed_cost=member.cost,
             )
-        return refined_routes
+        return Population(members=refined_members)
 
     # TODO: Put largely into core with a Population class.
     def _mutate_population(
