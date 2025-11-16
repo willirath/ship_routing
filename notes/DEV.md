@@ -39,8 +39,8 @@ flowchart LR
 classDiagram
     direction LR
 
-    PopulationMember "1" *-- "1" Route : route
-    Population "1" *-- "1..*" PopulationMember : members
+    PopulationMember o-- Route : route
+    Population o-- PopulationMember : members
 
     class PopulationMember {
         + Route : route
@@ -60,9 +60,9 @@ classDiagram
         +to_dict()
     }
 
-    Leg "1" *-- "1" WayPoint : way_point_start
-    Leg "1" *-- "1" WayPoint : way_point_end
-    Route "1" *-- "2..*" WayPoint : way_points
+    Leg o-- WayPoint : way_point_start
+    Leg o-- WayPoint : way_point_end
+    Route o-- WayPoint : way_points
     Route ..> Leg : /derived/ legs
     Leg ..> Route : /create from/
 
