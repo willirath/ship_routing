@@ -19,7 +19,7 @@ from ..algorithms.optimization import (
 )
 from .config import ForcingConfig, ForcingData, RoutingConfig
 from ..core.routes import Route
-from ..core.data import load_currents, load_waves, load_winds, load_and_filter_forcing
+from ..core.data import load_currents, load_waves, load_winds
 from ..core.population import Population, PopulationMember
 
 np.seterr(divide="ignore", invalid="ignore")
@@ -155,32 +155,29 @@ class RoutingApp:
         time_end = np.datetime64(journey_config.time_end)
 
         forcing = ForcingData(
-            currents=load_and_filter_forcing(
+            currents=load_currents(
                 path=config.currents_path,
-                loader=load_currents,
                 time_start=time_start,
                 time_end=time_end,
+                load_eagerly=config.load_eagerly,
                 engine=config.engine,
                 chunks=config.chunks,
-                load_eagerly=config.load_eagerly,
             ),
-            waves=load_and_filter_forcing(
+            waves=load_waves(
                 path=config.waves_path,
-                loader=load_waves,
                 time_start=time_start,
                 time_end=time_end,
+                load_eagerly=config.load_eagerly,
                 engine=config.engine,
                 chunks=config.chunks,
-                load_eagerly=config.load_eagerly,
             ),
-            winds=load_and_filter_forcing(
+            winds=load_winds(
                 path=config.winds_path,
-                loader=load_winds,
                 time_start=time_start,
                 time_end=time_end,
+                load_eagerly=config.load_eagerly,
                 engine=config.engine,
                 chunks=config.chunks,
-                load_eagerly=config.load_eagerly,
             ),
         )
         self._log_stage_metrics(

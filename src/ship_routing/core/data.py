@@ -17,6 +17,9 @@ def load_currents(
     time_name: str = "time",
     uo_name: str = "uo",
     vo_name: str = "vo",
+    time_start: np.datetime64 = None,
+    time_end: np.datetime64 = None,
+    load_egerly: bool = True,
     **kwargs,
 ) -> HashableDataset:
     ds = xr.open_dataset(data_file, **kwargs)
@@ -29,6 +32,9 @@ def load_currents(
             vo_name: "vo",
         }
     )
+    ds = _filter_times(ds, time_start=time_start, time_end=time_end)
+    if load_egerly:
+        ds = ds.load()
     return make_hashable(ds)
 
 
@@ -39,6 +45,9 @@ def load_winds(
     time_name: str = "time",
     uw_name: str = "eastward_wind",
     vw_name: str = "northward_wind",
+    time_start: np.datetime64 = None,
+    time_end: np.datetime64 = None,
+    load_egerly: bool = True,
     **kwargs,
 ) -> HashableDataset:
     ds = xr.open_dataset(data_file, **kwargs)
@@ -51,6 +60,9 @@ def load_winds(
             vw_name: "vw",
         }
     )
+    ds = _filter_times(ds, time_start=time_start, time_end=time_end)
+    if load_egerly:
+        ds = ds.load()
     return make_hashable(ds)
 
 
@@ -60,6 +72,9 @@ def load_waves(
     lat_name: str = "latitude",
     time_name: str = "time",
     wh_name: str = "VHM0",
+    time_start: np.datetime64 = None,
+    time_end: np.datetime64 = None,
+    load_egerly: bool = True,
     **kwargs,
 ) -> HashableDataset:
     ds = xr.open_dataset(data_file, **kwargs)
@@ -71,70 +86,38 @@ def load_waves(
             wh_name: "wh",
         }
     )
+    ds = _filter_times(ds, time_start=time_start, time_end=time_end)
+    if load_egerly:
+        ds = ds.load()
     return make_hashable(ds)
 
 
-def load_and_filter_forcing(
-    path: str | None,
-    loader: Callable[..., HashableDataset],
-    time_start: np.datetime64,
-    time_end: np.datetime64,
-    engine: str | None = None,
-    chunks: dict | None = None,
-    load_eagerly: bool = False,
-) -> HashableDataset | None:
-    """Load dataset and filter to time period of interest.
+def _filter_times(
+    ds: xr.Dataset = None,
+    time_start: np.datetime64 = None,
+    time_end: np.datetime64 = None,
+) -> xr.Dataset:
+    """Filter dataset to time period of interest.
 
     Parameters
     ----------
-    path : str | None
-        Path to the data file. If None, returns None.
-    loader : Callable
-        Function to load the dataset (e.g., load_currents, load_waves, load_winds).
+    ds : xr.Dataset
+        Input dataset
     time_start : np.datetime64
         Start time for filtering.
     time_end : np.datetime64
         End time for filtering.
-    engine : str | None
-        Engine to use for opening the dataset (passed to xr.open_dataset).
-    chunks : dict | None
-        Chunking specification (passed to xr.open_dataset).
-    load_eagerly : bool
-        If True, load the dataset into memory. Default is False.
 
     Returns
     -------
-    HashableDataset | None
-        Filtered dataset, or None if path is None.
+    xr.Dataset
+        Filtered dataset.
     """
-    if not path:
-        return None
-
-    # Build kwargs for the loader
-    kwargs = {}
-    if engine is not None:
-        kwargs["engine"] = engine
-    if chunks is not None:
-        kwargs["chunks"] = chunks
-
-    ds = loader(data_file=path, **kwargs)
-
     # Calculate maximum time step for buffer
-    max_time_step = ds.time.diff("time").max().load().data[()]
-
-    # Create time mask with buffer
-    time_mask = ((ds.time - max_time_step) >= time_start) & (
-        (ds.time + max_time_step) <= time_end
-    )
+    time_buffer = ds.time.diff("time").max().load().data[()]
 
     # Filter time axis
-    # Note: ds.where returns standard xr.Dataset instead of HashableDataset,
-    # so we use this workaround to maintain the hashable type
-    time_axis = ds.time.where(time_mask, drop=True).compute()
-    ds = ds.sel(time=time_axis)
-
-    if load_eagerly:
-        ds = ds.load()
+    ds = ds.sel(time=slice(time_start - time_buffer, time_end + time_buffer))
 
     return ds
 
