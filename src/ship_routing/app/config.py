@@ -82,7 +82,7 @@ class SelectionConfig:
 
 @dataclass(frozen=True)
 class GradientConfig:
-    """Gradient-descent refinement settings."""
+    """Gradient-descent polishing settings."""
 
     enabled: bool = True
     num_iterations: int = 2

@@ -139,7 +139,7 @@ class RoutingApp:
             self.config.crossover,
             self.config.selection,
         )
-        elite_population = self._refine_with_gradient(
+        elite_population = self._polish_with_gradient(
             population, forcing, self.config.gradient
         )
         return RoutingResult(
@@ -249,7 +249,7 @@ class RoutingApp:
             )
         return Population(members=members)
 
-    def _refine_with_gradient(
+    def _polish_with_gradient(
         self,
         population: Population,
         forcing: ForcingData,
@@ -262,18 +262,18 @@ class RoutingApp:
         elites = sorted_population.members[: gradient_config.num_elites]
         if not gradient_config.enabled:
             self._log_stage_metrics(
-                "gradient_refinement",
+                "gradient_polishing",
                 population_size=population.size,
                 elites=len(elites),
                 skipped=True,
             )
             return Population(members=list(elites))
         self._log_stage_metrics(
-            "gradient_refinement",
+            "gradient_polishing",
             population_size=population.size,
             elites=len(elites),
         )
-        refined_members = []
+        polished_members = []
         for idx, member in enumerate(elites):
             route = gradient_descent(
                 route=member.route,
@@ -289,7 +289,7 @@ class RoutingApp:
                 wind_data_set=forcing.winds,
             )
             cost = self._route_cost(route, forcing)
-            refined_members.append(PopulationMember(route=route, cost=cost))
+            polished_members.append(PopulationMember(route=route, cost=cost))
             self._log_stage_metrics(
                 "gradient_step",
                 pre_cost=member.cost,
@@ -297,7 +297,7 @@ class RoutingApp:
                 elite_index=idx,
                 member_seed_cost=member.cost,
             )
-        return Population(members=refined_members)
+        return Population(members=polished_members)
 
     # TODO: Put largely into core with a Population class.
     def _mutate_population(
