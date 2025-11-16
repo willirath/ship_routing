@@ -458,7 +458,7 @@ class Route:
     def __post_init__(self):
         if not isinstance(self.way_points, tuple):
             raise ValueError("Way_points need to be a tuple.")
-        if not len(self.way_points) >= 2:
+        if len(self.way_points) < 2:
             raise ValueError(
                 "A Route needs at least two way points which may be identical."
             )
@@ -605,9 +605,9 @@ class Route:
                 raise ValueError(
                     "Only two of time_start, time_end, speed_knots can be given."
                 )
-        if time_start is not None and isinstance(time_start, str):
+        if isinstance(time_start, str):
             time_start = np.datetime64(time_start)
-        if time_end is not None and isinstance(time_end, str):
+        if isinstance(time_end, str):
             time_end = np.datetime64(time_end)
         if time_start is not None and speed_knots is not None:
             ureg = pint.UnitRegistry()

@@ -182,9 +182,9 @@ class RoutingApp:
         )
         self._log_stage_metrics(
             "load_forcing",
-            currents=bool(forcing.currents),
-            waves=bool(forcing.waves),
-            winds=bool(forcing.winds),
+            currents=forcing.currents is not None,
+            waves=forcing.waves is not None,
+            winds=forcing.winds is not None,
         )
         return forcing
 
@@ -219,11 +219,10 @@ class RoutingApp:
         """Apply stochastic search, crossover, and selection loops."""
         members = population.members
         target_size = population_config.size
-        num_generations = max(stochastic_config.num_generations or 0, 0)
-        for generation in range(num_generations):
+        for generation in range(stochastic_config.num_generations):
             mutated = self._mutate_population(members, forcing, stochastic_config)
             offspring = mutated
-            crossover_rounds = max(crossover_config.generations or 0, 0)
+            crossover_rounds = crossover_config.generations
             for _ in range(crossover_rounds):
                 offspring = self._crossover_population(
                     offspring,
