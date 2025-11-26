@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Tuple
+from typing import Literal, Tuple
 
 from ..core.hashable_dataset import HashableDataset
 from ..core.config import Physics, Ship
@@ -56,7 +56,7 @@ class HyperParams:
     mutation_width_fraction: float = 0.9  # W
     mutation_displacement_fraction: float = 0.1  # D_max
     mutation_iterations: int = 2  # N_mut
-    crossover_strategy: str = "minimal_cost"  # C_e or C_r
+    crossover_strategy: Literal["minimal_cost", "random"] = "minimal_cost"  # C_e or C_r
     crossover_rounds: int = 1
 
     # Stage 3: Gradient descent
