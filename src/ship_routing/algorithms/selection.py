@@ -24,16 +24,23 @@ def select_from_population(
 
 def select_from_pair(
     p: float,
-    route_original: Route,
-    route_mutated: Route,
-    cost_original: float,
-    cost_mutated: float,
+    route_a: Route,
+    route_b: Route,
+    cost_a: float,
+    cost_b: float,
     rng,
 ):
-    """Select between original and mutated route with probability p."""
+    """Select higher-cost route with probability p and select lower-cost route otherwise."""
+    if cost_b > cost_a:
+        higher_route, lower_route = route_b, route_a
+        higher_cost, lower_cost = cost_b, cost_a
+    else:
+        higher_route, lower_route = route_a, route_b
+        higher_cost, lower_cost = cost_a, cost_b
+
     if rng.random() < p:
-        return route_mutated, cost_mutated
-    return route_original, cost_original
+        return higher_route, higher_cost
+    return lower_route, lower_cost
 
 
 __all__ = ["select_from_population", "select_from_pair"]

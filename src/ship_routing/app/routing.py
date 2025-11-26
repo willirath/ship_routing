@@ -225,6 +225,7 @@ class RoutingApp:
         then adds seed back.
         """
         warmup_cfg = self.config.warmup
+        rng = self._ensure_rng()
 
         # Mutate M-1 members with warmup parameters
         warmed_members = []
@@ -235,19 +236,22 @@ class RoutingApp:
             mutated_route = stochastic_mutation(
                 route=member.route,
                 number_of_iterations=warmup_cfg.num_iterations,
-                acceptance_rate_target=warmup_cfg.acceptance_rate_target,
-                acceptance_rate_for_increase_cost=warmup_cfg.acceptance_rate_for_increase_cost,
-                refinement_factor=warmup_cfg.refinement_factor,
                 mod_width=warmup_cfg.mod_width_fraction * length,
                 max_move_meters=warmup_cfg.max_move_fraction * length,
-                current_data_set=forcing.currents,
-                wave_data_set=forcing.waves,
-                wind_data_set=forcing.winds,
+                rng=rng,
             )
             mutated_cost = self._route_cost(mutated_route, forcing)
 
+            selected_route, selected_cost = select_from_pair(
+                p=warmup_cfg.acceptance_rate_for_increase_cost,
+                route_a=member.route,
+                route_b=mutated_route,
+                cost_a=member.cost,
+                cost_b=mutated_cost,
+                rng=rng,
+            )
             warmed_members.append(
-                PopulationMember(route=mutated_route, cost=mutated_cost)
+                PopulationMember(route=selected_route, cost=selected_cost)
             )
 
         # Add seed back: P ← P ∪ {r_seed}
@@ -279,6 +283,7 @@ class RoutingApp:
         crossover_cfg = self.config.crossover
         selection_cfg = self.config.selection
         M = self.config.population.size
+        rng = self._ensure_rng()
 
         # Extract adaptive parameters (placeholder for now)
         W = stochastic_cfg.mod_width_fraction
@@ -295,20 +300,21 @@ class RoutingApp:
                 mutated_route = stochastic_mutation(
                     route=member.route,
                     number_of_iterations=stochastic_cfg.num_iterations,
-                    acceptance_rate_target=stochastic_cfg.acceptance_rate_target,
-                    acceptance_rate_for_increase_cost=stochastic_cfg.acceptance_rate_for_increase_cost,
-                    refinement_factor=stochastic_cfg.refinement_factor,
                     mod_width=W * length,
                     max_move_meters=D * length,
-                    current_data_set=forcing.currents,
-                    wave_data_set=forcing.waves,
-                    wind_data_set=forcing.winds,
+                    rng=rng,
+                )
+                mutated_cost = self._route_cost(mutated_route, forcing)
+                selected_route, selected_cost = select_from_pair(
+                    p=stochastic_cfg.acceptance_rate_for_increase_cost,
+                    route_a=member.route,
+                    route_b=mutated_route,
+                    cost_a=member.cost,
+                    cost_b=mutated_cost,
+                    rng=rng,
                 )
                 mutated_members.append(
-                    PopulationMember(
-                        route=mutated_route,
-                        cost=self._route_cost(mutated_route, forcing),
-                    )
+                    PopulationMember(route=selected_route, cost=selected_cost)
                 )
 
             # New population incl. seed memeber again
