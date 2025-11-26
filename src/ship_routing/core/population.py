@@ -77,30 +77,37 @@ class Population:
         return len(self.members)
 
     @classmethod
-    def from_seed_member(
-        cls,
-        seed_member: PopulationMember,
-        size: int,
-    ) -> Population:
-        """Create a population from a seed route.
-
-        Creates a population of the specified size where all members
-        are deep copies of the seed route with cost initialized to 0.0.
+    def from_members(cls, members) -> Population:
+        """Create population from sequence of members.
 
         Parameters
         ----------
-        seed_member : PopulationMember
-            The initial member to use as template.
-        size : int
-            Number of members in the population.
+        members : Sequence[PopulationMember]
+            Members to include in population
 
         Returns
         -------
         Population
-            A new population with `size` members.
+            New population containing the provided members
         """
-        members = [seed_member for _ in range(size)]
-        return cls(members=members)
+        return cls(members=list(members))
+
+    def add_member(self, member: PopulationMember) -> Population:
+        """Return new population with additional member appended.
+
+        Implements P ∪ {r} operator from pseudocode.
+
+        Parameters
+        ----------
+        member : PopulationMember
+            Member to add
+
+        Returns
+        -------
+        Population
+            New population with member appended
+        """
+        return Population(members=self.members + [member])
 
     def sort(self) -> Population:
         """Return a new population sorted by cost (ascending).

@@ -1,6 +1,6 @@
 """Algorithm building blocks layer: Optimization algorithms."""
 
-from .optimization import (
+from .optimization import (  # TODO: Split into files gradient_descent.py, crossover.py, selection.py, mutation.py
     InvalidGradientError,
     ZeroGradientsError,
     LargeIncrementError,
@@ -11,6 +11,8 @@ from .optimization import (
     crossover_routes_minimal_cost,
     stochastic_mutation,
     gradient_descent,
+    select_from_pair,
+    select_from_population,
 )
 
 __all__ = [
@@ -24,4 +26,6 @@ __all__ = [
     "crossover_routes_minimal_cost",
     "stochastic_mutation",
     "gradient_descent",
+    "select_from_pair",
+    "select_from_population",
 ]

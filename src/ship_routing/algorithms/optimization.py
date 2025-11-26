@@ -544,3 +544,78 @@ def gradient_descent(
             learning_rate_percent_along /= 2.0
 
     return route
+
+
+def select_from_population(
+    members,
+    quantile: float,
+    target_size: int,
+    rng,
+):
+    """Select members using quantile-based elite selection.
+
+    Implements the S_{N,q,M} operator from pseudocode.
+
+    Parameters
+    ----------
+    members : Sequence[PopulationMember]
+        Population members to select from
+    quantile : float
+        Fraction of population to use as elite pool (e.g., 0.2 = top 20%)
+    target_size : int
+        Number of members to select
+    rng : np.random.Generator
+        Random number generator
+
+    Returns
+    -------
+    list[PopulationMember]
+        Selected members (sampled with replacement from elite pool)
+    """
+    if not members:
+        return []
+
+    sorted_members = sorted(members, key=lambda m: m.cost)
+    elite_count = int(np.ceil(len(sorted_members) * quantile))
+    elite_pool = sorted_members[:elite_count]
+
+    # Random sampling with replacement from elite pool
+    indices = rng.integers(0, len(elite_pool), size=target_size)
+    return [elite_pool[idx] for idx in indices]
+
+
+def select_from_pair(
+    p: float,
+    route_original: Route,
+    route_mutated: Route,
+    cost_original: float,
+    cost_mutated: float,
+    rng,
+):
+    """Select between original and mutated route with probability p.
+
+    Implements the S_2^(p) selection operator from pseudocode.
+
+    Parameters
+    ----------
+    p : float
+        Probability of selecting the mutated route (0 to 1)
+    route_original : Route
+        Original route
+    route_mutated : Route
+        Mutated route
+    cost_original : float
+        Cost of original route
+    cost_mutated : float
+        Cost of mutated route
+    rng : np.random.Generator
+        Random number generator
+
+    Returns
+    -------
+    tuple[Route, float]
+        Selected route and its cost
+    """
+    if rng.random() < p:
+        return route_mutated, cost_mutated
+    return route_original, cost_original

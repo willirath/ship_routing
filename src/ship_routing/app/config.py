@@ -49,6 +49,34 @@ class PopulationConfig:
 
 
 @dataclass(frozen=True)
+class WarmupConfig:
+    """Configuration for warmup stage (initial diversification).
+
+    Attributes
+    ----------
+    num_iterations : int
+        Number of mutation iterations per member during warmup
+    acceptance_rate_for_increase_cost : float
+        Probability of accepting cost increases (for escaping local minima)
+    mod_width_fraction : float
+        Mutation window width as fraction of route length
+    max_move_fraction : float
+        Maximum waypoint move distance as fraction of route length
+    refinement_factor : float
+        Factor to reduce mutation parameters when acceptance drops
+    acceptance_rate_target : float
+        Target acceptance rate for adaptive refinement
+    """
+
+    num_iterations: int = 50
+    acceptance_rate_for_increase_cost: float = 0.3
+    mod_width_fraction: float = 0.3
+    max_move_fraction: float = 0.15
+    refinement_factor: float = 0.8
+    acceptance_rate_target: float = 0.5
+
+
+@dataclass(frozen=True)
 class StochasticStageConfig:
     """Parameters for the stochastic (mutation) stage."""
 
@@ -57,11 +85,8 @@ class StochasticStageConfig:
     acceptance_rate_target: float = 0.3
     acceptance_rate_for_increase_cost: float = 0.0
     refinement_factor: float = 0.7
-    warmup_iterations: int = 1
-    warmup_acceptance_rate_target: float = 0.1
-    warmup_acceptance_for_increase_cost: float = 1.0
-    warmup_mod_width_fraction: float = 0.9
-    warmup_max_move_fraction: float = 0.1
+    mod_width_fraction: float = 0.9
+    max_move_fraction: float = 0.1
 
 
 @dataclass(frozen=True)
@@ -69,6 +94,7 @@ class CrossoverConfig:
     """Crossover strategy settings."""
 
     strategy: str = "minimal_cost"
+    offspring_size: int = 4
     generations: int = 1
     resample_with_replacement: bool = True
 
@@ -104,6 +130,7 @@ class RoutingConfig:
     ship: Ship = Ship()
     physics: Physics = Physics()
     population: PopulationConfig = PopulationConfig()
+    warmup: WarmupConfig = WarmupConfig()
     mix_seed_route_each_generation: bool = True
     stochastic: StochasticStageConfig = StochasticStageConfig()
     crossover: CrossoverConfig = CrossoverConfig()
