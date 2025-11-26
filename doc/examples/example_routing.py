@@ -18,6 +18,7 @@ from ship_routing.app import (
     JourneyConfig,
     RoutingConfig,
 )
+from ship_routing.core.config import Physics, Ship
 
 
 def run_example() -> RoutingResult:
@@ -51,6 +52,8 @@ def run_example() -> RoutingResult:
     config = RoutingConfig(
         journey=journey,
         forcing=forcing,
+        ship=Ship(),
+        physics=Physics(),
         hyper=HyperParams(
             population_size=6,
             random_seed=345,
