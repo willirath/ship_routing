@@ -44,6 +44,9 @@ def run_example() -> RoutingResult:
             base
             / "cmems_obs-wind_glo_phy_my_l4_0.125deg_PT1H_time_2021_lat_+10_+65_lon_-100_+010_eastward_wind-northward_wind.zarr"
         ),
+        engine="zarr",
+        chunks="auto",
+        load_eagerly=True,
     )
     config = RoutingConfig(
         journey=journey,
@@ -52,12 +55,19 @@ def run_example() -> RoutingResult:
             population_size=6,
             random_seed=345,
             generations=5,
-            mutation_iterations=2,
-            crossover_rounds=2,
             selection_quantile=0.5,
             selection_acceptance_rate_warmup=0.3,
             selection_acceptance_rate=0.0,
+            mutation_width_fraction=0.9,
+            mutation_displacement_fraction=0.1,
+            mutation_iterations=2,
+            crossover_rounds=2,
             num_elites=3,
+            gd_iterations=2,
+            learning_rate_time=0.5,
+            learning_rate_space=0.5,
+            time_increment=1_200.0,
+            distance_increment=10_000.0,
             crossover_strategy="minimal_cost",
         ),
     )
