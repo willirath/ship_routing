@@ -13,14 +13,10 @@ import pandas as pd
 from ship_routing.app import (
     RoutingApp,
     RoutingResult,
-    CrossoverConfig,
+    HyperParams,
     ForcingConfig,
-    GradientConfig,
     JourneyConfig,
-    PopulationConfig,
     RoutingConfig,
-    SelectionConfig,
-    StochasticStageConfig,
 )
 
 
@@ -52,11 +48,18 @@ def run_example() -> RoutingResult:
     config = RoutingConfig(
         journey=journey,
         forcing=forcing,
-        population=PopulationConfig(size=32, random_seed=345),
-        stochastic=StochasticStageConfig(num_generations=8, num_iterations=2),
-        crossover=CrossoverConfig(strategy="minimal_cost", generations=4),
-        selection=SelectionConfig(quantile=0.5),
-        gradient=GradientConfig(enabled=True, num_elites=4),
+        hyper=HyperParams(
+            population_size=32,
+            random_seed=345,
+            generations=8,
+            mutation_iterations=2,
+            crossover_rounds=4,
+            selection_quantile=0.5,
+            selection_acceptance_rate_warmup=0.3,
+            selection_acceptance_rate=0.0,
+            num_elites=4,
+            crossover_strategy="minimal_cost",
+        ),
     )
     app = RoutingApp(config=config)
     return app.run()

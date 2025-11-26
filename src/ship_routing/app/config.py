@@ -41,84 +41,31 @@ class ForcingData:
 
 
 @dataclass(frozen=True)
-class PopulationConfig:
-    """Population-level optimisation settings."""
+class HyperParams:
+    """Unified hyperparameter configuration (matches Table~\\ref{tab:hyperparams})."""
 
-    size: int = 4
+    # Population
+    population_size: int = 4
     random_seed: int | None = 345
 
+    # Stage 2: Genetic evolution
+    generations: int = 5  # N_G
+    selection_quantile: float = 0.2  # q
+    selection_acceptance_rate_warmup: float = 0.3  # p_w
+    selection_acceptance_rate: float = 0.0  # p
+    mutation_width_fraction: float = 0.9  # W
+    mutation_displacement_fraction: float = 0.1  # D_max
+    mutation_iterations: int = 2  # N_mut
+    crossover_strategy: str = "minimal_cost"  # C_e or C_r
+    crossover_rounds: int = 1
 
-@dataclass(frozen=True)
-class WarmupConfig:
-    """Configuration for warmup stage (initial diversification).
-
-    Attributes
-    ----------
-    num_iterations : int
-        Number of mutation iterations per member during warmup
-    acceptance_rate_for_increase_cost : float
-        Probability of accepting cost increases (for escaping local minima)
-    mod_width_fraction : float
-        Mutation window width as fraction of route length
-    max_move_fraction : float
-        Maximum waypoint move distance as fraction of route length
-    refinement_factor : float
-        Factor to reduce mutation parameters when acceptance drops
-    acceptance_rate_target : float
-        Target acceptance rate for adaptive refinement
-    """
-
-    num_iterations: int = 50
-    acceptance_rate_for_increase_cost: float = 0.3
-    mod_width_fraction: float = 0.3
-    max_move_fraction: float = 0.15
-    refinement_factor: float = 0.8
-    acceptance_rate_target: float = 0.5
-
-
-@dataclass(frozen=True)
-class StochasticStageConfig:
-    """Parameters for the stochastic (mutation) stage."""
-
-    num_generations: int = 5
-    num_iterations: int = 2
-    acceptance_rate_target: float = 0.3
-    acceptance_rate_for_increase_cost: float = 0.0
-    refinement_factor: float = 0.7
-    mod_width_fraction: float = 0.9
-    max_move_fraction: float = 0.1
-
-
-@dataclass(frozen=True)
-class CrossoverConfig:
-    """Crossover strategy settings."""
-
-    strategy: str = "minimal_cost"
-    offspring_size: int = 4
-    generations: int = 1
-    resample_with_replacement: bool = True
-
-
-@dataclass(frozen=True)
-class SelectionConfig:
-    """Selection operator settings."""
-
-    quantile: float = 0.2
-
-
-@dataclass(frozen=True)
-class GradientConfig:
-    """Gradient-descent polishing settings."""
-
-    enabled: bool = True
-    num_iterations: int = 2
-    learning_rate_percent_time: float = 0.5
-    time_increment: float = 1_200.0
-    learning_rate_percent_along: float = 0.5
-    dist_shift_along: float = 10_000.0
-    learning_rate_percent_across: float = 0.5
-    dist_shift_across: float = 10_000.0
-    num_elites: int = 2
+    # Stage 3: Gradient descent
+    num_elites: int = 2  # k
+    gd_iterations: int = 2  # N_GD
+    learning_rate_time: float = 0.5  # gamma_t
+    learning_rate_space: float = 0.5  # gamma_s (applied to along/across)
+    time_increment: float = 1_200.0  # delta t
+    distance_increment: float = 10_000.0  # delta d
 
 
 @dataclass(frozen=True)
@@ -129,10 +76,4 @@ class RoutingConfig:
     forcing: ForcingConfig = ForcingConfig()
     ship: Ship = Ship()
     physics: Physics = Physics()
-    population: PopulationConfig = PopulationConfig()
-    warmup: WarmupConfig = WarmupConfig()
-    mix_seed_route_each_generation: bool = True
-    stochastic: StochasticStageConfig = StochasticStageConfig()
-    crossover: CrossoverConfig = CrossoverConfig()
-    selection: SelectionConfig = SelectionConfig()
-    gradient: GradientConfig = GradientConfig()
+    hyper: HyperParams = HyperParams()

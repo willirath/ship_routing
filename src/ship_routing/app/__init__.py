@@ -8,14 +8,10 @@ from .routing import (
     RoutingApp,
 )
 from .config import (
+    HyperParams,
     JourneyConfig,
     ForcingConfig,
     ForcingData,
-    PopulationConfig,
-    StochasticStageConfig,
-    CrossoverConfig,
-    SelectionConfig,
-    GradientConfig,
     RoutingConfig,
 )
 
@@ -25,13 +21,9 @@ __all__ = [
     "RoutingLog",
     "PopulationMember",
     "RoutingApp",
+    "HyperParams",
     "JourneyConfig",
     "ForcingConfig",
     "ForcingData",
-    "PopulationConfig",
-    "StochasticStageConfig",
-    "CrossoverConfig",
-    "SelectionConfig",
-    "GradientConfig",
     "RoutingConfig",
 ]

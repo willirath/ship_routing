@@ -115,7 +115,7 @@ class RoutingApp:
     def run(self) -> RoutingResult:
         """Execute the optimisation pipeline."""
         self._log_stage_metrics("run", message="starting routing run")
-        self._rng = np.random.default_rng(self.config.population.random_seed)
+        self._rng = np.random.default_rng(self.config.hyper.random_seed)
 
         forcing = self._load_forcing(self.config.journey)
 
@@ -202,7 +202,7 @@ class RoutingApp:
 
         # Initialize population as M copies of seed
         population = Population.from_members(
-            [seed_member] * self.config.population.size
+            [seed_member] * self.config.hyper.population_size
         )
 
         self._log_stage_metrics(
@@ -224,7 +224,7 @@ class RoutingApp:
         Mutates all members with warmup parameters,
         then adds seed back.
         """
-        warmup_cfg = self.config.warmup
+        params = self.config.hyper
         rng = self._ensure_rng()
 
         # Mutate M-1 members with warmup parameters
@@ -235,15 +235,15 @@ class RoutingApp:
             # Apply mutation: M_{W_w,D_w}(r_m)
             mutated_route = stochastic_mutation(
                 route=member.route,
-                number_of_iterations=warmup_cfg.num_iterations,
-                mod_width=warmup_cfg.mod_width_fraction * length,
-                max_move_meters=warmup_cfg.max_move_fraction * length,
+                number_of_iterations=params.mutation_iterations,
+                mod_width=params.mutation_width_fraction * length,
+                max_move_meters=params.mutation_displacement_fraction * length,
                 rng=rng,
             )
             mutated_cost = self._route_cost(mutated_route, forcing)
 
             selected_route, selected_cost = select_from_pair(
-                p=warmup_cfg.acceptance_rate_for_increase_cost,
+                p=params.selection_acceptance_rate_warmup,
                 route_a=member.route,
                 route_b=mutated_route,
                 cost_a=member.cost,
@@ -279,18 +279,16 @@ class RoutingApp:
             3. Selection from offpring
             4. Parameter adaptation (not implemented)
         """
-        stochastic_cfg = self.config.stochastic
-        crossover_cfg = self.config.crossover
-        selection_cfg = self.config.selection
-        M = self.config.population.size
+        params = self.config.hyper
+        M = params.population_size
         rng = self._ensure_rng()
 
         # Extract adaptive parameters (placeholder for now)
-        W = stochastic_cfg.mod_width_fraction
-        D = stochastic_cfg.max_move_fraction
-        q = selection_cfg.quantile
+        W = params.mutation_width_fraction
+        D = params.mutation_displacement_fraction
+        q = params.selection_quantile
 
-        for generation in range(stochastic_cfg.num_generations):
+        for generation in range(params.generations):
             members = population.members
 
             # Directed mutation
@@ -299,14 +297,14 @@ class RoutingApp:
                 length = member.route.length_meters
                 mutated_route = stochastic_mutation(
                     route=member.route,
-                    number_of_iterations=stochastic_cfg.num_iterations,
+                    number_of_iterations=params.mutation_iterations,
                     mod_width=W * length,
                     max_move_meters=D * length,
                     rng=rng,
                 )
                 mutated_cost = self._route_cost(mutated_route, forcing)
                 selected_route, selected_cost = select_from_pair(
-                    p=stochastic_cfg.acceptance_rate_for_increase_cost,
+                    p=params.selection_acceptance_rate,
                     route_a=member.route,
                     route_b=mutated_route,
                     cost_a=member.cost,
@@ -323,41 +321,41 @@ class RoutingApp:
             )
 
             # Crossover
-            M_offspring = crossover_cfg.offspring_size
             offspring_members = []
 
-            for _ in range(M_offspring):
-                # Select two parents from current population
-                parent_a, parent_b = self._rng.choice(
-                    population.members, size=2, replace=False
-                )
-
-                # Apply crossover operator C_s
-                if crossover_cfg.strategy == "minimal_cost":
-                    try:
-                        child_route = crossover_routes_minimal_cost(
-                            parent_a.route,
-                            parent_b.route,
-                            current_data_set=forcing.currents,
-                            wind_data_set=forcing.winds,
-                            wave_data_set=forcing.waves,
-                        )
-                    except UnboundLocalError:
-                        logging.warning(
-                            "crossover_routes_minimal_cost failed; using parent_a"
-                        )
-                        child_route = parent_a.route
-                else:  # "random"
-                    child_route = crossover_routes_random(
-                        parent_a.route, parent_b.route
+            for _ in range(params.crossover_rounds):
+                for _ in range(M):
+                    # Select two parents from current population
+                    parent_a, parent_b = self._rng.choice(
+                        population.members, size=2, replace=False
                     )
 
-                offspring_members.append(
-                    PopulationMember(
-                        route=child_route,
-                        cost=self._route_cost(child_route, forcing),
+                    # Apply crossover operator C_s
+                    if params.crossover_strategy == "minimal_cost":
+                        try:
+                            child_route = crossover_routes_minimal_cost(
+                                parent_a.route,
+                                parent_b.route,
+                                current_data_set=forcing.currents,
+                                wind_data_set=forcing.winds,
+                                wave_data_set=forcing.waves,
+                            )
+                        except UnboundLocalError:
+                            logging.warning(
+                                "crossover_routes_minimal_cost failed; using parent_a"
+                            )
+                            child_route = parent_a.route
+                    else:  # "random"
+                        child_route = crossover_routes_random(
+                            parent_a.route, parent_b.route
+                        )
+
+                    offspring_members.append(
+                        PopulationMember(
+                            route=child_route,
+                            cost=self._route_cost(child_route, forcing),
+                        )
                     )
-                )
 
             # Add back seed member
             offspring = Population.from_members(offspring_members).add_member(
@@ -395,19 +393,11 @@ class RoutingApp:
         forcing: ForcingData,
     ) -> Population:
         """Stage 3: Gradient descent polishing of elite members."""
-        gradient_config = self.config.gradient
+        params = self.config.hyper
         if not population.members:
             return Population(members=[])
         sorted_population = population.sort()
-        elites = sorted_population.members[: gradient_config.num_elites]
-        if not gradient_config.enabled:
-            self._log_stage_metrics(
-                "gradient_polishing",
-                population_size=population.size,
-                elites=len(elites),
-                skipped=True,
-            )
-            return Population(members=list(elites))
+        elites = sorted_population.members[: params.num_elites]
         self._log_stage_metrics(
             "gradient_polishing",
             population_size=population.size,
@@ -417,13 +407,13 @@ class RoutingApp:
         for idx, member in enumerate(elites):
             route = gradient_descent(
                 route=member.route,
-                num_iterations=gradient_config.num_iterations,
-                learning_rate_percent_time=gradient_config.learning_rate_percent_time,
-                time_increment=gradient_config.time_increment,
-                learning_rate_percent_along=gradient_config.learning_rate_percent_along,
-                dist_shift_along=gradient_config.dist_shift_along,
-                learning_rate_percent_across=gradient_config.learning_rate_percent_across,
-                dist_shift_across=gradient_config.dist_shift_across,
+                num_iterations=params.gd_iterations,
+                learning_rate_percent_time=params.learning_rate_time,
+                time_increment=params.time_increment,
+                learning_rate_percent_along=params.learning_rate_space,
+                dist_shift_along=params.distance_increment,
+                learning_rate_percent_across=params.learning_rate_space,
+                dist_shift_across=params.distance_increment,
                 current_data_set=forcing.currents,
                 wave_data_set=forcing.waves,
                 wind_data_set=forcing.winds,
@@ -475,5 +465,5 @@ class RoutingApp:
 
     def _ensure_rng(self) -> np.random.Generator:
         if self._rng is None:
-            self._rng = np.random.default_rng(self.config.population.random_seed)
+            self._rng = np.random.default_rng(self.config.hyper.random_seed)
         return self._rng
