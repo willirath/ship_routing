@@ -19,7 +19,7 @@ def load_currents(
     vo_name: str = "vo",
     time_start: np.datetime64 = None,
     time_end: np.datetime64 = None,
-    load_egerly: bool = True,
+    load_eagerly: bool = True,
     **kwargs,
 ) -> HashableDataset:
     ds = xr.open_dataset(data_file, **kwargs)
@@ -33,7 +33,7 @@ def load_currents(
         }
     )
     ds = _filter_times(ds, time_start=time_start, time_end=time_end)
-    if load_egerly:
+    if load_eagerly:
         ds = ds.load()
     return make_hashable(ds)
 
@@ -47,7 +47,7 @@ def load_winds(
     vw_name: str = "northward_wind",
     time_start: np.datetime64 = None,
     time_end: np.datetime64 = None,
-    load_egerly: bool = True,
+    load_eagerly: bool = True,
     **kwargs,
 ) -> HashableDataset:
     ds = xr.open_dataset(data_file, **kwargs)
@@ -61,7 +61,7 @@ def load_winds(
         }
     )
     ds = _filter_times(ds, time_start=time_start, time_end=time_end)
-    if load_egerly:
+    if load_eagerly:
         ds = ds.load()
     return make_hashable(ds)
 
@@ -74,7 +74,7 @@ def load_waves(
     wh_name: str = "VHM0",
     time_start: np.datetime64 = None,
     time_end: np.datetime64 = None,
-    load_egerly: bool = True,
+    load_eagerly: bool = True,
     **kwargs,
 ) -> HashableDataset:
     ds = xr.open_dataset(data_file, **kwargs)
@@ -87,7 +87,7 @@ def load_waves(
         }
     )
     ds = _filter_times(ds, time_start=time_start, time_end=time_end)
-    if load_egerly:
+    if load_eagerly:
         ds = ds.load()
     return make_hashable(ds)
 

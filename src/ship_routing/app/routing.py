@@ -139,7 +139,7 @@ class RoutingApp:
 
         forcing = ForcingData(
             currents=load_currents(
-                path=config.currents_path,
+                data_file=config.currents_path,
                 time_start=time_start,
                 time_end=time_end,
                 load_eagerly=config.load_eagerly,
@@ -147,7 +147,7 @@ class RoutingApp:
                 chunks=config.chunks,
             ),
             waves=load_waves(
-                path=config.waves_path,
+                data_file=config.waves_path,
                 time_start=time_start,
                 time_end=time_end,
                 load_eagerly=config.load_eagerly,
@@ -155,7 +155,7 @@ class RoutingApp:
                 chunks=config.chunks,
             ),
             winds=load_winds(
-                path=config.winds_path,
+                data_file=config.winds_path,
                 time_start=time_start,
                 time_end=time_end,
                 load_eagerly=config.load_eagerly,
@@ -259,7 +259,6 @@ class RoutingApp:
 
         self._log_stage_metrics(
             "warmup",
-            population_size=population.size,
             **self._population_stats(population.members),
         )
 

@@ -17,7 +17,6 @@ from .data import (
     load_winds,
     load_waves,
     select_data_for_leg,
-    load_and_filter_forcing,
 )
 from .hashable_dataset import HashableDataset, make_hashable
 from .remix import segment_lines_with_each_other, SHAPELY_RESOLUTION
@@ -46,7 +45,6 @@ __all__ = [
     "load_winds",
     "load_waves",
     "select_data_for_leg",
-    "load_and_filter_forcing",
     "HashableDataset",
     "make_hashable",
     "segment_lines_with_each_other",

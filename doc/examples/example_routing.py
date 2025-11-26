@@ -51,13 +51,13 @@ def run_example() -> RoutingResult:
         hyper=HyperParams(
             population_size=6,
             random_seed=345,
-            generations=2,
+            generations=5,
             mutation_iterations=2,
             crossover_rounds=2,
             selection_quantile=0.5,
             selection_acceptance_rate_warmup=0.3,
             selection_acceptance_rate=0.0,
-            num_elites=2,
+            num_elites=3,
             crossover_strategy="minimal_cost",
         ),
     )
