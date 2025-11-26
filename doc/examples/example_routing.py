@@ -4,8 +4,10 @@ Provides a complete JourneyConfig and ForcingConfig so it can run unchanged
 once the matching datasets exist under ``doc/examples/data_large``.
 """
 
+import json
 import logging
 from pathlib import Path
+import sys
 
 import matplotlib.pyplot as plt
 import pandas as pd
@@ -13,12 +15,15 @@ import pandas as pd
 from ship_routing.app import (
     RoutingApp,
     RoutingResult,
+    StageLog,
+    RoutingLog,
     HyperParams,
     ForcingConfig,
     JourneyConfig,
     RoutingConfig,
 )
 from ship_routing.core.config import Physics, Ship
+from ship_routing.core.population import Population, PopulationMember
 
 
 def run_example() -> RoutingResult:
@@ -78,25 +83,96 @@ def run_example() -> RoutingResult:
     return app.run()
 
 
+def visualize_result(result: RoutingResult) -> None:
+    """Plot GA mean cost if available."""
+    ga_stages = result.logs.stages_named("ga_generation")
+    if not ga_stages or "cost_min" not in ga_stages[0].metrics:
+        return
+    cost_series = pd.Series(
+        data=[stage.metrics["cost_min"] for stage in ga_stages],
+        index=[
+            stage.metrics.get("generation", idx) for idx, stage in enumerate(ga_stages)
+        ],
+        name="Mean cost",
+    )
+    cost_series.index.name = "Generation"
+    gradient_steps = result.logs.stages_named("gradient_step")
+    gradient_costs = [
+        step.metrics["post_cost"]
+        for step in gradient_steps
+        if "post_cost" in step.metrics
+    ]
+    final_costs = (
+        [member.cost for member in result.elite_population.members]
+        if result.elite_population
+        else []
+    )
+    ax = cost_series.plot(marker="o", figsize=(8, 4))
+    if gradient_costs:
+        ax.axhline(
+            min(gradient_costs),
+            color="tab:orange",
+            linestyle="--",
+            label="Gradient descent min cost",
+        )
+    if final_costs:
+        ax.axhline(
+            min(final_costs),
+            color="tab:green",
+            linestyle=":",
+            label="Final route min cost",
+        )
+    ax.legend()
+    plt.show()
+
+
+def load_result_json(path: Path) -> RoutingResult:
+    """Load a RoutingResult from disk."""
+    with Path(path).open("r", encoding="utf-8") as fh:
+        data = json.load(fh)
+
+    seed_member = (
+        PopulationMember.from_dict(data["seed_member"])
+        if data.get("seed_member")
+        else None
+    )
+    elite_population = (
+        Population.from_dict(data["elite_population"])
+        if data.get("elite_population")
+        else None
+    )
+    log_data = data.get("log")
+    logs = (
+        RoutingLog(
+            config=log_data.get("config", {}),
+            stages=[
+                StageLog(
+                    name=stage["name"],
+                    metrics=stage.get("metrics", {}),
+                    timestamp=stage.get("timestamp", ""),
+                )
+                for stage in log_data.get("stages", [])
+            ],
+        )
+        if log_data
+        else None
+    )
+    return RoutingResult(
+        seed_member=seed_member, elite_population=elite_population, logs=logs
+    )
+
+
 if __name__ == "__main__":
-    result = run_example()
-    print(result)
     runs_dir = Path(__file__).resolve().parent / "runs"
     runs_dir.mkdir(exist_ok=True)
     latest_path = runs_dir / "example_routing_result.json"
+
+    if "--visualize-only" in sys.argv:
+        visualize_result(load_result_json(latest_path))
+        raise SystemExit(0)
+
+    result = run_example()
+    print(result)
     result.dump_json(latest_path)
     print(f"Dumped result to {latest_path}")
-    if result.logs:
-        ga_stages = result.logs.stages_named("ga_generation")
-        if ga_stages and "cost_mean" in ga_stages[0].metrics:
-            cost_series = pd.Series(
-                data=[stage.metrics["cost_mean"] for stage in ga_stages],
-                index=[
-                    stage.metrics.get("generation", idx)
-                    for idx, stage in enumerate(ga_stages)
-                ],
-                name="Mean cost",
-            )
-            cost_series.index.name = "Generation"
-            cost_series.plot(marker="o", figsize=(8, 4))
-            plt.show()
+    visualize_result(load_result_json(latest_path))

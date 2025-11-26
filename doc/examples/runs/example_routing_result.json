@@ -356,7 +356,7 @@
         "metrics": {
           "message": "starting routing run"
         },
-        "timestamp": "2025-11-26T12:36:36+00:00"
+        "timestamp": "2025-11-26T13:06:05+00:00"
       },
       {
         "name": "load_forcing",
@@ -365,7 +365,7 @@
           "waves": true,
           "winds": true
         },
-        "timestamp": "2025-11-26T12:37:42+00:00"
+        "timestamp": "2025-11-26T13:07:09+00:00"
       },
       {
         "name": "initialization",
@@ -373,7 +373,7 @@
           "population_size": 6,
           "seed_route_cost": 1195348324969.4453
         },
-        "timestamp": "2025-11-26T12:37:53+00:00"
+        "timestamp": "2025-11-26T13:07:20+00:00"
       },
       {
         "name": "warmup",
@@ -383,7 +383,7 @@
           "cost_max": 1226307641873.1323,
           "cost_mean": 1200508211120.0598
         },
-        "timestamp": "2025-11-26T12:37:54+00:00"
+        "timestamp": "2025-11-26T13:07:21+00:00"
       },
       {
         "name": "ga_generation",
@@ -394,7 +394,7 @@
           "cost_max": 1195349416991.9624,
           "cost_mean": 1195348870980.7039
         },
-        "timestamp": "2025-11-26T12:37:56+00:00"
+        "timestamp": "2025-11-26T13:07:23+00:00"
       },
       {
         "name": "ga_generation",
@@ -405,7 +405,7 @@
           "cost_max": 1195349416991.9624,
           "cost_mean": 1191601252612.5466
         },
-        "timestamp": "2025-11-26T12:37:58+00:00"
+        "timestamp": "2025-11-26T13:07:25+00:00"
       },
       {
         "name": "ga_generation",
@@ -416,7 +416,7 @@
           "cost_max": 1195348324969.4453,
           "cost_mean": 1191612799938.1577
         },
-        "timestamp": "2025-11-26T12:38:01+00:00"
+        "timestamp": "2025-11-26T13:07:28+00:00"
       },
       {
         "name": "ga_generation",
@@ -427,7 +427,7 @@
           "cost_max": 1195348324969.4453,
           "cost_mean": 1191461119365.8284
         },
-        "timestamp": "2025-11-26T12:38:03+00:00"
+        "timestamp": "2025-11-26T13:07:30+00:00"
       },
       {
         "name": "ga_generation",
@@ -438,7 +438,7 @@
           "cost_max": 1195348324969.4453,
           "cost_mean": 1191461060039.1348
         },
-        "timestamp": "2025-11-26T12:38:05+00:00"
+        "timestamp": "2025-11-26T13:07:32+00:00"
       },
       {
         "name": "gradient_polishing",
@@ -446,7 +446,7 @@
           "population_size": 6,
           "elites": 3
         },
-        "timestamp": "2025-11-26T12:38:05+00:00"
+        "timestamp": "2025-11-26T13:07:32+00:00"
       },
       {
         "name": "gradient_step",
@@ -456,7 +456,7 @@
           "elite_index": 0,
           "member_seed_cost": 1190683535861.0405
         },
-        "timestamp": "2025-11-26T12:38:10+00:00"
+        "timestamp": "2025-11-26T13:07:37+00:00"
       },
       {
         "name": "gradient_step",
@@ -466,7 +466,7 @@
           "elite_index": 1,
           "member_seed_cost": 1190683535861.0405
         },
-        "timestamp": "2025-11-26T12:38:16+00:00"
+        "timestamp": "2025-11-26T13:07:43+00:00"
       },
       {
         "name": "gradient_step",
@@ -476,7 +476,7 @@
           "elite_index": 2,
           "member_seed_cost": 1190683535861.0405
         },
-        "timestamp": "2025-11-26T12:38:21+00:00"
+        "timestamp": "2025-11-26T13:07:48+00:00"
       }
     ]
   }
