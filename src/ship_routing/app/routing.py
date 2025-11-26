@@ -10,7 +10,7 @@ from typing import Any, Sequence
 
 import numpy as np
 
-from ..algorithms.optimization import (
+from ..algorithms import (
     crossover_routes_minimal_cost,
     crossover_routes_random,
     gradient_descent,
@@ -123,7 +123,7 @@ class RoutingApp:
         seed_member, population = self._stage_initialization(forcing)
         population = self._stage_warmup(population, seed_member, forcing)
         population = self._stage_genetic_evolution(population, seed_member, forcing)
-        elite_population = self._stage_gradient_descent(population, forcing)
+        elite_population = self._stage_post_processing(population, forcing)
 
         return RoutingResult(
             seed_member=seed_member,
@@ -197,8 +197,7 @@ class RoutingApp:
 
         # Evaluate seed route cost
         seed_member = PopulationMember(
-            route=seed_route,
-            cost=self._route_cost(seed_route, forcing)
+            route=seed_route, cost=self._route_cost(seed_route, forcing)
         )
 
         # Initialize population as M copies of seed
@@ -222,11 +221,7 @@ class RoutingApp:
     ) -> Population:
         """Stage 1: Warmup - diversify initial population.
 
-        Pseudocode:
-            P ← {S_2^(p_w)(r_m, M_{W_w,D_w}(r_m)) | m=1...M-1}
-            P ← P ∪ {r_seed}
-
-        Mutates all members except last with warmup parameters,
+        Mutates all members with warmup parameters,
         then adds seed back.
         """
         warmup_cfg = self.config.warmup
@@ -274,23 +269,11 @@ class RoutingApp:
     ) -> Population:
         """Stage 2: Genetic evolution via mutation, crossover, selection.
 
-        Pseudocode (per generation):
-            1. Directed mutation (line 399):
-               P ← {S_2^(p)(r_m, M_{W,D}(r_m)) | m=1...M-1}
-               P ← P ∪ {r_seed}
-
-            2. Crossover (lines 402-406):
-               For m = 1 to M_offspring:
-                   Select two routes r_a, r_b ∈ P
-                   P_offspring ← P_offspring ∪ {C_s(r_a, r_b)}
-               P_offspring ← P_offspring ∪ {r_seed}
-
-            3. Selection (line 407):
-               P ← S_{M_offspring,q,M-1}(P_offspring)
-               P ← P ∪ {r_seed}
-
-            4. Parameter adaptation (line 409):
-               Adapt W, D, q (TODO)
+        Steps:
+            1. Directed mutation
+            2. Crossover pairwise --> offspring
+            3. Selection from offpring
+            4. Parameter adaptation (not implemented)
         """
         stochastic_cfg = self.config.stochastic
         crossover_cfg = self.config.crossover
@@ -305,8 +288,7 @@ class RoutingApp:
         for generation in range(stochastic_cfg.num_generations):
             members = population.members
 
-            # 3.1: Directed mutation (line 399)
-            # P ← {S_2^(p)(r_m, M_{W,D}(r_m)) | m=1...M-1}
+            # Directed mutation
             mutated_members = []
             for member in members[:-1]:
                 length = member.route.length_meters
@@ -329,13 +311,12 @@ class RoutingApp:
                     )
                 )
 
-            # P ← P ∪ {r_seed}
+            # New population incl. seed memeber again
             population = Population.from_members(mutated_members).add_member(
                 seed_member
             )
 
-            # 3.2: Crossover (lines 402-406)
-            # Create M_offspring children
+            # Crossover
             M_offspring = crossover_cfg.offspring_size
             offspring_members = []
 
@@ -372,14 +353,12 @@ class RoutingApp:
                     )
                 )
 
-            # P_offspring ← P_offspring ∪ {r_seed}
+            # Add back seed member
             offspring = Population.from_members(offspring_members).add_member(
                 seed_member
             )
 
-            # 3.3: Selection (line 407)
-            # KEY FIX: Select from offspring ONLY, not from combined!
-            # P ← S_{M_offspring,q,M-1}(P_offspring)
+            # Selection from offspring
             selected_members = select_from_population(
                 members=offspring.members,
                 quantile=q,
@@ -387,14 +366,14 @@ class RoutingApp:
                 rng=self._rng,
             )
 
-            # P ← P ∪ {r_seed}
+            # Add back seed route
             population = Population.from_members(selected_members).add_member(
                 seed_member
             )
 
-            # 3.4: Parameter adaptation (line 409)
+            # Parameter adaptation
             # TODO: Implement adaptive W, D, q
-            W, D, q = W, D, q  # Placeholder
+            W, D, q = W, D, q
 
             self._log_stage_metrics(
                 "ga_generation",
@@ -404,21 +383,12 @@ class RoutingApp:
 
         return population
 
-    def _stage_gradient_descent(
+    def _stage_post_processing(
         self,
         population: Population,
         forcing: ForcingData,
     ) -> Population:
-        """Stage 3: Gradient descent polishing of elite members.
-
-        Pseudocode (lines 413-416):
-            For n = 1 to N_gd:
-                P_elite ← S_{M,k/M,k-1}(P_elite)
-                P ← P ∪ {r_seed}
-                P_elite ← {G_t^(γ) ∘ G_⊥^(γ)(r_m) | m=1...k}
-
-        Note: N_gd is gradient descent iterations *per elite*, not outer loop.
-        """
+        """Stage 3: Gradient descent polishing of elite members."""
         gradient_config = self.config.gradient
         if not population.members:
             return Population(members=[])
