@@ -172,7 +172,7 @@ if __name__ == "__main__":
         raise SystemExit(0)
 
     result = run_example()
-    print(result)
-    result.dump_json(latest_path)
-    print(f"Dumped result to {latest_path}")
-    visualize_result(load_result_json(latest_path))
+    print(result.logs.to_dataframe())
+    # result.dump_json(latest_path)
+    # print(f"Dumped result to {latest_path}")
+    # visualize_result(load_result_json(latest_path))

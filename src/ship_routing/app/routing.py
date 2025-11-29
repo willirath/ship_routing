@@ -73,6 +73,14 @@ class StageLog:
         default_factory=lambda: datetime.now(timezone.utc).isoformat(timespec="seconds")
     )
 
+    def to_record(self) -> dict[str, Any]:
+        """Return a flat record with stage, timestamp, and metrics."""
+        return {
+            "stage": self.name,
+            "timestamp": self.timestamp,
+            **self.metrics,
+        }
+
 
 @dataclass
 class RoutingLog:
@@ -88,6 +96,22 @@ class RoutingLog:
     def stages_named(self, name: str) -> list[StageLog]:
         """Return all stage logs matching the provided name."""
         return [stage for stage in self.stages if stage.name == name]
+
+    def to_dataframe(self) -> "pd.DataFrame":
+        """Convert logs to a pandas DataFrame.
+
+        Includes all stages with columns: stage, timestamp, and metric keys.
+        """
+        import pandas as pd
+
+        records = [s.to_record() for s in self.stages]
+        if not records:
+            empty = pd.DataFrame(columns=["stage", "timestamp"])
+            return empty
+
+        df = pd.DataFrame(records)
+        df["timestamp"] = pd.to_datetime(df["timestamp"], errors="coerce")
+        return df
 
     def to_dict(self) -> dict[str, Any]:
         """Return log contents as plain dict."""
