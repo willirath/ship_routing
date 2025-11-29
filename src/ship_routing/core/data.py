@@ -113,11 +113,18 @@ def _filter_times(
     xr.Dataset
         Filtered dataset.
     """
+    # If we don't filter at all, just fall through
+    if time_end is None and time_start is None:
+        return ds
+
     # Calculate maximum time step for buffer
     time_buffer = ds.time.diff("time").max().load().data[()]
-
+    if time_start is not None:
+        time_sel_start = time_start - time_buffer
+    if time_end is not None:
+        time_sel_end = time_end + time_bugger
     # Filter time axis
-    ds = ds.sel(time=slice(time_start - time_buffer, time_end + time_buffer))
+    ds = ds.sel(time=slice(time_sel_start, time_sel_end))
 
     return ds
 
