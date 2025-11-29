@@ -421,38 +421,49 @@ class RoutingApp:
         params = self.config.hyper
         if not population.members:
             return Population(members=[])
+
+        # Extract elite members
         sorted_population = population.sort()
-        elites = sorted_population.members[: params.num_elites]
+        elite_members = sorted_population.members[: params.num_elites]
+
+        # Log initial state
         self._log_stage_metrics(
             "gradient_polishing",
-            population_size=population.size,
-            elites=len(elites),
+            population_size=len(elite_members),
+            elites=len(elite_members),
         )
-        polished_members = []
-        for idx, member in enumerate(elites):
-            route = gradient_descent(
-                route=member.route,
-                num_iterations=params.gd_iterations,
-                learning_rate_percent_time=params.learning_rate_time,
-                time_increment=params.time_increment,
-                learning_rate_percent_along=params.learning_rate_space,
-                dist_shift_along=params.distance_increment,
-                learning_rate_percent_across=params.learning_rate_space,
-                dist_shift_across=params.distance_increment,
-                current_data_set=forcing.currents,
-                wave_data_set=forcing.waves,
-                wind_data_set=forcing.winds,
-            )
-            cost = self._route_cost(route, forcing)
-            polished_members.append(PopulationMember(route=route, cost=cost))
+
+        # Outer loop: GD iterations (like GA generations)
+        for gd_iter in range(params.gd_iterations):
+            # Inner loop: Apply GD to each elite member
+            updated_members = []
+            for member in elite_members:
+                route = gradient_descent(
+                    route=member.route,
+                    learning_rate_percent_time=params.learning_rate_time,
+                    time_increment=params.time_increment,
+                    learning_rate_percent_along=params.learning_rate_space,
+                    dist_shift_along=params.distance_increment,
+                    learning_rate_percent_across=params.learning_rate_space,
+                    dist_shift_across=params.distance_increment,
+                    current_data_set=forcing.currents,
+                    wave_data_set=forcing.waves,
+                    wind_data_set=forcing.winds,
+                )
+                cost = self._route_cost(route, forcing)
+                updated_members.append(PopulationMember(route=route, cost=cost))
+
+            # Update elite population for next iteration
+            elite_members = updated_members
+
+            # Log population statistics (same schema as GA)
             self._log_stage_metrics(
-                "gradient_step",
-                pre_cost=member.cost,
-                post_cost=cost,
-                elite_index=idx,
-                member_seed_cost=member.cost,
+                "gd_iteration",
+                gd_iteration=gd_iter,
+                **self._population_stats(elite_members),
             )
-        return Population(members=polished_members)
+
+        return Population(members=elite_members)
 
     def _log_stage_metrics(
         self,

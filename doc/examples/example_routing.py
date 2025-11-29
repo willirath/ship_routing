@@ -172,6 +172,13 @@ if __name__ == "__main__":
         raise SystemExit(0)
 
     result = run_example()
+
+    # Configure pandas to display full dataframe without ellipses
+    pd.set_option("display.max_rows", None)
+    pd.set_option("display.max_columns", None)
+    pd.set_option("display.width", None)
+    pd.set_option("display.max_colwidth", None)
+
     print(result.logs.to_dataframe())
     # result.dump_json(latest_path)
     # print(f"Dumped result to {latest_path}")

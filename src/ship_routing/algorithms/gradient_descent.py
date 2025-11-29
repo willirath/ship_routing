@@ -180,7 +180,6 @@ def gradient_descent_across_track_left(
 
 def gradient_descent(
     route: Route = None,
-    num_iterations: int = 1,
     learning_rate_percent_time: float = 0.5,
     time_increment: float = 1_200,
     learning_rate_percent_along: float = 0.5,
@@ -191,60 +190,59 @@ def gradient_descent(
     wave_data_set: xr.Dataset = None,
     wind_data_set: xr.Dataset = None,
 ) -> Route:
-    """Execute multiple iterations of gradient descent optimization."""
-    for _ in range(num_iterations):
-        try:
-            route = gradient_descent_time_shift(
-                route=route,
-                current_data_set=current_data_set,
-                wave_data_set=wave_data_set,
-                wind_data_set=wind_data_set,
-                time_shift_seconds=time_increment,
-                learning_rate_percent=learning_rate_percent_time,
-            )
-        except ZeroGradientsError:
-            pass
-        except InvalidGradientError:
-            time_increment /= 2.0
-            learning_rate_percent_time /= 2.0
-        except LargeIncrementError:
-            learning_rate_percent_time /= 2.0
+    """Execute a single iteration of gradient descent (3 steps: time, across, along)."""
+    try:
+        route = gradient_descent_time_shift(
+            route=route,
+            current_data_set=current_data_set,
+            wave_data_set=wave_data_set,
+            wind_data_set=wind_data_set,
+            time_shift_seconds=time_increment,
+            learning_rate_percent=learning_rate_percent_time,
+        )
+    except ZeroGradientsError:
+        pass
+    except InvalidGradientError:
+        time_increment /= 2.0
+        learning_rate_percent_time /= 2.0
+    except LargeIncrementError:
+        learning_rate_percent_time /= 2.0
 
-        try:
-            route = gradient_descent_across_track_left(
-                route=route,
-                current_data_set=current_data_set,
-                wave_data_set=wave_data_set,
-                wind_data_set=wind_data_set,
-                distance_meters=dist_shift_across,
-                learning_rate_percent=learning_rate_percent_across,
-            )
-        except ZeroGradientsError:
-            pass
-        except InvalidGradientError:
-            dist_shift_across /= 2.0
-            learning_rate_percent_across /= 2.0
-        except LargeIncrementError:
-            learning_rate_percent_across /= 2.0
+    try:
+        route = gradient_descent_across_track_left(
+            route=route,
+            current_data_set=current_data_set,
+            wave_data_set=wave_data_set,
+            wind_data_set=wind_data_set,
+            distance_meters=dist_shift_across,
+            learning_rate_percent=learning_rate_percent_across,
+        )
+    except ZeroGradientsError:
+        pass
+    except InvalidGradientError:
+        dist_shift_across /= 2.0
+        learning_rate_percent_across /= 2.0
+    except LargeIncrementError:
+        learning_rate_percent_across /= 2.0
 
-        try:
-            route = gradient_descent_along_track(
-                route=route,
-                current_data_set=current_data_set,
-                wave_data_set=wave_data_set,
-                wind_data_set=wind_data_set,
-                distance_meters=dist_shift_along,
-                learning_rate_percent=learning_rate_percent_along,
-            )
-        except ZeroGradientsError:
-            pass
-        except InvalidGradientError:
-            dist_shift_along /= 2.0
-            learning_rate_percent_along /= 2.0
-        except LargeIncrementError:
-            learning_rate_percent_along /= 2.0
+    try:
+        route = gradient_descent_along_track(
+            route=route,
+            current_data_set=current_data_set,
+            wave_data_set=wave_data_set,
+            wind_data_set=wind_data_set,
+            distance_meters=dist_shift_along,
+            learning_rate_percent=learning_rate_percent_along,
+        )
+    except ZeroGradientsError:
+        pass
+    except InvalidGradientError:
+        dist_shift_along /= 2.0
+        learning_rate_percent_along /= 2.0
+    except LargeIncrementError:
+        learning_rate_percent_along /= 2.0
 
-    return route  # TODO: Check naming. Why _route above and route here?
+    return route
 
 
 __all__ = [
