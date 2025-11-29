@@ -141,12 +141,6 @@ class RoutingApp:
         self._log_stage_metrics("run", message="starting routing run")
         self._rng = np.random.default_rng(self.config.hyper.random_seed)
 
-        # TODO: The journey config can have an undefined end time which only 
-        # is set once the seed route is known.
-        # (Then end_time = start_time + route_length / speed).
-        # But time_end = None will lead to too much of the forcing data being loaded.
-        # So we need a seed _ROUTE_ before the forcing.  Or we need a .set_time_end method
-        # on the JourneyConfig?
         forcing = self._load_forcing(self.config.journey)
 
         # Stage 0 to 4:
@@ -216,12 +210,14 @@ class RoutingApp:
             The seed member and initial population
         """
         # Create seed route from journey configuration
+        # Note: JourneyConfig.__post_init__ ensures time_end is set,
+        # so we don't pass speed_knots to avoid over-constraining
         seed_route = Route.create_route(
             lon_waypoints=self.config.journey.lon_waypoints,
             lat_waypoints=self.config.journey.lat_waypoints,
             time_start=self.config.journey.time_start,
             time_end=self.config.journey.time_end,
-            speed_knots=self.config.journey.speed_knots,
+            speed_knots=None,
             time_resolution_hours=self.config.journey.time_resolution_hours,
         )
 

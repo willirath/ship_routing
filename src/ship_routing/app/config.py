@@ -18,6 +18,27 @@ class JourneyConfig:
     speed_knots: float | None = 10.0
     time_resolution_hours: float = 12.0
 
+    def __post_init__(self):
+        """Calculate time_end from route length and speed if not provided."""
+        if self.time_end is None and self.speed_knots is not None:
+            import numpy as np
+            from shapely.geometry import LineString
+            from ..core.geodesics import get_length_meters, knots_to_ms
+
+            # Get distance in meters along way points
+            line_string = LineString(zip(self.lon_waypoints, self.lat_waypoints))
+            length_meters = get_length_meters(line_string)
+
+            # Calculate end time
+            speed_ms = knots_to_ms(self.speed_knots)
+            duration_seconds = length_meters / speed_ms
+            start_dt = np.datetime64(self.time_start)
+            end_dt = start_dt + np.timedelta64(int(duration_seconds), "s")
+
+            # Update end time
+            time_end_str = str(np.datetime_as_string(end_dt, unit="s"))
+            object.__setattr__(self, "time_end", time_end_str)
+
 
 @dataclass(frozen=True)
 class ForcingConfig:

@@ -1,8 +1,44 @@
 import numpy as np
+import pint
 import pyproj
 from shapely.geometry import LineString
 
 from collections import namedtuple
+
+# Create unit registry once at module level
+_ureg = pint.UnitRegistry()
+
+
+def knots_to_ms(speed_knots: float) -> float:
+    """Convert speed from knots to meters per second.
+
+    Parameters
+    ----------
+    speed_knots : float
+        Speed in knots
+
+    Returns
+    -------
+    float
+        Speed in meters per second
+    """
+    return float((speed_knots * _ureg.knot) / _ureg.meter_per_second)
+
+
+def ms_to_knots(speed_ms: float) -> float:
+    """Convert speed from meters per second to knots.
+
+    Parameters
+    ----------
+    speed_ms : float
+        Speed in meters per second
+
+    Returns
+    -------
+    float
+        Speed in knots
+    """
+    return float((speed_ms * _ureg.meter_per_second) / _ureg.knot)
 
 
 def move_fwd(

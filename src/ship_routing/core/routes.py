@@ -20,6 +20,7 @@ from .geodesics import (
     move_fwd,
     refine_along_great_circle,
     get_leg_azimuth,
+    knots_to_ms,
 )
 
 from .remix import (
@@ -610,12 +611,10 @@ class Route:
         if isinstance(time_end, str):
             time_end = np.datetime64(time_end)
         if time_start is not None and speed_knots is not None:
-            ureg = pint.UnitRegistry()
-            speed_ms = float((speed_knots * ureg.knot) / ureg.meter_per_second)
+            speed_ms = knots_to_ms(speed_knots)
             time_end = time_start + np.timedelta64(1, "s") * route_length / speed_ms
         if time_end is not None and speed_knots is not None:
-            ureg = pint.UnitRegistry()
-            speed_ms = float((speed_knots * ureg.knot) / ureg.meter_per_second)
+            speed_ms = knots_to_ms(speed_knots)
             time_start = time_end - np.timedelta64(1, "s") * route_length / speed_ms
 
         # construct times of waypoints
