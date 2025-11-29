@@ -122,7 +122,7 @@ def _filter_times(
     if time_start is not None:
         time_sel_start = time_start - time_buffer
     if time_end is not None:
-        time_sel_end = time_end + time_bugger
+        time_sel_end = time_end + time_buffer
     # Filter time axis
     ds = ds.sel(time=slice(time_sel_start, time_sel_end))
 
