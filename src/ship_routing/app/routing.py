@@ -141,6 +141,12 @@ class RoutingApp:
         self._log_stage_metrics("run", message="starting routing run")
         self._rng = np.random.default_rng(self.config.hyper.random_seed)
 
+        # TODO: The journey config can have an undefined end time which only 
+        # is set once the seed route is known.
+        # (Then end_time = start_time + route_length / speed).
+        # But time_end = None will lead to too much of the forcing data being loaded.
+        # So we need a seed _ROUTE_ before the forcing.  Or we need a .set_time_end method
+        # on the JourneyConfig?
         forcing = self._load_forcing(self.config.journey)
 
         # Stage 0 to 4:
@@ -477,13 +483,21 @@ class RoutingApp:
                 "cost_min": np.nan,
                 "cost_max": np.nan,
                 "cost_mean": np.nan,
+                "cost_median": np.nan,
+                "cost_std": np.nan,
+                "cost_q25": np.nan,
+                "cost_q75": np.nan,
             }
-        costs = [member.cost for member in population]
+        costs = np.array([member.cost for member in population])
         return {
             "population_size": len(population),
-            "cost_min": min(costs),
-            "cost_max": max(costs),
-            "cost_mean": mean(costs),
+            "cost_min": float(np.min(costs)),
+            "cost_max": float(np.max(costs)),
+            "cost_mean": float(np.mean(costs)),
+            "cost_median": float(np.median(costs)),
+            "cost_std": float(np.std(costs)),
+            "cost_q25": float(np.quantile(costs, 0.25)),
+            "cost_q75": float(np.quantile(costs, 0.75)),
         }
 
     def _ensure_rng(self) -> np.random.Generator:
