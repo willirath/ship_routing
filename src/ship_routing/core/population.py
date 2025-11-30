@@ -60,6 +60,7 @@ class PopulationMember:
 
     @property
     def cost_valid(self):
+        """False if cost is non-numeric."""
         return not (
             np.isnan(self.cost)
             or np.isinf(self.cost)
@@ -104,7 +105,7 @@ class Population:
     def add_member(self, member: PopulationMember) -> Population:
         """Return new population with additional member appended.
 
-        Implements P ∪ {r} operator from pseudocode.
+        Implements P UNION {r} operator from pseudocode.
 
         Parameters
         ----------
@@ -161,4 +162,5 @@ class Population:
         }
 
     def remove_invalid(self):
+        """(Inplace) remove members with invalid cost."""
         self.members = [m for m in self.members if m.cost_valid]

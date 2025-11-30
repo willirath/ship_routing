@@ -49,6 +49,38 @@ def power_maintain_speed(
     physics: Physics = PHYSICS_DEFAULT,
     ship: Ship = SHIP_DEFAULT,
 ):
+    """Calculate power needed to maintain speed over ground along a route.
+
+    Wrapper for power_maintain_speed_ufunc that handles xarray DataArrays with
+    along-track dimensions. Aligns all input arrays and applies the power
+    calculation along the route.
+
+    Parameters
+    ----------
+    u_ship_og_ms : xr.DataArray, default=0.0
+        Ship eastward speed over ground in m/s
+    v_ship_og_ms : xr.DataArray, default=0.0
+        Ship northward speed over ground in m/s
+    u_current_ms : xr.DataArray, default=0.0
+        Ocean currents eastward speed in m/s
+    v_current_ms : xr.DataArray, default=0.0
+        Ocean currents northward speed in m/s
+    u_wind_ms : xr.DataArray, default=0.0
+        Eastward 10 m wind in m/s
+    v_wind_ms : xr.DataArray, default=0.0
+        Northward 10 m wind in m/s
+    w_wave_height : xr.DataArray, default=0.0
+        Spectral significant wave height in m
+    physics : Physics, default=PHYSICS_DEFAULT
+        Physics parameters
+    ship : Ship, default=SHIP_DEFAULT
+        Ship parameters
+
+    Returns
+    -------
+    xr.DataArray
+        Power in W (=kg*m2/s3) needed to maintain speed over ground along track
+    """
     # cast all to arrays
     u_ship_og_ms = maybe_cast_number_to_data_array(u_ship_og_ms)
     v_ship_og_ms = maybe_cast_number_to_data_array(v_ship_og_ms)
@@ -102,6 +134,38 @@ def hazard_conditions_wave_height(
     physics: Physics = PHYSICS_DEFAULT,
     ship: Ship = SHIP_DEFAULT,
 ):
+    """Check stability thresholds for wave heights along a route.
+
+    Wrapper for hazard_conditions_wave_height_ufunc that handles xarray DataArrays
+    with along-track dimensions. Aligns all input arrays and checks wave height
+    stability criteria along the route.
+
+    Parameters
+    ----------
+    u_ship_og_ms : xr.DataArray, default=0.0
+        Ship eastward speed over ground in m/s (unused but kept for consistency)
+    v_ship_og_ms : xr.DataArray, default=0.0
+        Ship northward speed over ground in m/s (unused but kept for consistency)
+    u_current_ms : xr.DataArray, default=0.0
+        Ocean currents eastward speed in m/s (unused but kept for consistency)
+    v_current_ms : xr.DataArray, default=0.0
+        Ocean currents northward speed in m/s (unused but kept for consistency)
+    u_wind_ms : xr.DataArray, default=0.0
+        Eastward 10 m wind in m/s (unused but kept for consistency)
+    v_wind_ms : xr.DataArray, default=0.0
+        Northward 10 m wind in m/s (unused but kept for consistency)
+    w_wave_height : xr.DataArray, default=0.0
+        Spectral significant wave height in m
+    physics : Physics, default=PHYSICS_DEFAULT
+        Physics parameters (unused but kept for consistency)
+    ship : Ship, default=SHIP_DEFAULT
+        Ship parameters
+
+    Returns
+    -------
+    xr.DataArray
+        Boolean array indicating whether stability thresholds are violated along track
+    """
     # cast all to arrays
     u_ship_og_ms = maybe_cast_number_to_data_array(u_ship_og_ms)
     v_ship_og_ms = maybe_cast_number_to_data_array(v_ship_og_ms)

@@ -22,6 +22,40 @@ def load_currents(
     load_eagerly: bool = True,
     **kwargs,
 ) -> HashableDataset:
+    """Load ocean current data from netCDF file or other formats.
+
+    Loads current velocity data, renames variables to standard names,
+    filters to time period of interest, and returns a hashable dataset.
+
+    Parameters
+    ----------
+    data_file : Path
+        Path to file containing current data (netCDF by default; other formats
+        supported via engine kwarg in **kwargs, e.g., zarr, grib, hdf5)
+    lon_name : str, default="longitude"
+        Name of longitude variable in source file
+    lat_name : str, default="latitude"
+        Name of latitude variable in source file
+    time_name : str, default="time"
+        Name of time variable in source file
+    uo_name : str, default="uo"
+        Name of eastward current velocity variable in source file
+    vo_name : str, default="vo"
+        Name of northward current velocity variable in source file
+    time_start : np.datetime64, optional
+        Start time for filtering data
+    time_end : np.datetime64, optional
+        End time for filtering data
+    load_eagerly : bool, default=True
+        If True, load data into memory immediately
+    **kwargs
+        Additional arguments passed to xr.open_dataset
+
+    Returns
+    -------
+    HashableDataset
+        Dataset with standardized variable names (lon, lat, time, uo, vo)
+    """
     ds = xr.open_dataset(data_file, **kwargs)
     ds = ds.rename(
         {
@@ -50,6 +84,40 @@ def load_winds(
     load_eagerly: bool = True,
     **kwargs,
 ) -> HashableDataset:
+    """Load wind data from netCDF file or other formats.
+
+    Loads wind velocity data, renames variables to standard names,
+    filters to time period of interest, and returns a hashable dataset.
+
+    Parameters
+    ----------
+    data_file : Path
+        Path to file containing wind data (netCDF by default; other formats
+        supported via engine kwarg in **kwargs, e.g., zarr, grib, hdf5)
+    lon_name : str, default="longitude"
+        Name of longitude variable in source file
+    lat_name : str, default="latitude"
+        Name of latitude variable in source file
+    time_name : str, default="time"
+        Name of time variable in source file
+    uw_name : str, default="eastward_wind"
+        Name of eastward wind velocity variable in source file
+    vw_name : str, default="northward_wind"
+        Name of northward wind velocity variable in source file
+    time_start : np.datetime64, optional
+        Start time for filtering data
+    time_end : np.datetime64, optional
+        End time for filtering data
+    load_eagerly : bool, default=True
+        If True, load data into memory immediately
+    **kwargs
+        Additional arguments passed to xr.open_dataset
+
+    Returns
+    -------
+    HashableDataset
+        Dataset with standardized variable names (lon, lat, time, uw, vw)
+    """
     ds = xr.open_dataset(data_file, **kwargs)
     ds = ds.rename(
         {
@@ -77,6 +145,38 @@ def load_waves(
     load_eagerly: bool = True,
     **kwargs,
 ) -> HashableDataset:
+    """Load wave data from netCDF file or other formats.
+
+    Loads significant wave height data, renames variables to standard names,
+    filters to time period of interest, and returns a hashable dataset.
+
+    Parameters
+    ----------
+    data_file : Path
+        Path to file containing wave data (netCDF by default; other formats
+        supported via engine kwarg in **kwargs, e.g., zarr, grib, hdf5)
+    lon_name : str, default="longitude"
+        Name of longitude variable in source file
+    lat_name : str, default="latitude"
+        Name of latitude variable in source file
+    time_name : str, default="time"
+        Name of time variable in source file
+    wh_name : str, default="VHM0"
+        Name of significant wave height variable in source file
+    time_start : np.datetime64, optional
+        Start time for filtering data
+    time_end : np.datetime64, optional
+        End time for filtering data
+    load_eagerly : bool, default=True
+        If True, load data into memory immediately
+    **kwargs
+        Additional arguments passed to xr.open_dataset
+
+    Returns
+    -------
+    HashableDataset
+        Dataset with standardized variable names (lon, lat, time, wh)
+    """
     ds = xr.open_dataset(data_file, **kwargs)
     ds = ds.rename(
         {
@@ -137,6 +237,7 @@ def _select_ij(
     lat_start=None,
     lat_end=None,
 ):
+    """Select dataset along spatial dimensions between start and end points."""
     ds = ds.assign_coords(
         i=(("lon",), np.arange(ds.sizes["lon"])),
         j=(("lat",), np.arange(ds.sizes["lat"])),
@@ -169,6 +270,7 @@ def _select_l(
     time_start=None,
     time_end=None,
 ):
+    """Select dataset along time dimension between start and end times."""
     ds = ds.assign_coords(
         l=(("time",), np.arange(ds.sizes["time"])),
     )
@@ -194,6 +296,33 @@ def select_data_for_leg(
     time_start=None,
     time_end=None,
 ):
+    """Select environmental data for a route leg.
+
+    Extracts subset of dataset along spatial and temporal dimensions
+    covering the specified leg.
+
+    Parameters
+    ----------
+    ds : xr.Dataset
+        Environmental dataset
+    lon_start : float
+        Starting longitude
+    lon_end : float
+        Ending longitude
+    lat_start : float
+        Starting latitude
+    lat_end : float
+        Ending latitude
+    time_start : datetime-like
+        Starting time
+    time_end : datetime-like
+        Ending time
+
+    Returns
+    -------
+    xr.Dataset
+        Subset of data along leg path
+    """
     return _select_l(
         ds=_select_ij(
             ds=ds,
