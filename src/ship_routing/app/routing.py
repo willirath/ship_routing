@@ -9,6 +9,8 @@ from statistics import mean
 from typing import Any, Sequence
 
 import numpy as np
+from matplotlib import pyplot as plt
+import pandas as pd
 
 from ..algorithms import (
     crossover_routes_minimal_cost,
@@ -98,6 +100,55 @@ class RoutingResult:
             seed_member=seed_member, elite_population=elite_population, logs=logs
         )
 
+    def plot_cost_evolution(self, ax=None):
+        """Plot cost evolution across optimization stages."""
+        df = self.logs.to_dataframe()
+        df = df.filter(like="cost_")
+        df = df.drop(["cost_std", "cost_mean"], axis=1)
+        ax = df.dropna().plot(ax=ax)
+        ax.set_title("cost evolution")
+        ax.grid()
+        return ax
+
+    def plot_routes(self, ax=None):
+        """Plot seed and elite routes."""
+        if ax is None:
+            _, ax = plt.subplots(1, 1)
+
+        seed_member = self.seed_member
+        elite_members = self.elite_population.members
+
+        for em in elite_members:
+            ax.plot(*em.route.line_string.xy, "black")
+        ax.plot(*seed_member.route.line_string.xy, "orange")
+        ax.grid()
+        ax.set_title("routes")
+        return ax
+
+    def plot_elite_cost(self, ax=None):
+        """Plot elite costs as percentage of seed cost."""
+        elite_cost = pd.Series(
+            data=[m.cost for m in self.elite_population.members],
+            name="cost",
+            index=[f"elite_{n:02d}" for n in range(len(self.elite_population.members))],
+        )
+        seed_cost = self.seed_member.cost
+        ax = (100 * elite_cost / seed_cost).plot(ax=ax)
+        ax.set_title("elite cost (rel)")
+        ax.grid()
+        return ax
+
+    def plot_full_routing_result(self):
+        fig, ax = plt.subplots(1, 3, figsize=(9, 3))
+
+        self.plot_cost_evolution(ax=ax[0])
+        self.plot_elite_cost(ax=ax[1])
+        self.plot_routes(ax=ax[2])
+
+        fig.tight_layout()
+
+        return fig, ax
+
 
 @dataclass
 class StageLog:
@@ -138,8 +189,6 @@ class RoutingLog:
 
         Includes all stages with columns: stage, timestamp, and metric keys.
         """
-        import pandas as pd
-
         records = [s.to_record() for s in self.stages]
         if not records:
             empty = pd.DataFrame(columns=["stage", "timestamp"])
