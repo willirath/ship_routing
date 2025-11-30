@@ -3,6 +3,7 @@ import pandas as pd
 import numpy as np
 
 from pathlib import Path
+from typing import Callable
 
 from functools import lru_cache
 from .config import MAX_CACHE_SIZE
@@ -16,6 +17,9 @@ def load_currents(
     time_name: str = "time",
     uo_name: str = "uo",
     vo_name: str = "vo",
+    time_start: np.datetime64 = None,
+    time_end: np.datetime64 = None,
+    load_eagerly: bool = True,
     **kwargs,
 ) -> HashableDataset:
     ds = xr.open_dataset(data_file, **kwargs)
@@ -28,6 +32,9 @@ def load_currents(
             vo_name: "vo",
         }
     )
+    ds = _filter_times(ds, time_start=time_start, time_end=time_end)
+    if load_eagerly:
+        ds = ds.load()
     return make_hashable(ds)
 
 
@@ -38,6 +45,9 @@ def load_winds(
     time_name: str = "time",
     uw_name: str = "eastward_wind",
     vw_name: str = "northward_wind",
+    time_start: np.datetime64 = None,
+    time_end: np.datetime64 = None,
+    load_eagerly: bool = True,
     **kwargs,
 ) -> HashableDataset:
     ds = xr.open_dataset(data_file, **kwargs)
@@ -50,6 +60,9 @@ def load_winds(
             vw_name: "vw",
         }
     )
+    ds = _filter_times(ds, time_start=time_start, time_end=time_end)
+    if load_eagerly:
+        ds = ds.load()
     return make_hashable(ds)
 
 
@@ -59,6 +72,9 @@ def load_waves(
     lat_name: str = "latitude",
     time_name: str = "time",
     wh_name: str = "VHM0",
+    time_start: np.datetime64 = None,
+    time_end: np.datetime64 = None,
+    load_eagerly: bool = True,
     **kwargs,
 ) -> HashableDataset:
     ds = xr.open_dataset(data_file, **kwargs)
@@ -70,7 +86,47 @@ def load_waves(
             wh_name: "wh",
         }
     )
+    ds = _filter_times(ds, time_start=time_start, time_end=time_end)
+    if load_eagerly:
+        ds = ds.load()
     return make_hashable(ds)
+
+
+def _filter_times(
+    ds: xr.Dataset = None,
+    time_start: np.datetime64 = None,
+    time_end: np.datetime64 = None,
+) -> xr.Dataset:
+    """Filter dataset to time period of interest.
+
+    Parameters
+    ----------
+    ds : xr.Dataset
+        Input dataset
+    time_start : np.datetime64
+        Start time for filtering.
+    time_end : np.datetime64
+        End time for filtering.
+
+    Returns
+    -------
+    xr.Dataset
+        Filtered dataset.
+    """
+    # If we don't filter at all, just fall through
+    if time_end is None and time_start is None:
+        return ds
+
+    # Calculate maximum time step for buffer
+    time_buffer = ds.time.diff("time").max().load().data[()]
+    if time_start is not None:
+        time_sel_start = time_start - time_buffer
+    if time_end is not None:
+        time_sel_end = time_end + time_buffer
+    # Filter time axis
+    ds = ds.sel(time=slice(time_sel_start, time_sel_end))
+
+    return ds
 
 
 @lru_cache(maxsize=MAX_CACHE_SIZE)

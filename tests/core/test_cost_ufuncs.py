@@ -1,8 +1,8 @@
-from ship_routing.cost_ufuncs import (
+from ship_routing.core.cost_ufuncs import (
     power_maintain_speed_ufunc,
     hazard_conditions_wave_height_ufunc,
 )
-from ship_routing.config import SHIP_DEFAULT
+from ship_routing.core.config import SHIP_DEFAULT
 
 from random import uniform
 

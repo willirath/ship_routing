@@ -2,6 +2,7 @@ from dataclasses import dataclass
 
 import numpy as np
 import pandas as pd
+import pint
 import xarray as xr
 from shapely.geometry import LineString, Point
 from shapely import union_all as shp_union_all
@@ -19,6 +20,7 @@ from .geodesics import (
     move_fwd,
     refine_along_great_circle,
     get_leg_azimuth,
+    knots_to_ms,
 )
 
 from .remix import (
@@ -31,11 +33,9 @@ from .data import select_data_for_leg
 from .cost import (
     power_maintain_speed,
     hazard_conditions_wave_height,
-    Ship,
-    Physics,
-    SHIP_DEFAULT,
-    PHYSICS_DEFAULT,
 )
+
+from .config import Ship, Physics, SHIP_DEFAULT, PHYSICS_DEFAULT
 
 
 @dataclass(frozen=True)
@@ -459,7 +459,7 @@ class Route:
     def __post_init__(self):
         if not isinstance(self.way_points, tuple):
             raise ValueError("Way_points need to be a tuple.")
-        if not len(self.way_points) >= 2:
+        if len(self.way_points) < 2:
             raise ValueError(
                 "A Route needs at least two way points which may be identical."
             )
@@ -548,6 +548,99 @@ class Route:
                 for _p, _t in zip(map(Point, line_string.coords), time)
             )
         )
+
+    @classmethod
+    def create_route(
+        cls,
+        lon_waypoints: list = None,
+        lat_waypoints: list = None,
+        time_start: str | np.datetime64 = None,
+        time_end: str | np.datetime64 = None,
+        speed_knots: float = None,
+        time_resolution_hours: float = 6.0,
+    ):
+        """Create a route from waypoints, times, and speed.
+
+        Parameters
+        ----------
+        lon_waypoints : list
+            Longitudes of waypoints
+        lat_waypoints : list
+            Latitudes of waypoints
+        time_start : str | np.datetime64
+            Start time
+        time_end : str | np.datetime64, optional
+            End time
+        speed_knots : float, optional
+            Speed in knots
+        time_resolution_hours : float
+            Time resolution in hours (default 6.0)
+
+        Returns
+        -------
+        Route
+            Created and refined route
+
+        Notes
+        -----
+        Only two of time_start, time_end, speed_knots can be specified.
+        """
+        # construct prelim leg and route lengths (no time known yet)
+        leg_lengths = [
+            Leg(
+                WayPoint(lon=lon0, lat=lat0, time=0),
+                WayPoint(lon=lon1, lat=lat1, time=0),
+            ).length_meters
+            for lon0, lat0, lon1, lat1 in zip(
+                lon_waypoints[:-1],
+                lat_waypoints[:-1],
+                lon_waypoints[1:],
+                lat_waypoints[1:],
+            )
+        ]
+        route_length = sum(leg_lengths)
+
+        # find duration
+        if time_start is not None and time_end is not None:
+            if speed_knots is not None:
+                raise ValueError(
+                    "Only two of time_start, time_end, speed_knots can be given."
+                )
+        if isinstance(time_start, str):
+            time_start = np.datetime64(time_start)
+        if isinstance(time_end, str):
+            time_end = np.datetime64(time_end)
+        if time_start is not None and speed_knots is not None:
+            speed_ms = knots_to_ms(speed_knots)
+            time_end = time_start + np.timedelta64(1, "s") * route_length / speed_ms
+        if time_end is not None and speed_knots is not None:
+            speed_ms = knots_to_ms(speed_knots)
+            time_start = time_end - np.timedelta64(1, "s") * route_length / speed_ms
+
+        # construct times of waypoints
+        relative_time_offsets = [0] + [ll / route_length for ll in leg_lengths]
+        time_waypoints = time_start + np.timedelta64(1, "s") * (
+            (time_end - time_start) / np.timedelta64(1, "s")
+        ) * np.cumsum(relative_time_offsets)
+
+        # create GC segment route
+        route_gc = cls(
+            way_points=tuple(
+                WayPoint(lon=lon, lat=lat, time=time)
+                for lon, lat, time in zip(
+                    lon_waypoints,
+                    lat_waypoints,
+                    time_waypoints,
+                )
+            )
+        )
+        # resample to desired resolution
+        refine_to_dist = (
+            np.mean([l.speed_ms for l in route_gc.legs])
+            * time_resolution_hours
+            * 3600.0
+        )
+        return route_gc.refine(distance_meters=refine_to_dist)
 
     @property
     def length_meters(self):

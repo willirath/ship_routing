@@ -1,13 +1,13 @@
 from pathlib import Path
 import pytest
 
-from ship_routing.data import (
+from ship_routing.core.data import (
     load_currents,
     load_winds,
     load_waves,
 )
 
-TEST_DATA_DIR = Path(__file__).parent.resolve() / "test_data"
+TEST_DATA_DIR = Path(__file__).parent.parent.resolve() / "test_data"
 
 
 def get_currents_data_files():

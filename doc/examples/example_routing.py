@@ -4,23 +4,26 @@ Provides a complete JourneyConfig and ForcingConfig so it can run unchanged
 once the matching datasets exist under ``doc/examples/data_large``.
 """
 
+import json
 import logging
 from pathlib import Path
+import sys
 
 import matplotlib.pyplot as plt
 import pandas as pd
 
-from ship_routing.app import RoutingApp, RoutingResult
-from ship_routing.config import (
-    CrossoverConfig,
+from ship_routing.app import (
+    RoutingApp,
+    RoutingResult,
+    StageLog,
+    RoutingLog,
+    HyperParams,
     ForcingConfig,
-    GradientConfig,
     JourneyConfig,
-    PopulationConfig,
     RoutingConfig,
-    SelectionConfig,
-    StochasticStageConfig,
 )
+from ship_routing.core.config import Physics, Ship
+from ship_routing.core.population import Population, PopulationMember
 
 
 def run_example() -> RoutingResult:
@@ -47,39 +50,45 @@ def run_example() -> RoutingResult:
             base
             / "cmems_obs-wind_glo_phy_my_l4_0.125deg_PT1H_time_2021_lat_+10_+65_lon_-100_+010_eastward_wind-northward_wind.zarr"
         ),
+        engine="zarr",
+        chunks="auto",
+        load_eagerly=True,
     )
     config = RoutingConfig(
         journey=journey,
         forcing=forcing,
-        population=PopulationConfig(size=32, random_seed=345),
-        stochastic=StochasticStageConfig(num_generations=8, num_iterations=2),
-        crossover=CrossoverConfig(strategy="minimal_cost", generations=4),
-        selection=SelectionConfig(quantile=0.5),
-        gradient=GradientConfig(enabled=True, num_elites=4),
+        ship=Ship(),
+        physics=Physics(),
+        hyper=HyperParams(
+            population_size=8,
+            random_seed=345,
+            generations=12,
+            selection_quantile=0.5,
+            selection_acceptance_rate_warmup=0.1,
+            selection_acceptance_rate=0.1,
+            mutation_width_fraction=0.5,
+            mutation_displacement_fraction=0.1,
+            mutation_iterations=1,
+            crossover_rounds=2,
+            num_elites=4,
+            gd_iterations=2,
+            learning_rate_time=0.5,
+            learning_rate_space=0.5,
+            time_increment=1_200.0,
+            distance_increment=10_000.0,
+            crossover_strategy="minimal_cost",
+        ),
     )
     app = RoutingApp(config=config)
     return app.run()
 
 
 if __name__ == "__main__":
-    result = run_example()
-    print(result)
     runs_dir = Path(__file__).resolve().parent / "runs"
     runs_dir.mkdir(exist_ok=True)
     latest_path = runs_dir / "example_routing_result.json"
+
+    result = run_example()
+
     result.dump_json(latest_path)
     print(f"Dumped result to {latest_path}")
-    if result.logs:
-        ga_stages = result.logs.stages_named("ga_generation")
-        if ga_stages and "cost_mean" in ga_stages[0].metrics:
-            cost_series = pd.Series(
-                data=[stage.metrics["cost_mean"] for stage in ga_stages],
-                index=[
-                    stage.metrics.get("generation", idx)
-                    for idx, stage in enumerate(ga_stages)
-                ],
-                name="Mean cost",
-            )
-            cost_series.index.name = "Generation"
-            cost_series.plot(marker="o", figsize=(8, 4))
-            plt.show()
