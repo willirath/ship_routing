@@ -189,17 +189,13 @@ class RoutingApp:
         q = self.config.hyper.selection_quantile
 
         # Genetic algorithm generation loop
-        for generation in range(self.config.hyper.generations):
+        for _ in range(self.config.hyper.generations):
             population = self._stage_ga_mutation(
-                population, seed_member, forcing, W, D, q, generation
+                population, seed_member, forcing, W, D, q
             )
-            population = self._stage_ga_crossover(
-                population, seed_member, forcing, generation
-            )
-            population = self._stage_ga_selection(
-                population, seed_member, q, generation
-            )
-            W, D, q = self._stage_ga_adaptation(W, D, q, generation)
+            population = self._stage_ga_crossover(population, seed_member, forcing)
+            population = self._stage_ga_selection(population, seed_member, q)
+            W, D, q = self._stage_ga_adaptation(W, D, q)
 
         elite_population = self._stage_post_processing(population, forcing)
 
@@ -353,7 +349,6 @@ class RoutingApp:
         W: float,
         D: float,
         q: float,
-        generation: int,
     ) -> Population:
         """GA sub-stage 1: Directed mutation of population members."""
         params = self.config.hyper
@@ -389,7 +384,6 @@ class RoutingApp:
 
         self._log_stage_metrics(
             "ga_mutation",
-            generation=generation,
             **self._population_stats(population.members),
         )
 
@@ -400,7 +394,6 @@ class RoutingApp:
         population: Population,
         seed_member: PopulationMember,
         forcing: ForcingData,
-        generation: int,
     ) -> Population:
         """GA sub-stage 2: Crossover to generate offspring."""
         params = self.config.hyper
@@ -456,7 +449,6 @@ class RoutingApp:
 
         self._log_stage_metrics(
             "ga_crossover",
-            generation=generation,
             **self._population_stats(offspring.members),
         )
 
@@ -467,7 +459,6 @@ class RoutingApp:
         population: Population,
         seed_member: PopulationMember,
         q: float,
-        generation: int,
     ) -> Population:
         """GA sub-stage 3: Selection from population."""
         params = self.config.hyper
@@ -486,7 +477,6 @@ class RoutingApp:
 
         self._log_stage_metrics(
             "ga_selection",
-            generation=generation,
             **self._population_stats(population.members),
         )
 
@@ -497,7 +487,6 @@ class RoutingApp:
         W: float,
         D: float,
         q: float,
-        generation: int,
     ) -> tuple[float, float, float]:
         """GA sub-stage 4: Adapt mutation and selection parameters."""
         # TODO: Implement adaptive W, D, q
@@ -505,7 +494,6 @@ class RoutingApp:
 
         self._log_stage_metrics(
             "ga_adaptation",
-            generation=generation,
             W=W_new,
             D=D_new,
             q=q_new,
@@ -560,7 +548,6 @@ class RoutingApp:
             # Log population statistics (same schema as GA)
             self._log_stage_metrics(
                 "gd_iteration",
-                gd_iteration=gd_iter,
                 **self._population_stats(elite_members),
             )
 
