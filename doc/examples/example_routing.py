@@ -60,106 +60,27 @@ def run_example() -> RoutingResult:
         ship=Ship(),
         physics=Physics(),
         hyper=HyperParams(
-            population_size=4,
+            population_size=16,
             random_seed=345,
-            generations=2,
+            generations=4,
             selection_quantile=0.5,
-            selection_acceptance_rate_warmup=0.4,
-            selection_acceptance_rate=0.0,
-            mutation_width_fraction=0.9,
-            mutation_displacement_fraction=0.25,
-            mutation_iterations=3,
+            selection_acceptance_rate_warmup=0.1,
+            selection_acceptance_rate=0.1,
+            mutation_width_fraction=0.5,
+            mutation_displacement_fraction=0.1,
+            mutation_iterations=1,
             crossover_rounds=2,
-            num_elites=2,
+            num_elites=8,
             gd_iterations=2,
             learning_rate_time=0.5,
             learning_rate_space=0.5,
             time_increment=1_200.0,
             distance_increment=10_000.0,
-            crossover_strategy="random",
+            crossover_strategy="minimal_cost",
         ),
     )
     app = RoutingApp(config=config)
     return app.run()
-
-
-def visualize_result(result: RoutingResult) -> None:
-    """Plot GA mean cost if available."""
-    ga_stages = result.logs.stages_named("ga_generation")
-    if not ga_stages or "cost_min" not in ga_stages[0].metrics:
-        return
-    cost_series = pd.Series(
-        data=[stage.metrics["cost_min"] for stage in ga_stages],
-        index=[
-            stage.metrics.get("generation", idx) for idx, stage in enumerate(ga_stages)
-        ],
-        name="Mean cost",
-    )
-    cost_series.index.name = "Generation"
-    gradient_steps = result.logs.stages_named("gradient_step")
-    gradient_costs = [
-        step.metrics["post_cost"]
-        for step in gradient_steps
-        if "post_cost" in step.metrics
-    ]
-    final_costs = (
-        [member.cost for member in result.elite_population.members]
-        if result.elite_population
-        else []
-    )
-    ax = cost_series.plot(marker="o", figsize=(8, 4))
-    if gradient_costs:
-        ax.axhline(
-            min(gradient_costs),
-            color="tab:orange",
-            linestyle="--",
-            label="Gradient descent min cost",
-        )
-    if final_costs:
-        ax.axhline(
-            min(final_costs),
-            color="tab:green",
-            linestyle=":",
-            label="Final route min cost",
-        )
-    ax.legend()
-    plt.show()
-
-
-def load_result_json(path: Path) -> RoutingResult:
-    """Load a RoutingResult from disk."""
-    with Path(path).open("r", encoding="utf-8") as fh:
-        data = json.load(fh)
-
-    seed_member = (
-        PopulationMember.from_dict(data["seed_member"])
-        if data.get("seed_member")
-        else None
-    )
-    elite_population = (
-        Population.from_dict(data["elite_population"])
-        if data.get("elite_population")
-        else None
-    )
-    log_data = data.get("log")
-    logs = (
-        RoutingLog(
-            config=log_data.get("config", {}),
-            stages=[
-                StageLog(
-                    name=stage["name"],
-                    metrics=stage.get("metrics", {}),
-                    timestamp=stage.get("timestamp", ""),
-                )
-                for stage in log_data.get("stages", [])
-            ],
-        )
-        if log_data
-        else None
-    )
-    return RoutingResult(
-        seed_member=seed_member, elite_population=elite_population, logs=logs
-    )
 
 
 if __name__ == "__main__":
@@ -167,19 +88,7 @@ if __name__ == "__main__":
     runs_dir.mkdir(exist_ok=True)
     latest_path = runs_dir / "example_routing_result.json"
 
-    if "--visualize-only" in sys.argv:
-        visualize_result(load_result_json(latest_path))
-        raise SystemExit(0)
-
     result = run_example()
 
-    # Configure pandas to display full dataframe without ellipses
-    pd.set_option("display.max_rows", None)
-    pd.set_option("display.max_columns", None)
-    pd.set_option("display.width", None)
-    pd.set_option("display.max_colwidth", None)
-
-    print(result.logs.to_dataframe())
-    # result.dump_json(latest_path)
-    # print(f"Dumped result to {latest_path}")
-    # visualize_result(load_result_json(latest_path))
+    result.dump_json(latest_path)
+    print(f"Dumped result to {latest_path}")

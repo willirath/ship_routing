@@ -559,7 +559,8 @@ class RoutingApp:
         **metrics: Any,
     ) -> None:
         """Convenience wrapper for stage-level logging."""
-        logging.info("%s %s", name, metrics)
+        timestamp = datetime.now(timezone.utc).isoformat(timespec="seconds")
+        logging.info("%s [%s] %s", name, timestamp, metrics)
         self.log.add_stage(name=name, **metrics)
 
     def _route_cost(self, route: Route, forcing: ForcingData) -> float:
