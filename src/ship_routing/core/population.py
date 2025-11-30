@@ -58,6 +58,15 @@ class PopulationMember:
             "cost": float(self.cost),
         }
 
+    @property
+    def cost_valid(self):
+        return not (
+            np.isnan(self.cost)
+            or np.isinf(self.cost)
+            or np.isneginf(self.cost)
+            or (self.cost <= 0)
+        )
+
 
 @dataclass
 class Population:
@@ -150,3 +159,6 @@ class Population:
         return {
             "members": [member.to_dict() for member in self.members],
         }
+
+    def remove_invalid(self):
+        self.members = [m for m in self.members if m.cost_valid]

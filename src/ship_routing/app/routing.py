@@ -62,6 +62,42 @@ class RoutingResult:
         with path.open("w", encoding="utf-8") as fh:
             json.dump(data, fh, indent=indent, default=_default)
 
+    @classmethod
+    def load_json(cls, path: Path) -> RoutingResult:
+        """Load a RoutingResult from disk."""
+        with Path(path).open("r", encoding="utf-8") as fh:
+            data = json.load(fh)
+
+        seed_member = (
+            PopulationMember.from_dict(data["seed_member"])
+            if data.get("seed_member")
+            else None
+        )
+        elite_population = (
+            Population.from_dict(data["elite_population"])
+            if data.get("elite_population")
+            else None
+        )
+        log_data = data.get("log")
+        logs = (
+            RoutingLog(
+                config=log_data.get("config", {}),
+                stages=[
+                    StageLog(
+                        name=stage["name"],
+                        metrics=stage.get("metrics", {}),
+                        timestamp=stage.get("timestamp", ""),
+                    )
+                    for stage in log_data.get("stages", [])
+                ],
+            )
+            if log_data
+            else None
+        )
+        return RoutingResult(
+            seed_member=seed_member, elite_population=elite_population, logs=logs
+        )
+
 
 @dataclass
 class StageLog:
@@ -146,7 +182,25 @@ class RoutingApp:
         # Stage 0 to 4:
         seed_member, population = self._stage_initialization(forcing)
         population = self._stage_warmup(population, seed_member, forcing)
-        population = self._stage_genetic_evolution(population, seed_member, forcing)
+
+        # Initialize adaptive parameters for genetic algorithm
+        W = self.config.hyper.mutation_width_fraction
+        D = self.config.hyper.mutation_displacement_fraction
+        q = self.config.hyper.selection_quantile
+
+        # Genetic algorithm generation loop
+        for generation in range(self.config.hyper.generations):
+            population = self._stage_ga_mutation(
+                population, seed_member, forcing, W, D, q, generation
+            )
+            population = self._stage_ga_crossover(
+                population, seed_member, forcing, generation
+            )
+            population = self._stage_ga_selection(
+                population, seed_member, q, generation
+            )
+            W, D, q = self._stage_ga_adaptation(W, D, q, generation)
+
         elite_population = self._stage_post_processing(population, forcing)
 
         return RoutingResult(
@@ -282,6 +336,7 @@ class RoutingApp:
 
         # Add seed back: P ← P ∪ {r_seed}
         population = Population.from_members(warmed_members).add_member(seed_member)
+        population.remove_invalid()
 
         self._log_stage_metrics(
             "warmup",
@@ -290,64 +345,78 @@ class RoutingApp:
 
         return population
 
-    def _stage_genetic_evolution(
+    def _stage_ga_mutation(
         self,
         population: Population,
         seed_member: PopulationMember,
         forcing: ForcingData,
+        W: float,
+        D: float,
+        q: float,
+        generation: int,
     ) -> Population:
-        """Stage 2: Genetic evolution via mutation, crossover, selection.
-
-        Steps:
-            1. Directed mutation
-            2. Crossover pairwise --> offspring
-            3. Selection from offpring
-            4. Parameter adaptation (not implemented)
-        """
+        """GA sub-stage 1: Directed mutation of population members."""
         params = self.config.hyper
-        M = params.population_size
         rng = self._ensure_rng()
+        members = population.members
 
-        # Extract adaptive parameters (placeholder for now)
-        W = params.mutation_width_fraction
-        D = params.mutation_displacement_fraction
-        q = params.selection_quantile
-
-        for generation in range(params.generations):
-            members = population.members
-
-            # Directed mutation
-            mutated_members = []
-            for member in members[:-1]:
-                length = member.route.length_meters
-                mutated_route = stochastic_mutation(
-                    route=member.route,
-                    number_of_iterations=params.mutation_iterations,
-                    mod_width=W * length,
-                    max_move_meters=D * length,
-                    rng=rng,
-                )
-                mutated_cost = self._route_cost(mutated_route, forcing)
-                selected_route, selected_cost = select_from_pair(
-                    p=params.selection_acceptance_rate,
-                    route_a=member.route,
-                    route_b=mutated_route,
-                    cost_a=member.cost,
-                    cost_b=mutated_cost,
-                    rng=rng,
-                )
-                mutated_members.append(
-                    PopulationMember(route=selected_route, cost=selected_cost)
-                )
-
-            # New population incl. seed memeber again
-            population = Population.from_members(mutated_members).add_member(
-                seed_member
+        # Directed mutation
+        mutated_members = []
+        for member in members[:-1]:
+            length = member.route.length_meters
+            mutated_route = stochastic_mutation(
+                route=member.route,
+                number_of_iterations=params.mutation_iterations,
+                mod_width=W * length,
+                max_move_meters=D * length,
+                rng=rng,
+            )
+            mutated_cost = self._route_cost(mutated_route, forcing)
+            selected_route, selected_cost = select_from_pair(
+                p=params.selection_acceptance_rate,
+                route_a=member.route,
+                route_b=mutated_route,
+                cost_a=member.cost,
+                cost_b=mutated_cost,
+                rng=rng,
+            )
+            mutated_members.append(
+                PopulationMember(route=selected_route, cost=selected_cost)
             )
 
-            # Crossover
-            offspring_members = []
+        # New population incl. seed member again
+        population = Population.from_members(mutated_members).add_member(seed_member)
 
+        self._log_stage_metrics(
+            "ga_mutation",
+            generation=generation,
+            **self._population_stats(population.members),
+        )
+
+        return population
+
+    def _stage_ga_crossover(
+        self,
+        population: Population,
+        seed_member: PopulationMember,
+        forcing: ForcingData,
+        generation: int,
+    ) -> Population:
+        """GA sub-stage 2: Crossover to generate offspring."""
+        params = self.config.hyper
+        M = params.population_size
+
+        # Crossover
+        if params.crossover_rounds == 0:
+            # No crossover: use mutated population directly
+            # Get members without seed (last member is always seed)
+            offspring_members = (
+                population.members[:-1].copy()
+                if hasattr(population.members[:-1], "copy")
+                else list(population.members[:-1])
+            )
+        else:
+            offspring_members = []
             for _ in range(params.crossover_rounds):
                 for _ in range(M):
                     # Select two parents from current population
@@ -356,8 +425,8 @@ class RoutingApp:
                     )
 
                     # Apply crossover operator C_s
-                    if params.crossover_strategy == "minimal_cost":
-                        try:
+                    try:
+                        if params.crossover_strategy == "minimal_cost":
                             child_route = crossover_routes_minimal_cost(
                                 parent_a.route,
                                 parent_b.route,
@@ -365,15 +434,15 @@ class RoutingApp:
                                 wind_data_set=forcing.winds,
                                 wave_data_set=forcing.waves,
                             )
-                        except UnboundLocalError:
-                            logging.warning(
-                                "crossover_routes_minimal_cost failed; using parent_a"
+                        else:  # "random"
+                            child_route = crossover_routes_random(
+                                parent_a.route, parent_b.route
                             )
-                            child_route = parent_a.route
-                    else:  # "random"
-                        child_route = crossover_routes_random(
-                            parent_a.route, parent_b.route
+                    except Exception:
+                        logging.warning(
+                            "crossover_routes_minimal_cost failed; using parent_a"
                         )
+                        child_route = parent_a.route
 
                     offspring_members.append(
                         PopulationMember(
@@ -382,35 +451,67 @@ class RoutingApp:
                         )
                     )
 
-            # Add back seed member
-            offspring = Population.from_members(offspring_members).add_member(
-                seed_member
-            )
+        # Add back seed member
+        offspring = Population.from_members(offspring_members).add_member(seed_member)
 
-            # Selection from offspring
-            selected_members = select_from_population(
-                members=offspring.members,
-                quantile=q,
-                target_size=M - 1,
-                rng=self._rng,
-            )
+        self._log_stage_metrics(
+            "ga_crossover",
+            generation=generation,
+            **self._population_stats(offspring.members),
+        )
 
-            # Add back seed route
-            population = Population.from_members(selected_members).add_member(
-                seed_member
-            )
+        return offspring
 
-            # Parameter adaptation
-            # TODO: Implement adaptive W, D, q
-            W, D, q = W, D, q
+    def _stage_ga_selection(
+        self,
+        population: Population,
+        seed_member: PopulationMember,
+        q: float,
+        generation: int,
+    ) -> Population:
+        """GA sub-stage 3: Selection from population."""
+        params = self.config.hyper
+        M = params.population_size
 
-            self._log_stage_metrics(
-                "ga_generation",
-                generation=generation,
-                **self._population_stats(population.members),
-            )
+        # Selection from offspring
+        selected_members = select_from_population(
+            members=population.members,
+            quantile=q,
+            target_size=M - 1,
+            rng=self._rng,
+        )
+
+        # Add back seed route
+        population = Population.from_members(selected_members).add_member(seed_member)
+
+        self._log_stage_metrics(
+            "ga_selection",
+            generation=generation,
+            **self._population_stats(population.members),
+        )
 
         return population
+
+    def _stage_ga_adaptation(
+        self,
+        W: float,
+        D: float,
+        q: float,
+        generation: int,
+    ) -> tuple[float, float, float]:
+        """GA sub-stage 4: Adapt mutation and selection parameters."""
+        # TODO: Implement adaptive W, D, q
+        W_new, D_new, q_new = W, D, q
+
+        self._log_stage_metrics(
+            "ga_adaptation",
+            generation=generation,
+            W=W_new,
+            D=D_new,
+            q=q_new,
+        )
+
+        return W_new, D_new, q_new
 
     def _stage_post_processing(
         self,
@@ -498,13 +599,13 @@ class RoutingApp:
         costs = np.array([member.cost for member in population])
         return {
             "population_size": len(population),
-            "cost_min": float(np.min(costs)),
-            "cost_max": float(np.max(costs)),
-            "cost_mean": float(np.mean(costs)),
-            "cost_median": float(np.median(costs)),
-            "cost_std": float(np.std(costs)),
-            "cost_q25": float(np.quantile(costs, 0.25)),
-            "cost_q75": float(np.quantile(costs, 0.75)),
+            "cost_min": float(np.nanmin(costs)),
+            "cost_max": float(np.nanmax(costs)),
+            "cost_mean": float(np.nanmean(costs)),
+            "cost_median": float(np.nanmedian(costs)),
+            "cost_std": float(np.nanstd(costs)),
+            "cost_q25": float(np.nanquantile(costs, 0.25)),
+            "cost_q75": float(np.nanquantile(costs, 0.75)),
         }
 
     def _ensure_rng(self) -> np.random.Generator:
