@@ -12,7 +12,34 @@ def stochastic_mutation(
     max_move_meters: float | None = None,
     rng=None,
 ) -> Route:
-    """Apply non-local mutations without acceptance logic (selection handles that)."""
+    """Apply non-local mutations..
+
+    Performs stochastic mutations by moving waypoints perpendicular to the route
+    within a specified width and maximum displacement.
+
+    Parameters
+    ----------
+    route : Route
+        Route to mutate
+    number_of_iterations : int, default=1
+        Number of mutation iterations to apply
+    mod_width : float, optional
+        Width of the modification window in meters
+    max_move_meters : float, optional
+        Maximum distance to move waypoints in meters
+    rng : random generator, optional
+        Random number generator (defaults to np.random)
+
+    Returns
+    -------
+    Route
+        Mutated route
+
+    Raises
+    ------
+    ValueError
+        If mod_width or max_move_meters are not provided
+    """
     if mod_width is None or max_move_meters is None:
         raise ValueError("mod_width and max_move_meters must be provided")
 

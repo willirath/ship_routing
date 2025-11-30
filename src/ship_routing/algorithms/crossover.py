@@ -11,7 +11,23 @@ def crossover_routes_random(
     route_0: Route = None,
     route_1: Route = None,
 ) -> Route:
-    """Randomly cross over routes."""
+    """Randomly cross over routes.
+
+    Segments the two routes at their intersection points and randomly
+    selects segments from each parent to create a new route.
+
+    Parameters
+    ----------
+    route_0 : Route
+        First parent route
+    route_1 : Route
+        Second parent route
+
+    Returns
+    -------
+    Route
+        New route created by random crossover of parent segments
+    """
     segments_0, segments_1 = route_0.segment_at(route_1)
     segments_mix = [
         s0s1[np.random.randint(0, 2)] for s0s1 in zip(segments_0, segments_1)
@@ -37,7 +53,33 @@ def crossover_routes_minimal_cost(
     ship: Ship = SHIP_DEFAULT,
     physics: Physics = PHYSICS_DEFAULT,
 ) -> Route:
-    """Cross over routes to minimise cost."""
+    """Cross over routes to minimise cost.
+
+    Segments the two routes at their intersection points and selects
+    the lower-cost segment from each pair to create a new route.
+
+    Parameters
+    ----------
+    route_0 : Route
+        First parent route
+    route_1 : Route
+        Second parent route
+    current_data_set : xr.Dataset
+        Ocean current forcing data
+    wind_data_set : xr.Dataset
+        Wind forcing data
+    wave_data_set : xr.Dataset
+        Wave forcing data
+    ship : Ship, default=SHIP_DEFAULT
+        Ship characteristics
+    physics : Physics, default=PHYSICS_DEFAULT
+        Physics parameters
+
+    Returns
+    -------
+    Route
+        New route created by selecting minimum-cost segments
+    """
     segments_0, segments_1 = route_0.segment_at(route_1)
     cost_0 = [
         s.cost_through(

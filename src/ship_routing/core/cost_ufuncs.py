@@ -22,8 +22,8 @@ def power_maintain_speed_ufunc(
     This largely implements the resistance estimates due to calm water and sea
     state as outlined in
         Mannarini, G., Pinardi, N., Coppini, G., Oddo, P., and Iafrati, A.:
-        VISIR-I: small vessels – least-time nautical routes using wave forecasts,
-        Geosci. Model Dev., 9, 1597–1625, 2016. https://doi.org/10.5194/gmd-9-1597-2016
+        VISIR-I: small vessels - least-time nautical routes using wave forecasts,
+        Geosci. Model Dev., 9, 1597-1625, 2016. https://doi.org/10.5194/gmd-9-1597-2016
     and wind resistance as outlined in
         Kim K-S, Roh M-I. ISO 15016:2015-Based Method for Estimating the Fuel Oil Consumption
         of a Ship. Journal of Marine Science and Engineering. 2020; 8(10):791.
@@ -36,28 +36,29 @@ def power_maintain_speed_ufunc(
 
     Parameters
     ----------
-    u_ship_og: float
-        Ship eastward speed over ground in m/s.  Defaults to: 0.0
-    v_ship_og: float
-        Ship northward speed over ground in m/s.  Defaults to: 0.0
-    u_current: float
-        Ocean currents eastward speed over ground in m/s.  Defaults to: 0.0
-    v_current: float
-        Ocean currents northward speed over ground in m/s.  Defaults to: 0.0
-    u_wind: float
-        Eastward 10 m wind in m/s.  Defaults to: 0.0
-    v_wind: float
-        Northward 10 m wind in m/s.  Defaults to: 0.0
-    w_wave_height: float
-        Spectral significant wave height in m.  Defaults to: 0.0
-    physics: Physics
-        Physics parameters.
-    ship: Ship
-        Ship parameters.
+    u_ship_og: float, default=0.0
+        Ship eastward speed over ground in m/s
+    v_ship_og: float, default=0.0
+        Ship northward speed over ground in m/s
+    u_current: float, default=0.0
+        Ocean currents eastward speed over ground in m/s
+    v_current: float, default=0.0
+        Ocean currents northward speed over ground in m/s
+    u_wind: float, default=0.0
+        Eastward 10 m wind in m/s
+    v_wind: float, default=0.0
+        Northward 10 m wind in m/s
+    w_wave_height: float, default=0.0
+        Spectral significant wave height in m
+    physics: Physics, default=PHYSICS_DEFAULT
+        Physics parameters
+    ship: Ship, default=SHIP_DEFAULT
+        Ship parameters
 
+    Returns
     -------
-    float:
-        Power in W (=kg*m2/s3) needed to maintain speed over ground.
+    float
+        Power in W (=kg*m2/s3) needed to maintain speed over ground
     """
 
     # speed through water
@@ -128,21 +129,21 @@ def hazard_conditions_wave_height_ufunc(
 
     Follows
         Mannarini, G., Pinardi, N., Coppini, G., Oddo, P., and Iafrati, A.:
-        VISIR-I: small vessels – least-time nautical routes using wave forecasts,
-        Geosci. Model Dev., 9, 1597–1625, 2016. https://doi.org/10.5194/gmd-9-1597-2016
+        VISIR-I: small vessels - least-time nautical routes using wave forecasts,
+        Geosci. Model Dev., 9, 1597-1625, 2016. https://doi.org/10.5194/gmd-9-1597-2016
     but only accounts for ration of wave height and ship length. Disregarding wave period
     and angle of attack, this amounts to cheching wether wave height / ship length < 1/40.
 
     Parameters
     ----------
-    ship: Ship
-        Ship parameters.
-    w_wave_height_m: float
-       Significant wave height in m. Defaults to: 0.0
+    ship: Ship, default=Ship()
+        Ship parameters
+    w_wave_height_m: float, default=0.0
+        Significant wave height in m
 
     Returns
     -------
-    bool:
-        Whether any of the stability thresholds is violated.
+    bool
+        Whether any of the stability thresholds is violated
     """
     return (w_wave_height_m / ship.waterline_length_m) > 1 / 40.0

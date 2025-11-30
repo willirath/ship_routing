@@ -35,7 +35,42 @@ def gradient_descent_time_shift(
     ship=SHIP_DEFAULT,
     physics=PHYSICS_DEFAULT,
 ):
-    """Do one step of gradient descent by shifting times."""
+    """Do one step of gradient descent by shifting times.
+
+    Computes cost gradients with respect to waypoint times and adjusts
+    times to reduce total route cost.
+
+    Parameters
+    ----------
+    route : Route
+        Route to optimize
+    current_data_set : xr.Dataset
+        Ocean current forcing data
+    wind_data_set : xr.Dataset
+        Wind forcing data
+    wave_data_set : xr.Dataset
+        Wave forcing data
+    time_shift_seconds : float
+        Test increment for gradient computation in seconds
+    learning_rate_percent : float
+        Learning rate as percentage of current cost
+    ship : Ship, default=SHIP_DEFAULT
+        Ship characteristics
+    physics : Physics, default=PHYSICS_DEFAULT
+        Physics parameters
+
+    Returns
+    -------
+    Route
+        Route with adjusted waypoint times
+
+    Raises
+    ------
+    ZeroGradientsError
+        If all gradients are zero (route at extremum)
+    LargeIncrementError
+        If computed shifts exceed test increment
+    """
     gradients = np.array(
         [
             route.cost_gradient_time_shift(
@@ -85,7 +120,44 @@ def gradient_descent_along_track(
     ship=SHIP_DEFAULT,
     physics=PHYSICS_DEFAULT,
 ):
-    """Do one step of gradient descent with along-track shifts."""
+    """Do one step of gradient descent with along-track shifts.
+
+    Computes cost gradients with respect to along-track waypoint positions
+    and adjusts positions to reduce total route cost.
+
+    Parameters
+    ----------
+    route : Route
+        Route to optimize
+    current_data_set : xr.Dataset
+        Ocean current forcing data
+    wind_data_set : xr.Dataset
+        Wind forcing data
+    wave_data_set : xr.Dataset
+        Wave forcing data
+    distance_meters : float
+        Test increment for gradient computation in meters
+    learning_rate_percent : float
+        Learning rate as percentage of current cost
+    ship : Ship, default=SHIP_DEFAULT
+        Ship characteristics
+    physics : Physics, default=PHYSICS_DEFAULT
+        Physics parameters
+
+    Returns
+    -------
+    Route
+        Route with adjusted waypoint positions
+
+    Raises
+    ------
+    ZeroGradientsError
+        If all gradients are zero (route at extremum)
+    InvalidGradientError
+        If gradients are invalid (e.g., waypoint on land)
+    LargeIncrementError
+        If computed shifts exceed test increment
+    """
     gradients = np.array(
         [
             route.cost_gradient_along_track(
@@ -137,7 +209,44 @@ def gradient_descent_across_track_left(
     ship=SHIP_DEFAULT,
     physics=PHYSICS_DEFAULT,
 ):
-    """Do one step of gradient descent with across-track shifts."""
+    """Do one step of gradient descent with across-track shifts.
+
+    Computes cost gradients with respect to across-track waypoint positions
+    and adjusts positions perpendicular to route to reduce total cost.
+
+    Parameters
+    ----------
+    route : Route
+        Route to optimize
+    current_data_set : xr.Dataset
+        Ocean current forcing data
+    wind_data_set : xr.Dataset
+        Wind forcing data
+    wave_data_set : xr.Dataset
+        Wave forcing data
+    distance_meters : float
+        Test increment for gradient computation in meters
+    learning_rate_percent : float
+        Learning rate as percentage of current cost
+    ship : Ship, default=SHIP_DEFAULT
+        Ship characteristics
+    physics : Physics, default=PHYSICS_DEFAULT
+        Physics parameters
+
+    Returns
+    -------
+    Route
+        Route with adjusted waypoint positions
+
+    Raises
+    ------
+    ZeroGradientsError
+        If all gradients are zero (route at extremum)
+    InvalidGradientError
+        If gradients are invalid (e.g., waypoint on land)
+    LargeIncrementError
+        If computed shifts exceed test increment
+    """
     gradients = np.array(
         [
             route.cost_gradient_across_track_left(
@@ -190,7 +299,39 @@ def gradient_descent(
     wave_data_set: xr.Dataset = None,
     wind_data_set: xr.Dataset = None,
 ) -> Route:
-    """Execute a single iteration of gradient descent (3 steps: time, across, along)."""
+    """Execute a single iteration of gradient descent (3 steps: time, across, along).
+
+    Performs gradient descent in three sequential steps: time shifts, across-track
+    shifts, and along-track shifts. Handles exceptions by adjusting parameters.
+
+    Parameters
+    ----------
+    route : Route
+        Route to optimize
+    learning_rate_percent_time : float, default=0.5
+        Learning rate for time shifts as percentage of cost
+    time_increment : float, default=1200
+        Test increment for time gradient computation in seconds
+    learning_rate_percent_along : float, default=0.5
+        Learning rate for along-track shifts as percentage of cost
+    dist_shift_along : float, default=10000
+        Test increment for along-track gradient computation in meters
+    learning_rate_percent_across : float, default=0.5
+        Learning rate for across-track shifts as percentage of cost
+    dist_shift_across : float, default=10000
+        Test increment for across-track gradient computation in meters
+    current_data_set : xr.Dataset
+        Ocean current forcing data
+    wave_data_set : xr.Dataset
+        Wave forcing data
+    wind_data_set : xr.Dataset
+        Wind forcing data
+
+    Returns
+    -------
+    Route
+        Optimized route after gradient descent iteration
+    """
     try:
         route = gradient_descent_time_shift(
             route=route,
