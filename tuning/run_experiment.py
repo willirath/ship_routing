@@ -148,10 +148,10 @@ def run_experiment(
     """Configure and run a routing experiment."""
     logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
     journey = JourneyConfig(
-        lon_waypoints=(-80.5, -62.0),
-        lat_waypoints=(30.0, 35.0),
+        lon_waypoints=(-80.5, -20),
+        lat_waypoints=(30.0, 50.0),
         time_start="2021-01-01T00:00",
-        speed_knots=7.0,
+        speed_knots=10.0,
         time_resolution_hours=12.0,
     )
     base = Path(data_dir) / "data_large"

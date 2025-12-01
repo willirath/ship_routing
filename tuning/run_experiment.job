@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #SBATCH --job-name=sr_tune
-#SBATCH --ntasks=150
+#SBATCH --ntasks=400
 #SBATCH --cpus-per-task=2
 #SBATCH --mem-per-cpu=6G
 #SBATCH --time=02:00:00
@@ -17,11 +17,19 @@ export FTP_PROXY=http://10.0.7.235:3128
 
 eval "$(pixi shell-hook)"
 
-for population_size in 32 64 128 256; do
+  --crossover-strategy [minimal_cost|random]
+                                  Crossover strategy: minimal_cost or random.
+  --crossover-rounds INTEGER      Number of crossover rounds.
+
+for population_size in 16 32 64; do
     for random_seed in {0..5}; do
-        for generations in 2 4 8 16; do
-	    for mutation_iterations in 1 2 4; do
-                echo "./run_experiment.py --random-seed ${random_seed} --population-size ${population_size} --generations ${generations} --mutation-iterations ${mutation_iterations}"
+        for generations in 2 4 6 8;  do
+	    for mutation_iterations in 1 2 3; do
+		for crossover_strategy in "minimal_cost" "random"; do
+		    for crossover_rounds in 1 2; do
+		        echo "./run_experiment.py --random-seed ${random_seed} --population-size ${population_size} --generations ${generations} --mutation-iterations ${mutation_iterations} --crossover-strategy ${crossover_strategy} --crossover-rounds ${crossover_rounds}"
+		    done
+		done
             done
 	done
     done
