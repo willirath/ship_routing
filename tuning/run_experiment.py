@@ -5,6 +5,7 @@ import json
 import logging
 from pathlib import Path
 import sys
+import uuid
 
 import matplotlib.pyplot as plt
 import pandas as pd
@@ -148,11 +149,11 @@ def run_experiment(
     """Configure and run a routing experiment."""
     logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
     journey = JourneyConfig(
-        lon_waypoints=(-80.5, -20),
+        lon_waypoints=(-80.5, -11.0),
         lat_waypoints=(30.0, 50.0),
         time_start="2021-01-01T00:00",
         speed_knots=10.0,
-        time_resolution_hours=12.0,
+        time_resolution_hours=6.0,
     )
     base = Path(data_dir) / "data_large"
     forcing = ForcingConfig(
@@ -202,6 +203,7 @@ def run_experiment(
 
     # Write logs
     run_id = datetime.now().isoformat(timespec="milliseconds").replace(":", "-")
+    run_id = f"{run_id}_{uuid.uuid4()}"
     output_file = Path(log_dir) / f"run_{run_id}.json"
     result.dump_json(output_file)
     click.echo(f"Results saved to {output_file}")
