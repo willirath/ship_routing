@@ -5,3 +5,4 @@ doc/examples/data_large
 .pixi/
 *.tex
 tuning/runs/*json
+tuning/data_large
