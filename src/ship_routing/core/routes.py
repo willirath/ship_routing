@@ -14,6 +14,16 @@ from typing import Iterable, Tuple, Any
 
 from functools import lru_cache
 from .config import MAX_CACHE_SIZE
+
+# Fallback for @profile decorator when not using line_profiler
+try:
+    profile
+except NameError:
+
+    def profile(func):
+        return func
+
+
 from .geodesics import (
     get_length_meters,
     get_distance_meters,
@@ -293,6 +303,7 @@ class Leg:
         az_rad = np.deg2rad(self.azimuth_degrees)
         return spd * np.sin(az_rad), spd * np.cos(az_rad)
 
+    @profile
     @lru_cache(maxsize=MAX_CACHE_SIZE)
     def cost_through(
         self,
@@ -358,6 +369,7 @@ class Leg:
         else:
             return pwr.mean().data[()] * self.duration_seconds
 
+    @profile
     def hazard_through(
         self,
         current_data_set: xr.Dataset = None,
@@ -721,6 +733,7 @@ class Route:
         )
         return self.replace_waypoint(n=n, new_way_point=wp_moved)
 
+    @profile
     @lru_cache(maxsize=MAX_CACHE_SIZE)
     def cost_through(
         self,
@@ -741,6 +754,7 @@ class Route:
             )
         )
 
+    @profile
     @lru_cache(maxsize=MAX_CACHE_SIZE)
     def cost_per_leg_through(
         self,
@@ -900,6 +914,7 @@ class Route:
             )
         )
 
+    @profile
     def cost_gradient_across_track_left(
         self,
         n: int = None,
@@ -937,6 +952,7 @@ class Route:
             )
         ) / distance_meters
 
+    @profile
     def cost_gradient_along_track(
         self,
         n: int = None,
@@ -974,6 +990,7 @@ class Route:
             )
         ) / distance_meters
 
+    @profile
     def cost_gradient_time_shift(
         self,
         n: int = None,

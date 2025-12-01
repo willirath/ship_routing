@@ -9,7 +9,16 @@ from functools import lru_cache
 from .config import MAX_CACHE_SIZE
 from .hashable_dataset import HashableDataset, make_hashable
 
+# Fallback for @profile decorator when not using line_profiler
+try:
+    profile
+except NameError:
 
+    def profile(func):
+        return func
+
+
+@profile
 def load_currents(
     data_file: Path = None,
     lon_name: str = "longitude",
@@ -72,6 +81,7 @@ def load_currents(
     return make_hashable(ds)
 
 
+@profile
 def load_winds(
     data_file: Path = None,
     lon_name: str = "longitude",
@@ -134,6 +144,7 @@ def load_winds(
     return make_hashable(ds)
 
 
+@profile
 def load_waves(
     data_file: Path = None,
     lon_name: str = "longitude",
@@ -192,6 +203,7 @@ def load_waves(
     return make_hashable(ds)
 
 
+@profile
 def _filter_times(
     ds: xr.Dataset = None,
     time_start: np.datetime64 = None,
@@ -229,6 +241,7 @@ def _filter_times(
     return ds
 
 
+@profile
 @lru_cache(maxsize=MAX_CACHE_SIZE)
 def _select_ij(
     ds: xr.Dataset = None,
@@ -264,6 +277,7 @@ def _select_ij(
     return ds.isel(lon=i, lat=j)  # .compute()
 
 
+@profile
 @lru_cache(maxsize=MAX_CACHE_SIZE)
 def _select_l(
     ds: xr.Dataset = None,
@@ -286,6 +300,7 @@ def _select_l(
     return ds.isel(time=l)  # .compute()
 
 
+@profile
 @lru_cache(maxsize=MAX_CACHE_SIZE)
 def select_data_for_leg(
     ds: xr.Dataset = None,
