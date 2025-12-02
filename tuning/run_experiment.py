@@ -5,6 +5,7 @@ import json
 import logging
 from pathlib import Path
 import sys
+import uuid
 
 import matplotlib.pyplot as plt
 import pandas as pd
@@ -124,6 +125,66 @@ from ship_routing.core.population import Population, PopulationMember
     default="runs",
     help="Directory to save experiment results.",
 )
+# Redis options
+@click.option(
+    "--redis-host",
+    type=str,
+    default=None,
+    help="Redis host for result collection (if specified, skips file output).",
+)
+@click.option(
+    "--redis-port",
+    type=int,
+    default=6379,
+    help="Redis port.",
+)
+@click.option(
+    "--redis-password",
+    type=str,
+    default=None,
+    help="Redis password (optional).",
+)
+# Journey parameters
+@click.option(
+    "--lon-wp",
+    "lon_waypoints",
+    type=float,
+    multiple=True,
+    default=(-80.5, -11.0),
+    help="Longitude waypoints (e.g., --lon-wp -80.5 --lon-wp -11.0).",
+)
+@click.option(
+    "--lat-wp",
+    "lat_waypoints",
+    type=float,
+    multiple=True,
+    default=(30.0, 50.0),
+    help="Latitude waypoints (e.g., --lat-wp 30.0 --lat-wp 50.0).",
+)
+@click.option(
+    "--time-start",
+    type=str,
+    default="2021-01-01T00:00",
+    help="Start time in ISO format (e.g., 2021-01-01T00:00).",
+)
+@click.option(
+    "--time-end",
+    type=str,
+    default=None,
+    help="End time in ISO format (optional).",
+)
+@click.option(
+    "--speed-knots",
+    type=float,
+    default=10.0,
+    help="Ship speed in knots (optional).",
+)
+@click.option(
+    "--time-resolution-hours",
+    type=float,
+    default=6.0,
+    help="Time resolution in hours.",
+)
 def run_experiment(
     data_dir,
     population_size,
@@ -144,15 +205,26 @@ def run_experiment(
     time_increment,
     distance_increment,
     log_dir,
+    redis_host,
+    redis_port,
+    redis_password,
+    lon_waypoints,
+    lat_waypoints,
+    time_start,
+    time_end,
+    speed_knots,
+    time_resolution_hours,
 ) -> RoutingResult:
     """Configure and run a routing experiment."""
     logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
+
     journey = JourneyConfig(
-        lon_waypoints=(-80.5, -62.0),
-        lat_waypoints=(30.0, 35.0),
-        time_start="2021-01-01T00:00",
-        speed_knots=7.0,
-        time_resolution_hours=12.0,
+        lon_waypoints=lon_waypoints,
+        lat_waypoints=lat_waypoints,
+        time_start=time_start,
+        time_end=time_end,
+        speed_knots=speed_knots,
+        time_resolution_hours=time_resolution_hours,
     )
     base = Path(data_dir) / "data_large"
     forcing = ForcingConfig(
@@ -202,9 +274,26 @@ def run_experiment(
 
     # Write logs
     run_id = datetime.now().isoformat(timespec="milliseconds").replace(":", "-")
-    output_file = Path(log_dir) / f"run_{run_id}.json"
-    result.dump_json(output_file)
-    click.echo(f"Results saved to {output_file}")
+    run_id = f"{run_id}_{uuid.uuid4()}"
+
+    if redis_host:
+        # Write to Redis using msgpack
+        import redis
+
+        r = redis.Redis(
+            host=redis_host,
+            port=redis_port,
+            password=redis_password,
+            decode_responses=False,
+        )
+        key = f"result:{run_id}"
+        r.set(key, result.to_msgpack())
+        click.echo(f"Result stored in Redis: {key}")
+    else:
+        # Original file-based output
+        output_file = Path(log_dir) / f"run_{run_id}.json"
+        result.dump_json(output_file)
+        click.echo(f"Results saved to {output_file}")
 
     return result
 

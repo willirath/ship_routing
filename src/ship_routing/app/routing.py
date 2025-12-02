@@ -54,8 +54,9 @@ class RoutingResult:
             "log": self.logs.to_dict() if self.logs else None,
         }
 
-    def dump_json(self, path: Path | str, *, indent: int = 2) -> None:
-        """Write routes and logs to JSON."""
+    def to_msgpack(self) -> bytes:
+        """Serialize to MessagePack binary format."""
+        import msgpack
 
         def _default(obj: Any):
             if isinstance(obj, np.generic):
@@ -64,20 +65,19 @@ class RoutingResult:
                 return obj.isoformat()
             if isinstance(obj, Path):
                 return str(obj)
-            raise TypeError(f"Object of type {type(obj)!r} is not JSON serialisable")
+            # Handle pandas Timestamp
+            try:
+                if hasattr(obj, "isoformat"):
+                    return obj.isoformat()
+            except Exception:
+                pass
+            raise TypeError(f"Object of type {type(obj)!r} is not serialisable")
 
-        data = self.to_dict()
-        path = Path(path)
-        path.parent.mkdir(parents=True, exist_ok=True)
-        with path.open("w", encoding="utf-8") as fh:
-            json.dump(data, fh, indent=indent, default=_default)
+        return msgpack.packb(self.to_dict(), use_bin_type=True, default=_default)
 
     @classmethod
-    def load_json(cls, path: Path) -> RoutingResult:
-        """Load a RoutingResult from disk."""
-        with Path(path).open("r", encoding="utf-8") as fh:
-            data = json.load(fh)
-
+    def from_dict(cls, data: dict) -> "RoutingResult":
+        """Reconstruct RoutingResult from dictionary."""
         seed_member = (
             PopulationMember.from_dict(data["seed_member"])
             if data.get("seed_member")
@@ -104,9 +104,42 @@ class RoutingResult:
             if log_data
             else None
         )
-        return RoutingResult(
+        return cls(
             seed_member=seed_member, elite_population=elite_population, logs=logs
         )
+
+    @classmethod
+    def from_msgpack(cls, data: bytes) -> "RoutingResult":
+        """Deserialize from MessagePack binary format."""
+        import msgpack
+
+        dict_data = msgpack.unpackb(data, raw=False)
+        return cls.from_dict(dict_data)
+
+    def dump_json(self, path: Path | str, *, indent: int = 2) -> None:
+        """Write routes and logs to JSON."""
+
+        def _default(obj: Any):
+            if isinstance(obj, np.generic):
+                return obj.item()
+            if isinstance(obj, datetime):
+                return obj.isoformat()
+            if isinstance(obj, Path):
+                return str(obj)
+            raise TypeError(f"Object of type {type(obj)!r} is not JSON serialisable")
+
+        data = self.to_dict()
+        path = Path(path)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with path.open("w", encoding="utf-8") as fh:
+            json.dump(data, fh, indent=indent, default=_default)
+
+    @classmethod
+    def load_json(cls, path: Path) -> RoutingResult:
+        """Load a RoutingResult from disk."""
+        with Path(path).open("r", encoding="utf-8") as fh:
+            data = json.load(fh)
+        return cls.from_dict(data)
 
     def plot_cost_evolution(self, ax=None):
         """Plot cost evolution across optimization stages."""
