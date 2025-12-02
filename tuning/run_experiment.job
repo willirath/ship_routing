@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 #SBATCH --job-name=sr_tune
-#SBATCH --ntasks=1200
+#SBATCH --ntasks=1500
 #SBATCH --cpus-per-task=1
-#SBATCH --mem-per-cpu=4G
+#SBATCH --mem-per-cpu=3G
 #SBATCH --time=24:00:00
 #SBATCH --partition=base
 
@@ -17,23 +17,61 @@ export FTP_PROXY=http://10.0.7.235:3128
 
 eval "$(pixi shell-hook)"
 
+# forward route
 for selection_quantile in 0.2 0.5; do
 	for selection_acceptance_rate in 0.0 0.1 0.2; do
 		for population_size in 16 32 64; do
 			for random_seed in {0..11}; do
 				for generations in 2 4 6 8;  do
 					for mutation_iterations in 1 2 3; do
-						for crossover_strategy in "minimal_cost" "random"; do
-							for crossover_rounds in 0 1 2; do
-								echo "./run_experiment.py" \
-									"--random-seed ${random_seed}" \
-									"--population-size ${population_size}" \
-									"--generations ${generations}" \
-									"--mutation-iterations ${mutation_iterations}" \
-									"--crossover-strategy ${crossover_strategy}" \
-									"--selection-quantile ${selection_quantile}" \
-									"--selection-acceptance-rate ${selection_acceptance_rate}" \
-									"--crossover-rounds ${crossover_rounds}"
+						for gd_iterations in 0 1 2; do
+							for crossover_strategy in "minimal_cost" "random"; do
+								for crossover_rounds in 0 1 2; do
+									echo "./run_experiment.py" \
+										"--lon-wp -80.5 --lon-wp -11.0" \
+										"--lat-wp 30.0 --lat-wp 50.0" \
+										"--random-seed ${random_seed}" \
+										"--population-size ${population_size}" \
+										"--generations ${generations}" \
+										"--mutation-iterations ${mutation_iterations}" \
+										"--gd-iterations ${gd_iterations}" \
+										"--crossover-strategy ${crossover_strategy}" \
+										"--selection-quantile ${selection_quantile}" \
+										"--selection-acceptance-rate ${selection_acceptance_rate}" \
+										"--crossover-rounds ${crossover_rounds}"
+								done
+							done
+						done
+					done
+				done
+			done
+		done
+	done
+done | shuf | xargs -L1 -P${SLURM_NTASKS} -I {} srun --ntasks=1 --exclusive -c ${SLURM_CPUS_PER_TASK} bash -c {}
+
+# backward route (reversed waypoints)
+for selection_quantile in 0.2 0.5; do
+	for selection_acceptance_rate in 0.0 0.1 0.2; do
+		for population_size in 16 32 64; do
+			for random_seed in {0..11}; do
+				for generations in 2 4 6 8;  do
+					for mutation_iterations in 1 2 3; do
+						for gd_iterations in 0 1 2; do
+							for crossover_strategy in "minimal_cost" "random"; do
+								for crossover_rounds in 0 1 2; do
+									echo "./run_experiment.py" \
+										"--lon-wp -11.0 --lon-wp -80.5" \
+										"--lat-wp 50.0 --lat-wp 30.0" \
+										"--random-seed ${random_seed}" \
+										"--population-size ${population_size}" \
+										"--generations ${generations}" \
+										"--mutation-iterations ${mutation_iterations}" \
+										"--gd-iterations ${gd_iterations}" \
+										"--crossover-strategy ${crossover_strategy}" \
+										"--selection-quantile ${selection_quantile}" \
+										"--selection-acceptance-rate ${selection_acceptance_rate}" \
+										"--crossover-rounds ${crossover_rounds}"
+								done
 							done
 						done
 					done

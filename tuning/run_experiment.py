@@ -125,6 +125,47 @@ from ship_routing.core.population import Population, PopulationMember
     default="runs",
     help="Directory to save experiment results.",
 )
+# Journey parameters
+@click.option(
+    "--lon-wp",
+    "lon_waypoints",
+    type=float,
+    multiple=True,
+    default=(-80.5, -11.0),
+    help="Longitude waypoints (e.g., --lon-wp -80.5 --lon-wp -11.0).",
+)
+@click.option(
+    "--lat-wp",
+    "lat_waypoints",
+    type=float,
+    multiple=True,
+    default=(30.0, 50.0),
+    help="Latitude waypoints (e.g., --lat-wp 30.0 --lat-wp 50.0).",
+)
+@click.option(
+    "--time-start",
+    type=str,
+    default="2021-01-01T00:00",
+    help="Start time in ISO format (e.g., 2021-01-01T00:00).",
+)
+@click.option(
+    "--time-end",
+    type=str,
+    default=None,
+    help="End time in ISO format (optional).",
+)
+@click.option(
+    "--speed-knots",
+    type=float,
+    default=10.0,
+    help="Ship speed in knots (optional).",
+)
+@click.option(
+    "--time-resolution-hours",
+    type=float,
+    default=6.0,
+    help="Time resolution in hours.",
+)
 def run_experiment(
     data_dir,
     population_size,
@@ -145,15 +186,23 @@ def run_experiment(
     time_increment,
     distance_increment,
     log_dir,
+    lon_waypoints,
+    lat_waypoints,
+    time_start,
+    time_end,
+    speed_knots,
+    time_resolution_hours,
 ) -> RoutingResult:
     """Configure and run a routing experiment."""
     logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
+
     journey = JourneyConfig(
-        lon_waypoints=(-80.5, -11.0),
-        lat_waypoints=(30.0, 50.0),
-        time_start="2021-01-01T00:00",
-        speed_knots=10.0,
-        time_resolution_hours=6.0,
+        lon_waypoints=lon_waypoints,
+        lat_waypoints=lat_waypoints,
+        time_start=time_start,
+        time_end=time_end,
+        speed_knots=speed_knots,
+        time_resolution_hours=time_resolution_hours,
     )
     base = Path(data_dir) / "data_large"
     forcing = ForcingConfig(
