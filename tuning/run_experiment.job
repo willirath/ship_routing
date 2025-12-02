@@ -24,6 +24,7 @@ REDIS_PASSWORD=$(openssl rand -base64 32)
 mkdir -p "$REDIS_DIR"
 
 srun --ntasks=1 --exclusive --job-name=redis_server bash -c "
+    echo \$(hostname) > .redis_host_${SLURM_JOB_ID}
     redis-server --port ${REDIS_PORT} \
                  --protected-mode no \
                  --bind 0.0.0.0 \
@@ -34,9 +35,9 @@ srun --ntasks=1 --exclusive --job-name=redis_server bash -c "
                  --dir ${REDIS_DIR}
 " &
 
-# Get Redis host from job allocation
+# Get Redis host from the file written by the Redis task
 sleep 5
-REDIS_HOST=$(sinfo -N -o "%N" | grep -v NODELIST | head -1)
+REDIS_HOST=$(cat .redis_host_${SLURM_JOB_ID})
 echo "Redis running on ${REDIS_HOST}:${REDIS_PORT} (password protected)"
 
 # forward route
