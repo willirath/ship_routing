@@ -50,7 +50,22 @@ class RoutingResult:
         """Serialize to MessagePack binary format."""
         import msgpack
 
-        return msgpack.packb(self.to_dict(), use_bin_type=True)
+        def _default(obj: Any):
+            if isinstance(obj, np.generic):
+                return obj.item()
+            if isinstance(obj, datetime):
+                return obj.isoformat()
+            if isinstance(obj, Path):
+                return str(obj)
+            # Handle pandas Timestamp
+            try:
+                if hasattr(obj, "isoformat"):
+                    return obj.isoformat()
+            except Exception:
+                pass
+            raise TypeError(f"Object of type {type(obj)!r} is not serialisable")
+
+        return msgpack.packb(self.to_dict(), use_bin_type=True, default=_default)
 
     @classmethod
     def from_dict(cls, data: dict) -> "RoutingResult":
