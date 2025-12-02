@@ -34,9 +34,9 @@ srun --ntasks=1 --exclusive --job-name=redis_server bash -c "
                  --dir ${REDIS_DIR}
 " &
 
-# Get Redis host (node where Redis is running)
+# Get Redis host from job allocation
 sleep 5
-REDIS_HOST=$(squeue -j $SLURM_JOB_ID -h -o %N | head -1)
+REDIS_HOST=$(sinfo -N -o "%N" | grep -v NODELIST | head -1)
 echo "Redis running on ${REDIS_HOST}:${REDIS_PORT} (password protected)"
 
 # forward route
