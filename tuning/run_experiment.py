@@ -125,6 +125,25 @@ from ship_routing.core.population import Population, PopulationMember
     default="runs",
     help="Directory to save experiment results.",
 )
+# Redis options
+@click.option(
+    "--redis-host",
+    type=str,
+    default=None,
+    help="Redis host for result collection (if specified, skips file output).",
+)
+@click.option(
+    "--redis-port",
+    type=int,
+    default=6379,
+    help="Redis port.",
+)
+@click.option(
+    "--redis-password",
+    type=str,
+    default=None,
+    help="Redis password (optional).",
+)
 # Journey parameters
 @click.option(
     "--lon-wp",
@@ -186,6 +205,9 @@ def run_experiment(
     time_increment,
     distance_increment,
     log_dir,
+    redis_host,
+    redis_port,
+    redis_password,
     lon_waypoints,
     lat_waypoints,
     time_start,
@@ -253,9 +275,25 @@ def run_experiment(
     # Write logs
     run_id = datetime.now().isoformat(timespec="milliseconds").replace(":", "-")
     run_id = f"{run_id}_{uuid.uuid4()}"
-    output_file = Path(log_dir) / f"run_{run_id}.json"
-    result.dump_json(output_file)
-    click.echo(f"Results saved to {output_file}")
+
+    if redis_host:
+        # Write to Redis using msgpack
+        import redis
+
+        r = redis.Redis(
+            host=redis_host,
+            port=redis_port,
+            password=redis_password,
+            decode_responses=False,
+        )
+        key = f"result:{run_id}"
+        r.set(key, result.to_msgpack())
+        click.echo(f"Result stored in Redis: {key}")
+    else:
+        # Original file-based output
+        output_file = Path(log_dir) / f"run_{run_id}.json"
+        result.dump_json(output_file)
+        click.echo(f"Results saved to {output_file}")
 
     return result
 
