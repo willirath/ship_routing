@@ -32,6 +32,8 @@ black-jupyter = ">=24.10.0,<25"
 ipywidgets = ">=8.1.8,<9"
 seaborn = ">=0.13.2,<0.14"
 line_profiler = ">=5.0.0,<6"
+zstd = ">=1.5.7,<2"
+tar = ">=1.35,<2"
 
 [tasks]
 tests = "pytest -q"
