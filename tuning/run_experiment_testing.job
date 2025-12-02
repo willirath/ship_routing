@@ -43,11 +43,11 @@ echo "Redis running on ${REDIS_HOST}:${REDIS_PORT} (password protected)"
 # forward route (testing: simplified hyperparameter grid, ~48 jobs)
 for selection_quantile in 0.2; do
 	for selection_acceptance_rate in 0.0; do
-		for population_size in 16 32; do
+		for population_size in 4 6; do
 			for random_seed in 0 6 11; do
-				for generations in 2 6;  do
+				for generations in 1 2;  do
 					for mutation_iterations in 1 3; do
-						for gd_iterations in 0 2; do
+						for gd_iterations in 0; do
 							for crossover_strategy in "minimal_cost"; do
 								for crossover_rounds in 0; do
 									echo "./run_experiment.py" \
@@ -78,11 +78,11 @@ done | shuf | xargs -L1 -P${SLURM_NTASKS} -I {} srun --ntasks=1 --exclusive -c $
 # backward route (reversed waypoints, ~48 jobs)
 for selection_quantile in 0.2; do
 	for selection_acceptance_rate in 0.0; do
-		for population_size in 16 32; do
+		for population_size in 4 6; do
 			for random_seed in 0 6 11; do
-				for generations in 2 6;  do
+				for generations in 1 2;  do
 					for mutation_iterations in 1 3; do
-						for gd_iterations in 0 2; do
+						for gd_iterations in 0; do
 							for crossover_strategy in "minimal_cost"; do
 								for crossover_rounds in 0; do
 									echo "./run_experiment.py" \
@@ -111,7 +111,6 @@ for selection_quantile in 0.2; do
 done | shuf | xargs -L1 -P${SLURM_NTASKS} -I {} srun --ntasks=1 --exclusive -c ${SLURM_CPUS_PER_TASK} bash -c {}
 
 # Extract results from Redis
-wait
 echo "All jobs completed. Extracting results from Redis..."
 ./extract_redis_results.py --redis-host ${REDIS_HOST} --redis-port ${REDIS_PORT} --redis-password "${REDIS_PASSWORD}" --output results_test.msgpack
 

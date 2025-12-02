@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 #SBATCH --job-name=sr_tune
-#SBATCH --ntasks=1500
+#SBATCH --ntasks=1000
 #SBATCH --cpus-per-task=1
-#SBATCH --mem-per-cpu=3G
+#SBATCH --mem-per-cpu=4G
 #SBATCH --time=24:00:00
 #SBATCH --partition=base
 
@@ -111,7 +111,7 @@ for selection_quantile in 0.2 0.5; do
 done | shuf | xargs -L1 -P${SLURM_NTASKS} -I {} srun --ntasks=1 --exclusive -c ${SLURM_CPUS_PER_TASK} bash -c {}
 
 # Extract results from Redis
-wait
+sleep 30
 echo "All jobs completed. Extracting results from Redis..."
 ./extract_redis_results.py --redis-host ${REDIS_HOST} --redis-port ${REDIS_PORT} --redis-password "${REDIS_PASSWORD}" --output results.msgpack
 

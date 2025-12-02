@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 """Helper to load results from extracted msgpack file."""
 
 import msgpack
