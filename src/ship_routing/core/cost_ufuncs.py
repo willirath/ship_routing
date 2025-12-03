@@ -5,7 +5,16 @@ from .config import (
     PHYSICS_DEFAULT,
 )  # TODO: replace globals with explicit config wiring
 
+# Fallback for @profile decorator when not using line_profiler
+try:
+    profile
+except NameError:
 
+    def profile(func):
+        return func
+
+
+@profile
 def power_maintain_speed_ufunc(
     u_ship_og_ms: float = 0.0,
     v_ship_og_ms: float = 0.0,
@@ -121,6 +130,7 @@ def power_maintain_speed_ufunc(
     return power_through_water + power_through_waves + power_through_wind
 
 
+@profile
 def hazard_conditions_wave_height_ufunc(
     ship: Ship = Ship(),
     w_wave_height_m: float = 0.0,

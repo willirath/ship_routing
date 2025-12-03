@@ -10,7 +10,16 @@ from .cost_ufuncs import power_maintain_speed_ufunc, hazard_conditions_wave_heig
 import numpy as np
 import xarray as xr
 
+# Fallback for @profile decorator when not using line_profiler
+try:
+    profile
+except NameError:
 
+    def profile(func):
+        return func
+
+
+@profile
 def align_along_track_arrays(*argv) -> tuple:
     """Align all fields on their `along` dimension."""
     # find longest array
@@ -27,6 +36,7 @@ def align_along_track_arrays(*argv) -> tuple:
     )
 
 
+@profile
 def maybe_cast_number_to_data_array(obj):
     """Make obj a data array with one along-track point."""
     if np.array(obj).shape == ():
@@ -38,6 +48,7 @@ def maybe_cast_number_to_data_array(obj):
     return obj
 
 
+@profile
 def power_maintain_speed(
     u_ship_og_ms: xr.DataArray = 0.0,
     v_ship_og_ms: xr.DataArray = 0.0,
@@ -123,6 +134,7 @@ def power_maintain_speed(
     )
 
 
+@profile
 def hazard_conditions_wave_height(
     u_ship_og_ms: xr.DataArray = 0.0,
     v_ship_og_ms: xr.DataArray = 0.0,
