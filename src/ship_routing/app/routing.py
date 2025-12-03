@@ -338,8 +338,13 @@ class RoutingApp:
         self._log_stage_metrics(
             "load_forcing",
             currents=forcing.currents is not None,
+            currents_shape=(
+                str(forcing.currents.sizes) if forcing.currents is not None else "{}"
+            ),
             waves=forcing.waves is not None,
+            waves_shape=str(forcing.waves.sizes) if forcing.waves is not None else "{}",
             winds=forcing.winds is not None,
+            winds_shape=str(forcing.winds.sizes) if forcing.winds is not None else "{}",
         )
         return forcing
 
