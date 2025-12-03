@@ -59,7 +59,7 @@ run_batched() {
 	mapfile -t cmds
 	local batch_size=$(( (${#cmds[@]} + SLURM_NTASKS - 2) / (SLURM_NTASKS - 1) ))
 	printf '%s\n' "${cmds[@]}" | \
-		xargs -L${batch_size} -P$((SLURM_NTASKS-1)) srun --ntasks=1 \
+		xargs -d '\n' -L${batch_size} -P$((SLURM_NTASKS-1)) srun --ntasks=1 \
 			--exclusive -c "${SLURM_CPUS_PER_TASK}" bash -c \
 			'for cmd in "$@"; do bash -c "$cmd"; done' bash
 }
