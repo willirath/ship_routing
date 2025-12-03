@@ -15,6 +15,7 @@ def select_from_population(
 
     Selects members from the top quantile of the population by cost,
     then randomly samples from this elite pool to reach target size.
+    Members with invalid costs (NaN or inf) are filtered out before selection.
 
     Parameters
     ----------
@@ -35,11 +36,21 @@ def select_from_population(
     if not members:
         return []
 
-    sorted_members = sorted(members, key=lambda m: m.cost)
+    # Filter out members with invalid costs (NaN or inf)
+    valid_members = [m for m in members if _is_valid_cost(m.cost)]
+    if not valid_members:
+        return []
+
+    sorted_members = sorted(valid_members, key=lambda m: m.cost)
     elite_count = int(np.ceil(len(sorted_members) * quantile))
     elite_pool = sorted_members[:elite_count]
     indices = rng.integers(0, len(elite_pool), size=target_size)
     return [elite_pool[idx] for idx in indices]
+
+
+def _is_valid_cost(cost: float) -> bool:
+    """Check if a cost value is valid (not NaN or inf)."""
+    return not (np.isnan(cost) or np.isinf(cost))
 
 
 def select_from_pair(
@@ -53,7 +64,8 @@ def select_from_pair(
     """Select higher-cost route with probability p and select lower-cost route otherwise.
 
     Implements probabilistic selection allowing occasional acceptance of
-    worse solutions to, e.g., maintain population diversity.
+    worse solutions while rejecting routes with invalid costs (NaN or inf).
+    Routes with NaN or inf costs are always rejected in favor of valid routes.
 
     Parameters
     ----------
@@ -64,9 +76,9 @@ def select_from_pair(
     route_b : Route
         Second route candidate
     cost_a : float
-        Cost of first route
+        Cost of first route (NaN/inf if invalid)
     cost_b : float
-        Cost of second route
+        Cost of second route (NaN/inf if invalid)
     rng : random generator
         Random number generator
 
@@ -75,6 +87,15 @@ def select_from_pair(
     tuple of (Route, float)
         Selected (route, cost) pair
     """
+    # Fail-fast: if route_b is invalid, always return route_a
+    if not _is_valid_cost(cost_b):
+        return route_a, cost_a
+
+    # Fail-fast: if route_a is invalid (cost_b is valid), return route_b
+    if not _is_valid_cost(cost_a):
+        return route_b, cost_b
+
+    # Both routes are valid: proceed with normal selection logic
     if cost_b > cost_a:
         higher_route, lower_route = route_b, route_a
         higher_cost, lower_cost = cost_b, cost_a
