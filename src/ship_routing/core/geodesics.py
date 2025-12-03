@@ -1,7 +1,8 @@
 import numpy as np
 import pint
 import pyproj
-from shapely.geometry import LineString
+import shapely.affinity
+from shapely.geometry import LineString, Point, Polygon
 
 from collections import namedtuple
 
@@ -258,9 +259,8 @@ def compute_ellipse_bbox(
     lat_start: float = None,
     lon_end: float = None,
     lat_end: float = None,
-    multiplier: float = None,  # rename to speed_og_multiplier
-    buffer: float = 1.0,  # TODO: buffer_degrees
-    grid_resolution: float = None,
+    length_multiplier: float = None,
+    buffer_degrees: float = 1.0,
 ) -> tuple:
     """Compute bounding box of geodesic ellipse containing all allowed routes.
 
@@ -281,12 +281,10 @@ def compute_ellipse_bbox(
         Ending longitude in degrees
     lat_end : float
         Ending latitude in degrees
-    multiplier : float
+    length_multiplier : float
         Maximum route length as multiple of direct distance (e.g., 4.0)
-    buffer : float, defaults=1.0
+    buffer_degrees : float, default=1.0
         Safety buffer in degrees to add beyond ellipse bbox
-    grid_resolution : float
-        Grid resolution in degrees for sampling ellipse points
 
     Returns
     -------
@@ -299,8 +297,7 @@ def compute_ellipse_bbox(
 
     # Create local Azimuthal Equidistant CRS centered at route midpoint
     local_proj_dict = (
-        f"+proj=aeqd +lon_0={lon_center} +lat_0={lat_center} "
-        "+ellps=WGS84 +units=m"
+        f"+proj=aeqd +lon_0={lon_center} +lat_0={lat_center} " "+ellps=WGS84 +units=m"
     )
 
     # Create bidirectional transformer between EPSG:4326 and local projection
@@ -322,80 +319,36 @@ def compute_ellipse_bbox(
     # focal distance (center to focus)
     c = direct_dist / 2.0
     # semi-major axis
-    a = multiplier * c
+    a = length_multiplier * c
     # semi-minor axis
     if a > c:
-        b = np.sqrt(a ** 2 - c ** 2)
+        b = np.sqrt(a**2 - c**2)
     else:
         b = 0.0
 
-    # Create rough bbox in xy space around the route with buffer
-    # Convert grid_resolution from degrees to meters (~111 km per degree)
-    grid_resolution_m = grid_resolution * 111_000
-    buffer_m = buffer * 111_000
+    # Create ellipse using Shapely affinity transformations
+    # Compute rotation angle (angle from origin to end point)
+    angle_radians = np.arctan2(y_end, x_end)
+    angle_degrees = np.degrees(angle_radians)
 
-    # Estimate rough bbox in xy space
-    xy_extent = max(direct_dist, a) + buffer_m
-    x_min_rough = -xy_extent
-    x_max_rough = xy_extent
-    y_min_rough = -xy_extent
-    y_max_rough = xy_extent
+    # Create circle at origin with radius = semi-major axis
+    circle = Point(0, 0).buffer(a)
 
-    # Generate xy grid
-    x_grid = np.arange(x_min_rough, x_max_rough + grid_resolution_m, grid_resolution_m)
-    y_grid = np.arange(y_min_rough, y_max_rough + grid_resolution_m, grid_resolution_m)
-    x_mesh, y_mesh = np.meshgrid(x_grid, y_grid)
+    # Scale to create ellipse (scale y-axis by b/a ratio)
+    ellipse = shapely.affinity.scale(circle, 1.0, b / a)
 
-    # Compute sum of distances to both foci for all grid points (Euclidean)
-    dist_to_start = np.sqrt((x_mesh - x_start) ** 2 + (y_mesh - y_start) ** 2)
-    dist_to_end = np.sqrt((x_mesh - x_end) ** 2 + (y_mesh - y_end) ** 2)
-    sum_distances = dist_to_start + dist_to_end
+    # Rotate ellipse to align with route
+    ellipse_rotated = shapely.affinity.rotate(ellipse, angle_degrees, origin=(0, 0))
 
-    # Filter points within ellipse (with small tolerance)
-    max_sum_dist = multiplier * direct_dist
-    ellipse_mask = sum_distances <= (max_sum_dist + grid_resolution_m)
+    # Get ellipse exterior coordinates in xy space
+    xy_coords = np.array(ellipse_rotated.exterior.coords)
 
-    # Find bbox in xy space
-    if np.any(ellipse_mask):
-        x_ellipse = x_mesh[ellipse_mask]
-        y_ellipse = y_mesh[ellipse_mask]
+    # Transform all ellipse exterior points to lat/lon
+    lons, lats = transformer_to_latlon.transform(xy_coords[:, 0], xy_coords[:, 1])
 
-        x_min_xy = np.min(x_ellipse) - buffer_m
-        x_max_xy = np.max(x_ellipse) + buffer_m
-        y_min_xy = np.min(y_ellipse) - buffer_m
-        y_max_xy = np.max(y_ellipse) + buffer_m
-    else:
-        # Fallback if no points found (shouldn't happen with reasonable parameters)
-        x_min_xy = -max_sum_dist - buffer_m
-        x_max_xy = max_sum_dist + buffer_m
-        y_min_xy = -max_sum_dist - buffer_m
-        y_max_xy = max_sum_dist + buffer_m
-
-    # Transform bbox corners + edge midpoints back to lat/lon for accuracy
-    bbox_corners_xy = [
-        (x_min_xy, y_min_xy),
-        (x_max_xy, y_min_xy),
-        (x_min_xy, y_max_xy),
-        (x_max_xy, y_max_xy),
-        ((x_min_xy + x_max_xy) / 2, y_min_xy),
-        ((x_min_xy + x_max_xy) / 2, y_max_xy),
-        (x_min_xy, (y_min_xy + y_max_xy) / 2),
-        (x_max_xy, (y_min_xy + y_max_xy) / 2),
-    ]
-
-    # Transform corners back to lat/lon
-    bbox_corners_latlon = [
-        transformer_to_latlon.transform(x, y) for x, y in bbox_corners_xy
-    ]
-
-    # Find min/max lat/lon
-    lons = [pt[0] for pt in bbox_corners_latlon]
-    lats = [pt[1] for pt in bbox_corners_latlon]
-
-    lon_min = np.min(lons)
-    lon_max = np.max(lons)
-    lat_min = np.min(lats)
-    lat_max = np.max(lats)
+    # Create Polygon from transformed coordinates, apply buffer, and extract bbox
+    polygon_latlon = Polygon(zip(lons, lats))
+    lon_min, lat_min, lon_max, lat_max = polygon_latlon.buffer(buffer_degrees).bounds
 
     # Clamp latitudes to valid range
     lat_min = np.clip(lat_min, -90, 90)
