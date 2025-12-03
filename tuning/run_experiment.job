@@ -14,7 +14,7 @@
 
 # Configuration
 NRUNS=50000
-RESULTS_FILE="results.msgpack"
+RESULTS_FILE="results/results.msgpack"
 
 # Load compiler environment
 module load gcc12-env
