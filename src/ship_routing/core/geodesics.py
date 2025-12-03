@@ -1,7 +1,8 @@
 import numpy as np
 import pint
 import pyproj
-from shapely.geometry import LineString
+import shapely.affinity
+from shapely.geometry import LineString, Point, Polygon
 
 from collections import namedtuple
 
@@ -251,3 +252,106 @@ def get_leg_azimuth(
         return_back_azimuth=False,
     )
     return (fwd_az + bwd_az) / 2.0, fwd_az, bwd_az
+
+
+def compute_ellipse_bbox(
+    lon_start: float = None,
+    lat_start: float = None,
+    lon_end: float = None,
+    lat_end: float = None,
+    length_multiplier: float = None,
+    buffer_degrees: float = 1.0,
+) -> tuple:
+    """Compute bounding box of geodesic ellipse containing all allowed routes.
+
+    For a journey with two waypoints (start and end), computes a lat/lon
+    bounding box that contains all routes where the path length is at most
+    N times the direct geodesic distance.
+
+    Uses local Azimuthal Equidistant projection to handle edge cases
+    (antimeridian crossing, polar regions) automatically.
+
+    Parameters
+    ----------
+    lon_start : float
+        Starting longitude in degrees
+    lat_start : float
+        Starting latitude in degrees
+    lon_end : float
+        Ending longitude in degrees
+    lat_end : float
+        Ending latitude in degrees
+    length_multiplier : float
+        Maximum route length as multiple of direct distance (e.g., 4.0)
+    buffer_degrees : float, default=1.0
+        Safety buffer in degrees to add beyond ellipse bbox
+
+    Returns
+    -------
+    tuple of float
+        (lon_min, lon_max, lat_min, lat_max) bounding box in degrees
+    """
+    # Compute route center point
+    lon_center = (lon_start + lon_end) / 2.0
+    lat_center = (lat_start + lat_end) / 2.0
+
+    # Create local Azimuthal Equidistant CRS centered at route midpoint
+    local_proj_dict = (
+        f"+proj=aeqd +lon_0={lon_center} +lat_0={lat_center} " "+ellps=WGS84 +units=m"
+    )
+
+    # Create bidirectional transformer between EPSG:4326 and local projection
+    transformer_to_local = pyproj.Transformer.from_crs(
+        "EPSG:4326", local_proj_dict, always_xy=True
+    )
+    transformer_to_latlon = pyproj.Transformer.from_crs(
+        local_proj_dict, "EPSG:4326", always_xy=True
+    )
+
+    # Transform start and end points to local xy coordinates
+    x_start, y_start = transformer_to_local.transform(lon_start, lat_start)
+    x_end, y_end = transformer_to_local.transform(lon_end, lat_end)
+
+    # Compute direct distance in local xy coordinates
+    direct_dist = np.sqrt((x_end - x_start) ** 2 + (y_end - y_start) ** 2)
+
+    # Compute ellipse parameters in xy space (Euclidean)
+    # focal distance (center to focus)
+    c = direct_dist / 2.0
+    # semi-major axis
+    a = length_multiplier * c
+    # semi-minor axis
+    if a > c:
+        b = np.sqrt(a**2 - c**2)
+    else:
+        b = 0.0
+
+    # Create ellipse using Shapely affinity transformations
+    # Compute rotation angle (angle from origin to end point)
+    angle_radians = np.arctan2(y_end, x_end)
+    angle_degrees = np.degrees(angle_radians)
+
+    # Create circle at origin with radius = semi-major axis
+    circle = Point(0, 0).buffer(a)
+
+    # Scale to create ellipse (scale y-axis by b/a ratio)
+    ellipse = shapely.affinity.scale(circle, 1.0, b / a)
+
+    # Rotate ellipse to align with route
+    ellipse_rotated = shapely.affinity.rotate(ellipse, angle_degrees, origin=(0, 0))
+
+    # Get ellipse exterior coordinates in xy space
+    xy_coords = np.array(ellipse_rotated.exterior.coords)
+
+    # Transform all ellipse exterior points to lat/lon
+    lons, lats = transformer_to_latlon.transform(xy_coords[:, 0], xy_coords[:, 1])
+
+    # Create Polygon from transformed coordinates, apply buffer, and extract bbox
+    polygon_latlon = Polygon(zip(lons, lats))
+    lon_min, lat_min, lon_max, lat_max = polygon_latlon.buffer(buffer_degrees).bounds
+
+    # Clamp latitudes to valid range
+    lat_min = np.clip(lat_min, -90, 90)
+    lat_max = np.clip(lat_max, -90, 90)
+
+    return (lon_min, lon_max, lat_min, lat_max)
