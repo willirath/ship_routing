@@ -40,6 +40,13 @@ sleep 5
 REDIS_HOST=$(cat .redis_host_${SLURM_JOB_ID})
 echo "Redis running on ${REDIS_HOST}:${REDIS_PORT} (password protected)"
 
+# Function to batch commands for parallel execution
+run_batched() {
+	mapfile -t cmds
+	local batch_size=$(( (${#cmds[@]} + ${SLURM_NTASKS} - 2) / (${SLURM_NTASKS} - 1) ))
+	printf '%s\n' "${cmds[@]}" | xargs -L${batch_size} -P$((${SLURM_NTASKS}-1)) srun --ntasks=1 --exclusive -c ${SLURM_CPUS_PER_TASK} bash -c 'echo "$@" | xargs -L1 -I{} bash -c {}' _
+}
+
 # forward route
 for selection_quantile in 0.2 0.5; do
 	for selection_acceptance_rate in 0.0 0.1 0.2; do
@@ -73,7 +80,7 @@ for selection_quantile in 0.2 0.5; do
 			done
 		done
 	done
-done | shuf | xargs -L1 -P${SLURM_NTASKS} -I {} srun --ntasks=1 --exclusive -c ${SLURM_CPUS_PER_TASK} bash -c {}
+done | shuf | run_batched
 
 # backward route (reversed waypoints)
 for selection_quantile in 0.2 0.5; do
@@ -108,7 +115,7 @@ for selection_quantile in 0.2 0.5; do
 			done
 		done
 	done
-done | shuf | xargs -L1 -P${SLURM_NTASKS} -I {} srun --ntasks=1 --exclusive -c ${SLURM_CPUS_PER_TASK} bash -c {}
+done | shuf | run_batched
 
 # Extract results from Redis
 sleep 30
