@@ -27,6 +27,14 @@ from ..core.population import Population, PopulationMember
 
 np.seterr(divide="ignore", invalid="ignore")
 
+# Fallback for @profile decorator when not using line_profiler
+try:
+    profile
+except NameError:
+
+    def profile(func):
+        return func
+
 
 @dataclass
 class RoutingResult:
@@ -254,6 +262,7 @@ class RoutingApp:
         self.log = RoutingLog(config=asdict(config))
         self._rng: np.random.Generator | None = None
 
+    @profile
     def run(self) -> RoutingResult:
         """Execute the optimisation pipeline."""
         self._log_stage_metrics("run", message="starting routing run")
@@ -287,6 +296,7 @@ class RoutingApp:
             logs=self.log,
         )
 
+    @profile
     def _load_forcing(self, journey_config) -> ForcingData:
         """Load wind, wave, and current fields according to the config."""
         config = self.config.forcing
@@ -327,6 +337,7 @@ class RoutingApp:
         )
         return forcing
 
+    @profile
     def _stage_initialization(
         self, forcing: ForcingData
     ) -> tuple[PopulationMember, Population]:
@@ -371,6 +382,7 @@ class RoutingApp:
 
         return seed_member, population
 
+    @profile
     def _stage_warmup(
         self,
         population: Population,
@@ -423,6 +435,7 @@ class RoutingApp:
 
         return population
 
+    @profile
     def _stage_ga_mutation(
         self,
         population: Population,
@@ -471,6 +484,7 @@ class RoutingApp:
 
         return population
 
+    @profile
     def _stage_ga_crossover(
         self,
         population: Population,
@@ -536,6 +550,7 @@ class RoutingApp:
 
         return offspring
 
+    @profile
     def _stage_ga_selection(
         self,
         population: Population,
@@ -564,6 +579,7 @@ class RoutingApp:
 
         return population
 
+    @profile
     def _stage_ga_adaptation(
         self,
         W: float,
@@ -583,6 +599,7 @@ class RoutingApp:
 
         return W_new, D_new, q_new
 
+    @profile
     def _stage_post_processing(
         self,
         population: Population,
