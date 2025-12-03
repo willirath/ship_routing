@@ -61,7 +61,7 @@ run_batched() {
 	printf '%s\n' "${cmds[@]}" | \
 		xargs -L${batch_size} -P$((SLURM_NTASKS-1)) srun --ntasks=1 \
 			--exclusive -c "${SLURM_CPUS_PER_TASK}" bash -c \
-			'printf "%s\n" "$@" | xargs -L1 bash -c "eval \"\$@\"" bash' _
+			'for cmd in "$@"; do bash -c "$cmd"; done' bash
 }
 
 # Helper function to get a random unsigned integer
