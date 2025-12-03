@@ -37,6 +37,7 @@ tar = ">=1.35,<2"
 redis-server = "*"
 redis-py = "*"
 msgpack-python = "*"
+shellcheck = ">=0.10.0,<0.11"
 
 [tasks]
 tests = "pytest -q"
