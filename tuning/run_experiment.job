@@ -1,13 +1,25 @@
 #!/usr/bin/env bash
 #SBATCH --job-name=sr_tune
-#SBATCH --ntasks=1000
+#SBATCH --ntasks=1001
 #SBATCH --cpus-per-task=1
 #SBATCH --mem-per-cpu=4G
 #SBATCH --time=24:00:00
 #SBATCH --partition=base
 
+# Script: Random hyperparameter testing
+# 1. Start persistent Redis server for result aggregation
+# 2. Generate N random experiment configurations per route (forward + backward)
+#    Tune Parameter ranges in the generate_commands() function below.
+# 3. Batch commands into groups and execute in parallel across available tasks
+
+# Configuration
+NRUNS=50000
+RESULTS_FILE="results/results.msgpack"
+
+# Load compiler environment
 module load gcc12-env
 
+# Configure HTTP proxy for package downloads
 export http_proxy=http://10.0.7.235:3128
 export https_proxy=http://10.0.7.235:3128
 export ftp_proxy=http://10.0.7.235:3128
@@ -15,9 +27,11 @@ export HTTP_PROXY=http://10.0.7.235:3128
 export HTTPS_PROXY=http://10.0.7.235:3128
 export FTP_PROXY=http://10.0.7.235:3128
 
+# Initialize Pixi environment for Python dependencies
 eval "$(pixi shell-hook)"
 
 # Start Redis server on dedicated node
+# Configure Redis parameters and launch server in background
 REDIS_PORT=6379
 REDIS_DIR="/tmp/redis_data_${SLURM_JOB_ID}"
 REDIS_PASSWORD=$(openssl rand -base64 32)
@@ -37,86 +51,93 @@ srun --ntasks=1 --exclusive --job-name=redis_server bash -c "
 
 # Get Redis host from the file written by the Redis task
 sleep 5
-REDIS_HOST=$(cat .redis_host_${SLURM_JOB_ID})
+REDIS_HOST=$(cat .redis_host_"${SLURM_JOB_ID}")
 echo "Redis running on ${REDIS_HOST}:${REDIS_PORT} (password protected)"
 
-# forward route
-for selection_quantile in 0.2 0.5; do
-	for selection_acceptance_rate in 0.0 0.1 0.2; do
-		for population_size in 16 32 64; do
-			for random_seed in {0..11}; do
-				for generations in 2 4 6 8;  do
-					for mutation_iterations in 1 2 3; do
-						for gd_iterations in 0 1 2; do
-							for crossover_strategy in "minimal_cost" "random"; do
-								for crossover_rounds in 0 1 2; do
-									echo "./run_experiment.py" \
-										"--redis-host ${REDIS_HOST}" \
-										"--redis-port ${REDIS_PORT}" \
-										"--redis-password '${REDIS_PASSWORD}'" \
-										"--lon-wp -80.5 --lon-wp -11.0" \
-										"--lat-wp 30.0 --lat-wp 50.0" \
-										"--random-seed ${random_seed}" \
-										"--population-size ${population_size}" \
-										"--generations ${generations}" \
-										"--mutation-iterations ${mutation_iterations}" \
-										"--gd-iterations ${gd_iterations}" \
-										"--crossover-strategy ${crossover_strategy}" \
-										"--selection-quantile ${selection_quantile}" \
-										"--selection-acceptance-rate ${selection_acceptance_rate}" \
-										"--crossover-rounds ${crossover_rounds}"
-								done
-							done
-						done
-					done
-				done
-			done
-		done
+# Function to batch commands for parallel execution
+run_batched() {
+	mapfile -t cmds
+	local batch_size=$(( (${#cmds[@]} + SLURM_NTASKS - 2) / (SLURM_NTASKS - 1) ))
+	printf '%s\n' "${cmds[@]}" | \
+		xargs -d '\n' -L${batch_size} -P$((SLURM_NTASKS-1)) srun --ntasks=1 \
+			--exclusive -c "${SLURM_CPUS_PER_TASK}" bash -c \
+			'for cmd in "$@"; do bash -c "$cmd"; done' bash
+}
+
+# Helper function to get a random unsigned integer
+random_int() {
+	od -An -tu4 -N4 /dev/urandom | tr -d ' '
+}
+
+# Function to generate random experiment commands for a route
+generate_commands() {
+	local lon_start=$1 lon_end=$2 lat_start=$3 lat_end=$4
+	local time_start=$5 speed_knots=$6 num_samples=$7
+
+	# Define parameter arrays
+	local selection_quantiles=(0.2 0.5)
+	local selection_acceptance_rates=(0.0 0.1 0.2)
+	local population_sizes=(16 32 64)
+	local random_seeds=({0..11})
+	local generations=(2 4 6 8)
+	local mutation_iterations=(1 2 3)
+	local gd_iterations=(0 1 2)
+	local crossover_strategies=("minimal_cost" "random")
+	local crossover_rounds=(0 1 2)
+
+	# Generate N random samples
+	for ((i=0; i<num_samples; i++)); do
+		# Randomly select one value from each parameter array using /dev/urandom
+		local sel_quant=${selection_quantiles[$(random_int) % ${#selection_quantiles[@]}]}
+		local sel_accept=${selection_acceptance_rates[$(random_int) % ${#selection_acceptance_rates[@]}]}
+		local pop_size=${population_sizes[$(random_int) % ${#population_sizes[@]}]}
+		local rand_seed=${random_seeds[$(random_int) % ${#random_seeds[@]}]}
+		local gen=${generations[$(random_int) % ${#generations[@]}]}
+		local mut_iter=${mutation_iterations[$(random_int) % ${#mutation_iterations[@]}]}
+		local gd_iter=${gd_iterations[$(random_int) % ${#gd_iterations[@]}]}
+		local cross_strat=${crossover_strategies[$(random_int) % ${#crossover_strategies[@]}]}
+		local cross_rounds=${crossover_rounds[$(random_int) % ${#crossover_rounds[@]}]}
+
+		echo "./run_experiment.py" \
+			"--redis-host ${REDIS_HOST}" \
+			"--redis-port ${REDIS_PORT}" \
+			"--redis-password '${REDIS_PASSWORD}'" \
+			"--lon-wp ${lon_start} --lon-wp ${lon_end}" \
+			"--lat-wp ${lat_start} --lat-wp ${lat_end}" \
+			"--time-start ${time_start}" \
+			"--speed-knots ${speed_knots}" \
+			"--random-seed ${rand_seed}" \
+			"--population-size ${pop_size}" \
+			"--generations ${gen}" \
+			"--mutation-iterations ${mut_iter}" \
+			"--gd-iterations ${gd_iter}" \
+			"--crossover-strategy ${cross_strat}" \
+			"--selection-quantile ${sel_quant}" \
+			"--selection-acceptance-rate ${sel_accept}" \
+			"--crossover-rounds ${cross_rounds}"
 	done
-done | shuf | xargs -L1 -P${SLURM_NTASKS} -I {} srun --ntasks=1 --exclusive -c ${SLURM_CPUS_PER_TASK} bash -c {}
+}
+
+# forward route
+generate_commands -80.5 -11.0 30.0 50.0 "2021-01-01T00:00" 10.0 ${NRUNS} | run_batched
 
 # backward route (reversed waypoints)
-for selection_quantile in 0.2 0.5; do
-	for selection_acceptance_rate in 0.0 0.1 0.2; do
-		for population_size in 16 32 64; do
-			for random_seed in {0..11}; do
-				for generations in 2 4 6 8;  do
-					for mutation_iterations in 1 2 3; do
-						for gd_iterations in 0 1 2; do
-							for crossover_strategy in "minimal_cost" "random"; do
-								for crossover_rounds in 0 1 2; do
-									echo "./run_experiment.py" \
-										"--redis-host ${REDIS_HOST}" \
-										"--redis-port ${REDIS_PORT}" \
-										"--redis-password '${REDIS_PASSWORD}'" \
-										"--lon-wp -11.0 --lon-wp -80.5" \
-										"--lat-wp 50.0 --lat-wp 30.0" \
-										"--random-seed ${random_seed}" \
-										"--population-size ${population_size}" \
-										"--generations ${generations}" \
-										"--mutation-iterations ${mutation_iterations}" \
-										"--gd-iterations ${gd_iterations}" \
-										"--crossover-strategy ${crossover_strategy}" \
-										"--selection-quantile ${selection_quantile}" \
-										"--selection-acceptance-rate ${selection_acceptance_rate}" \
-										"--crossover-rounds ${crossover_rounds}"
-								done
-							done
-						done
-					done
-				done
-			done
-		done
-	done
-done | shuf | xargs -L1 -P${SLURM_NTASKS} -I {} srun --ntasks=1 --exclusive -c ${SLURM_CPUS_PER_TASK} bash -c {}
+generate_commands -11.0 -80.5 50.0 30.0 "2021-01-01T00:00" 10.0 ${NRUNS} | run_batched
 
 # Extract results from Redis
+# Wait for jobs to finish and extract results
 sleep 30
 echo "All jobs completed. Extracting results from Redis..."
-./extract_redis_results.py --redis-host ${REDIS_HOST} --redis-port ${REDIS_PORT} --redis-password "${REDIS_PASSWORD}" --output results.msgpack
+./extract_redis_results.py \
+	--redis-host "${REDIS_HOST}" \
+	--redis-port "${REDIS_PORT}" \
+	--redis-password "${REDIS_PASSWORD}" \
+	--output "${RESULTS_FILE}"
 
 # Shutdown Redis gracefully
-redis-cli -h ${REDIS_HOST} -p ${REDIS_PORT} -a "${REDIS_PASSWORD}" SHUTDOWN SAVE
+redis-cli -h "${REDIS_HOST}" -p "${REDIS_PORT}" \
+	-a "${REDIS_PASSWORD}" SHUTDOWN SAVE
 
+# Print job resource summary
 jobinfo
 
