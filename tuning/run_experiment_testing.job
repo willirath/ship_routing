@@ -77,13 +77,13 @@ generate_commands() {
 	# Define parameter arrays
 	local selection_quantiles=(0.2 0.5)
 	local selection_acceptance_rates=(0.0 0.1 0.2)
-	local population_sizes=(16 32 64)
+	local population_sizes=(4 6 8)
 	local random_seeds=({0..11})
-	local generations=(2 4 6 8)
-	local mutation_iterations=(1 2 3)
-	local gd_iterations=(0 1 2)
+	local generations=(1 2)
+	local mutation_iterations=(1 2)
+	local gd_iterations=(0 1)
 	local crossover_strategies=("minimal_cost" "random")
-	local crossover_rounds=(0 1 2)
+	local crossover_rounds=(0 1)
 
 	# Generate N random samples
 	for ((i=0; i<num_samples; i++)); do
