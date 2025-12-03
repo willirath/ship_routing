@@ -23,9 +23,18 @@ from ..algorithms import (
 from .config import ForcingConfig, ForcingData, RoutingConfig
 from ..core.routes import Route
 from ..core.data import load_currents, load_waves, load_winds
+from ..core.geodesics import compute_ellipse_bbox
 from ..core.population import Population, PopulationMember
 
 np.seterr(divide="ignore", invalid="ignore")
+
+# Fallback for @profile decorator when not using line_profiler
+try:
+    profile
+except NameError:
+
+    def profile(func):
+        return func
 
 
 @dataclass
@@ -254,6 +263,7 @@ class RoutingApp:
         self.log = RoutingLog(config=asdict(config))
         self._rng: np.random.Generator | None = None
 
+    @profile
     def run(self) -> RoutingResult:
         """Execute the optimisation pipeline."""
         self._log_stage_metrics("run", message="starting routing run")
@@ -287,11 +297,24 @@ class RoutingApp:
             logs=self.log,
         )
 
+    @profile
     def _load_forcing(self, journey_config) -> ForcingData:
         """Load wind, wave, and current fields according to the config."""
         config = self.config.forcing
         time_start = np.datetime64(journey_config.time_start)
         time_end = np.datetime64(journey_config.time_end)
+
+        # Compute spatial bounds if cropping is enabled
+        spatial_bounds = None
+        if config.enable_spatial_cropping:
+            spatial_bounds = compute_ellipse_bbox(
+                lon_start=journey_config.lon_waypoints[0],
+                lat_start=journey_config.lat_waypoints[0],
+                lon_end=journey_config.lon_waypoints[-1],
+                lat_end=journey_config.lat_waypoints[-1],
+                length_multiplier=config.route_length_multiplier,
+                buffer_degrees=config.spatial_buffer_degrees,
+            )
 
         forcing = ForcingData(
             currents=load_currents(
@@ -301,6 +324,7 @@ class RoutingApp:
                 load_eagerly=config.load_eagerly,
                 engine=config.engine,
                 chunks=config.chunks,
+                spatial_bounds=spatial_bounds,
             ),
             waves=load_waves(
                 data_file=config.waves_path,
@@ -309,6 +333,7 @@ class RoutingApp:
                 load_eagerly=config.load_eagerly,
                 engine=config.engine,
                 chunks=config.chunks,
+                spatial_bounds=spatial_bounds,
             ),
             winds=load_winds(
                 data_file=config.winds_path,
@@ -317,16 +342,23 @@ class RoutingApp:
                 load_eagerly=config.load_eagerly,
                 engine=config.engine,
                 chunks=config.chunks,
+                spatial_bounds=spatial_bounds,
             ),
         )
         self._log_stage_metrics(
             "load_forcing",
             currents=forcing.currents is not None,
+            currents_shape=(
+                str(forcing.currents.sizes) if forcing.currents is not None else "{}"
+            ),
             waves=forcing.waves is not None,
+            waves_shape=str(forcing.waves.sizes) if forcing.waves is not None else "{}",
             winds=forcing.winds is not None,
+            winds_shape=str(forcing.winds.sizes) if forcing.winds is not None else "{}",
         )
         return forcing
 
+    @profile
     def _stage_initialization(
         self, forcing: ForcingData
     ) -> tuple[PopulationMember, Population]:
@@ -371,6 +403,7 @@ class RoutingApp:
 
         return seed_member, population
 
+    @profile
     def _stage_warmup(
         self,
         population: Population,
@@ -423,6 +456,7 @@ class RoutingApp:
 
         return population
 
+    @profile
     def _stage_ga_mutation(
         self,
         population: Population,
@@ -471,6 +505,7 @@ class RoutingApp:
 
         return population
 
+    @profile
     def _stage_ga_crossover(
         self,
         population: Population,
@@ -536,6 +571,7 @@ class RoutingApp:
 
         return offspring
 
+    @profile
     def _stage_ga_selection(
         self,
         population: Population,
@@ -564,6 +600,7 @@ class RoutingApp:
 
         return population
 
+    @profile
     def _stage_ga_adaptation(
         self,
         W: float,
@@ -583,6 +620,7 @@ class RoutingApp:
 
         return W_new, D_new, q_new
 
+    @profile
     def _stage_post_processing(
         self,
         population: Population,

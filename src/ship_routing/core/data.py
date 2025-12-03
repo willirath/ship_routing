@@ -29,6 +29,7 @@ def load_currents(
     time_start: np.datetime64 = None,
     time_end: np.datetime64 = None,
     load_eagerly: bool = True,
+    spatial_bounds: tuple = None,
     **kwargs,
 ) -> HashableDataset:
     """Load ocean current data from netCDF file or other formats.
@@ -57,6 +58,8 @@ def load_currents(
         End time for filtering data
     load_eagerly : bool, default=True
         If True, load data into memory immediately
+    spatial_bounds : tuple, optional
+        (lon_min, lon_max, lat_min, lat_max) for spatial cropping
     **kwargs
         Additional arguments passed to xr.open_dataset
 
@@ -76,6 +79,9 @@ def load_currents(
         }
     )
     ds = _filter_times(ds, time_start=time_start, time_end=time_end)
+    if spatial_bounds is not None:
+        lon_min, lon_max, lat_min, lat_max = spatial_bounds
+        ds = _apply_spatial_selection(ds, lon_min, lon_max, lat_min, lat_max)
     if load_eagerly:
         ds = ds.load()
     return make_hashable(ds)
@@ -92,6 +98,7 @@ def load_winds(
     time_start: np.datetime64 = None,
     time_end: np.datetime64 = None,
     load_eagerly: bool = True,
+    spatial_bounds: tuple = None,
     **kwargs,
 ) -> HashableDataset:
     """Load wind data from netCDF file or other formats.
@@ -120,6 +127,8 @@ def load_winds(
         End time for filtering data
     load_eagerly : bool, default=True
         If True, load data into memory immediately
+    spatial_bounds : tuple, optional
+        (lon_min, lon_max, lat_min, lat_max) for spatial cropping
     **kwargs
         Additional arguments passed to xr.open_dataset
 
@@ -139,6 +148,9 @@ def load_winds(
         }
     )
     ds = _filter_times(ds, time_start=time_start, time_end=time_end)
+    if spatial_bounds is not None:
+        lon_min, lon_max, lat_min, lat_max = spatial_bounds
+        ds = _apply_spatial_selection(ds, lon_min, lon_max, lat_min, lat_max)
     if load_eagerly:
         ds = ds.load()
     return make_hashable(ds)
@@ -154,6 +166,7 @@ def load_waves(
     time_start: np.datetime64 = None,
     time_end: np.datetime64 = None,
     load_eagerly: bool = True,
+    spatial_bounds: tuple = None,
     **kwargs,
 ) -> HashableDataset:
     """Load wave data from netCDF file or other formats.
@@ -180,6 +193,8 @@ def load_waves(
         End time for filtering data
     load_eagerly : bool, default=True
         If True, load data into memory immediately
+    spatial_bounds : tuple, optional
+        (lon_min, lon_max, lat_min, lat_max) for spatial cropping
     **kwargs
         Additional arguments passed to xr.open_dataset
 
@@ -198,6 +213,9 @@ def load_waves(
         }
     )
     ds = _filter_times(ds, time_start=time_start, time_end=time_end)
+    if spatial_bounds is not None:
+        lon_min, lon_max, lat_min, lat_max = spatial_bounds
+        ds = _apply_spatial_selection(ds, lon_min, lon_max, lat_min, lat_max)
     if load_eagerly:
         ds = ds.load()
     return make_hashable(ds)
@@ -298,6 +316,39 @@ def _select_l(
         coords={"along": np.linspace(0, 1, n)},
     )
     return ds.isel(time=l)  # .compute()
+
+
+def _apply_spatial_selection(
+    ds: xr.Dataset = None,
+    lon_min: float = None,
+    lon_max: float = None,
+    lat_min: float = None,
+    lat_max: float = None,
+) -> xr.Dataset:
+    """Apply spatial selection to dataset using bounding box.
+
+    Parameters
+    ----------
+    ds : xr.Dataset
+        Input dataset with lon, lat dimensions
+    lon_min : float
+        Minimum longitude for selection
+    lon_max : float
+        Maximum longitude for selection
+    lat_min : float
+        Minimum latitude for selection
+    lat_max : float
+        Maximum latitude for selection
+
+    Returns
+    -------
+    xr.Dataset
+        Dataset cropped to specified bounding box
+    """
+    return ds.sel(
+        lon=slice(lon_min, lon_max),
+        lat=slice(lat_min, lat_max),
+    )
 
 
 @profile

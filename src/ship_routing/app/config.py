@@ -50,6 +50,9 @@ class ForcingConfig:
     engine: str = "zarr"
     chunks: str = "auto"
     load_eagerly: bool = True
+    enable_spatial_cropping: bool = True
+    route_length_multiplier: float = 1.5
+    spatial_buffer_degrees: float = 0.5
 
 
 @dataclass
