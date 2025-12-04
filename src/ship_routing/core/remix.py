@@ -38,7 +38,13 @@ def segment_lines_with_each_other(
         raise ValueError("Lines need to be simple (e.g. not self-intersecting).")
 
     # find intersections
-    intersection = list(line_0.intersection(line_1).geoms)
+    intersection_geom = line_0.intersection(line_1)
+    if intersection_geom.is_empty:
+        intersection = []
+    elif hasattr(intersection_geom, "geoms"):
+        intersection = list(intersection_geom.geoms)
+    else:
+        intersection = [intersection_geom]
     intersection_points = set()
     for geom in intersection:
         if isinstance(geom, shapely.geometry.Point):
@@ -48,6 +54,9 @@ def segment_lines_with_each_other(
                 intersection_points.add(bg)
         else:
             raise ValueError("Intersection can only contain Points and LineStrings.")
+
+    if len(intersection_points) == 0:
+        return (line_0,), (line_1,)
 
     # split
 
