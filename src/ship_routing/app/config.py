@@ -93,7 +93,7 @@ class HyperParams:
     distance_increment: float = 10_000.0  # delta d
 
     # Multiprocessing
-    num_workers: int | None = None  # None = use all available CPUs
+    num_workers: int = 2  # Number of worker processes (0 = sequential)
 
 
 @dataclass(frozen=True)

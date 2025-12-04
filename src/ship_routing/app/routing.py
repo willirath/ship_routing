@@ -40,117 +40,166 @@ except NameError:
 
 # Worker functions for multiprocessing (must be module-level for pickling)
 
+# Global state for worker processes (initialized once per worker)
+_WORKER_STATE = None
 
-def _warmup_worker(args):
+
+@dataclass
+class WorkerState:
+    """State shared across worker function calls in a single process.
+
+    Attributes
+    ----------
+    forcing : ForcingData
+        Ocean forcing data (currents, winds, waves)
+    rng : np.random.Generator
+        Random number generator for this worker
+    params : dict
+        Algorithm parameters dictionary
+    """
+
+    forcing: ForcingData
+    rng: np.random.Generator
+    params: dict
+
+
+def _initialize_worker(forcing: ForcingData, seed: int, params: dict) -> None:
+    """Initialize worker process with shared state.
+
+    Called once per worker process at creation time. Avoids expensive
+    serialization of forcing data and RNG initialization on every task.
+
+    Parameters
+    ----------
+    forcing : ForcingData
+        Ocean forcing data to share across tasks
+    seed : int
+        Random seed for this worker's RNG
+    params : dict
+        Algorithm parameters to share across tasks
+    """
+    global _WORKER_STATE
+    _WORKER_STATE = WorkerState(
+        forcing=forcing,
+        rng=np.random.default_rng(seed),
+        params=params,
+    )
+
+
+def _warmup_worker(member: PopulationMember) -> PopulationMember:
     """Worker function for parallel warmup stage.
 
     Parameters
     ----------
-    args : tuple
-        (member, params_dict, forcing_data, seed_value)
+    member : PopulationMember
+        Population member to mutate and select
 
     Returns
     -------
     PopulationMember
         The processed member after mutation and selection
     """
-    member, params_dict, forcing_data, seed_value = args
-    rng = np.random.default_rng(seed_value)
-
+    state = _WORKER_STATE
     length = member.route.length_meters
+
     mutated_route = stochastic_mutation(
         route=member.route,
-        number_of_iterations=params_dict["mutation_iterations"],
-        mod_width=params_dict["mutation_width_fraction"] * length,
-        max_move_meters=params_dict["mutation_displacement_fraction"] * length,
-        rng=rng,
+        number_of_iterations=state.params["mutation_iterations"],
+        mod_width=state.params["mutation_width_fraction"] * length,
+        max_move_meters=state.params["mutation_displacement_fraction"] * length,
+        rng=state.rng,
     )
     mutated_cost = mutated_route.cost_through(
-        current_data_set=forcing_data.currents,
-        wave_data_set=forcing_data.waves,
-        wind_data_set=forcing_data.winds,
-        ignore_hazards=not params_dict["hazards_enabled"],
+        current_data_set=state.forcing.currents,
+        wave_data_set=state.forcing.waves,
+        wind_data_set=state.forcing.winds,
+        ignore_hazards=not state.params["hazards_enabled"],
     )
 
     selected_route, selected_cost = select_from_pair(
-        p=params_dict["selection_acceptance_rate_warmup"],
+        p=state.params["selection_acceptance_rate_warmup"],
         route_a=member.route,
         route_b=mutated_route,
         cost_a=member.cost,
         cost_b=mutated_cost,
-        rng=rng,
+        rng=state.rng,
     )
     return PopulationMember(route=selected_route, cost=selected_cost)
 
 
-def _mutation_worker(args):
+def _mutation_worker(member: PopulationMember, W: float, D: float) -> PopulationMember:
     """Worker function for parallel GA mutation stage.
 
     Parameters
     ----------
-    args : tuple
-        (member, params_dict, forcing_data, W, D, seed_value)
+    member : PopulationMember
+        Population member to mutate and select
+    W : float
+        Mutation width fraction
+    D : float
+        Mutation displacement fraction
 
     Returns
     -------
     PopulationMember
         The processed member after mutation and selection
     """
-    member, params_dict, forcing_data, W, D, seed_value = args
-    rng = np.random.default_rng(seed_value)
-
+    state = _WORKER_STATE
     length = member.route.length_meters
+
     mutated_route = stochastic_mutation(
         route=member.route,
-        number_of_iterations=params_dict["mutation_iterations"],
+        number_of_iterations=state.params["mutation_iterations"],
         mod_width=W * length,
         max_move_meters=D * length,
-        rng=rng,
+        rng=state.rng,
     )
     mutated_cost = mutated_route.cost_through(
-        current_data_set=forcing_data.currents,
-        wave_data_set=forcing_data.waves,
-        wind_data_set=forcing_data.winds,
-        ignore_hazards=not params_dict["hazards_enabled"],
+        current_data_set=state.forcing.currents,
+        wave_data_set=state.forcing.waves,
+        wind_data_set=state.forcing.winds,
+        ignore_hazards=not state.params["hazards_enabled"],
     )
     selected_route, selected_cost = select_from_pair(
-        p=params_dict["selection_acceptance_rate"],
+        p=state.params["selection_acceptance_rate"],
         route_a=member.route,
         route_b=mutated_route,
         cost_a=member.cost,
         cost_b=mutated_cost,
-        rng=rng,
+        rng=state.rng,
     )
     return PopulationMember(route=selected_route, cost=selected_cost)
 
 
-def _crossover_worker(args):
+def _crossover_worker(
+    parent_indices: tuple[int, int], population_members: list[PopulationMember]
+) -> PopulationMember:
     """Worker function for parallel GA crossover stage.
 
     Parameters
     ----------
-    args : tuple
-        (parent_indices, population_members, params_dict, forcing_data, seed_value)
+    parent_indices : tuple[int, int]
+        Indices of parents in population_members
+    population_members : list[PopulationMember]
+        Population to select parents from
 
     Returns
     -------
     PopulationMember
         The offspring member after crossover
     """
-    parent_indices, population_members, params_dict, forcing_data, seed_value = args
-    rng = np.random.default_rng(seed_value)
-
+    state = _WORKER_STATE
     parent_a = population_members[parent_indices[0]]
     parent_b = population_members[parent_indices[1]]
 
     try:
-        if params_dict["crossover_strategy"] == "minimal_cost":
+        if state.params["crossover_strategy"] == "minimal_cost":
             child_route = crossover_routes_minimal_cost(
                 parent_a.route,
                 parent_b.route,
-                current_data_set=forcing_data.currents,
-                wind_data_set=forcing_data.winds,
-                wave_data_set=forcing_data.waves,
+                current_data_set=state.forcing.currents,
+                wind_data_set=state.forcing.winds,
+                wave_data_set=state.forcing.waves,
             )
         else:  # "random"
             child_route = crossover_routes_random(parent_a.route, parent_b.route)
@@ -159,46 +208,46 @@ def _crossover_worker(args):
         child_route = parent_a.route
 
     child_cost = child_route.cost_through(
-        current_data_set=forcing_data.currents,
-        wave_data_set=forcing_data.waves,
-        wind_data_set=forcing_data.winds,
-        ignore_hazards=not params_dict["hazards_enabled"],
+        current_data_set=state.forcing.currents,
+        wave_data_set=state.forcing.waves,
+        wind_data_set=state.forcing.winds,
+        ignore_hazards=not state.params["hazards_enabled"],
     )
     return PopulationMember(route=child_route, cost=child_cost)
 
 
-def _gradient_descent_worker(args):
+def _gradient_descent_worker(member: PopulationMember) -> PopulationMember:
     """Worker function for parallel gradient descent stage.
 
     Parameters
     ----------
-    args : tuple
-        (member, params_dict, forcing_data)
+    member : PopulationMember
+        Elite member to optimize with gradient descent
 
     Returns
     -------
     PopulationMember
         The processed member after gradient descent
     """
-    member, params_dict, forcing_data = args
+    state = _WORKER_STATE
 
     route = gradient_descent(
         route=member.route,
-        learning_rate_percent_time=params_dict["learning_rate_time"],
-        time_increment=params_dict["time_increment"],
-        learning_rate_percent_along=params_dict["learning_rate_space"],
-        dist_shift_along=params_dict["distance_increment"],
-        learning_rate_percent_across=params_dict["learning_rate_space"],
-        dist_shift_across=params_dict["distance_increment"],
-        current_data_set=forcing_data.currents,
-        wave_data_set=forcing_data.waves,
-        wind_data_set=forcing_data.winds,
+        learning_rate_percent_time=state.params["learning_rate_time"],
+        time_increment=state.params["time_increment"],
+        learning_rate_percent_along=state.params["learning_rate_space"],
+        dist_shift_along=state.params["distance_increment"],
+        learning_rate_percent_across=state.params["learning_rate_space"],
+        dist_shift_across=state.params["distance_increment"],
+        current_data_set=state.forcing.currents,
+        wave_data_set=state.forcing.waves,
+        wind_data_set=state.forcing.winds,
     )
     cost = route.cost_through(
-        current_data_set=forcing_data.currents,
-        wave_data_set=forcing_data.waves,
-        wind_data_set=forcing_data.winds,
-        ignore_hazards=not params_dict["hazards_enabled"],
+        current_data_set=state.forcing.currents,
+        wave_data_set=state.forcing.waves,
+        wind_data_set=state.forcing.winds,
+        ignore_hazards=not state.params["hazards_enabled"],
     )
     return PopulationMember(route=route, cost=cost)
 
@@ -596,21 +645,21 @@ class RoutingApp:
         # Mutate M-1 members with warmup parameters
         members_to_process = population.members[:-1]
 
-        # Generate unique seeds for each worker
-        seeds = rng.integers(0, 2**31 - 1, size=len(members_to_process))
-
-        # Prepare arguments for workers
-        worker_args = [
-            (member, params_dict, forcing, seed)
-            for member, seed in zip(members_to_process, seeds)
-        ]
-
         # Use multiprocessing if enabled, otherwise process sequentially
         if params.num_workers != 0:
-            with ProcessPoolExecutor(max_workers=params.num_workers) as executor:
-                warmed_members = list(executor.map(_warmup_worker, worker_args))
+            # Generate seed for worker initialization
+            worker_seed = int(rng.integers(0, 2**31 - 1))
+
+            with ProcessPoolExecutor(
+                max_workers=params.num_workers,
+                initializer=_initialize_worker,
+                initargs=(forcing, worker_seed, params_dict),
+            ) as executor:
+                warmed_members = list(executor.map(_warmup_worker, members_to_process))
         else:
-            warmed_members = [_warmup_worker(args) for args in worker_args]
+            # Sequential mode: initialize worker state inline
+            _initialize_worker(forcing, int(rng.integers(0, 2**31 - 1)), params_dict)
+            warmed_members = [_warmup_worker(member) for member in members_to_process]
 
         # Add seed back: P ← P ∪ {r_seed}
         population = Population.from_members(warmed_members).add_member(seed_member)
@@ -648,21 +697,28 @@ class RoutingApp:
         # Directed mutation
         members_to_process = members[:-1]
 
-        # Generate unique seeds for each worker
-        seeds = rng.integers(0, 2**31 - 1, size=len(members_to_process))
-
-        # Prepare arguments for workers
-        worker_args = [
-            (member, params_dict, forcing, W, D, seed)
-            for member, seed in zip(members_to_process, seeds)
-        ]
+        # Prepare arguments for workers (member, W, D)
+        worker_args = [(member, W, D) for member in members_to_process]
 
         # Use multiprocessing if enabled, otherwise process sequentially
         if params.num_workers != 0:
-            with ProcessPoolExecutor(max_workers=params.num_workers) as executor:
-                mutated_members = list(executor.map(_mutation_worker, worker_args))
+            # Generate seed for worker initialization
+            worker_seed = int(rng.integers(0, 2**31 - 1))
+
+            with ProcessPoolExecutor(
+                max_workers=params.num_workers,
+                initializer=_initialize_worker,
+                initargs=(forcing, worker_seed, params_dict),
+            ) as executor:
+                mutated_members = list(
+                    executor.map(_mutation_worker, *zip(*worker_args))
+                )
         else:
-            mutated_members = [_mutation_worker(args) for args in worker_args]
+            # Sequential mode: initialize worker state inline
+            _initialize_worker(forcing, int(rng.integers(0, 2**31 - 1)), params_dict)
+            mutated_members = [
+                _mutation_worker(member, W, D) for member in members_to_process
+            ]
 
         # New population incl. seed member again
         population = Population.from_members(mutated_members).add_member(seed_member)
@@ -711,23 +767,34 @@ class RoutingApp:
                 indices = rng.choice(len(population.members), size=2, replace=False)
                 parent_indices_list.append(tuple(indices))
 
-            # Generate unique seeds for each worker
-            seeds = rng.integers(0, 2**31 - 1, size=num_offspring)
-
-            # Prepare arguments for workers
+            # Prepare arguments for workers (parent_indices, population_members)
             worker_args = [
-                (parent_indices, population.members, params_dict, forcing, seed)
-                for parent_indices, seed in zip(parent_indices_list, seeds)
+                (parent_indices, population.members)
+                for parent_indices in parent_indices_list
             ]
 
             # Use multiprocessing if enabled, otherwise process sequentially
             if params.num_workers != 0:
-                with ProcessPoolExecutor(max_workers=params.num_workers) as executor:
+                # Generate seed for worker initialization
+                worker_seed = int(rng.integers(0, 2**31 - 1))
+
+                with ProcessPoolExecutor(
+                    max_workers=params.num_workers,
+                    initializer=_initialize_worker,
+                    initargs=(forcing, worker_seed, params_dict),
+                ) as executor:
                     offspring_members = list(
-                        executor.map(_crossover_worker, worker_args)
+                        executor.map(_crossover_worker, *zip(*worker_args))
                     )
             else:
-                offspring_members = [_crossover_worker(args) for args in worker_args]
+                # Sequential mode: initialize worker state inline
+                _initialize_worker(
+                    forcing, int(rng.integers(0, 2**31 - 1)), params_dict
+                )
+                offspring_members = [
+                    _crossover_worker(parent_indices, population.members)
+                    for parent_indices in parent_indices_list
+                ]
 
         # Add back seed member
         offspring = Population.from_members(offspring_members).add_member(seed_member)
@@ -819,20 +886,31 @@ class RoutingApp:
             "hazards_enabled": params.hazards_enabled,
         }
 
+        # Initialize worker state (for both parallel and sequential modes)
+        rng = self._ensure_rng()
+
         # Outer loop: GD iterations (like GA generations)
         for gd_iter in range(params.gd_iterations):
-            # Prepare arguments for workers
-            worker_args = [(member, params_dict, forcing) for member in elite_members]
-
             # Use multiprocessing if enabled, otherwise process sequentially
             if params.num_workers != 0:
-                with ProcessPoolExecutor(max_workers=params.num_workers) as executor:
+                # Generate seed for worker initialization
+                worker_seed = int(rng.integers(0, 2**31 - 1))
+
+                with ProcessPoolExecutor(
+                    max_workers=params.num_workers,
+                    initializer=_initialize_worker,
+                    initargs=(forcing, worker_seed, params_dict),
+                ) as executor:
                     updated_members = list(
-                        executor.map(_gradient_descent_worker, worker_args)
+                        executor.map(_gradient_descent_worker, elite_members)
                     )
             else:
+                # Sequential mode: initialize worker state inline
+                _initialize_worker(
+                    forcing, int(rng.integers(0, 2**31 - 1)), params_dict
+                )
                 updated_members = [
-                    _gradient_descent_worker(args) for args in worker_args
+                    _gradient_descent_worker(member) for member in elite_members
                 ]
 
             # Update elite population for next iteration
