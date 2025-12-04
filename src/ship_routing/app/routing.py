@@ -684,11 +684,12 @@ class RoutingApp:
         self.log.add_stage(name=name, **metrics)
 
     def _route_cost(self, route: Route, forcing: ForcingData) -> float:
+        params = self.config.hyper
         return route.cost_through(
             current_data_set=forcing.currents,
             wave_data_set=forcing.waves,
             wind_data_set=forcing.winds,
-            ignore_hazards=False,
+            ignore_hazards=not params.hazards_enabled,
         )
 
     def _population_stats(
