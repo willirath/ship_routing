@@ -486,31 +486,69 @@ class RoutingApp:
 
         forcing = self._load_forcing(self.config.journey)
 
-        # Stage 0 to 4:
-        seed_member, population = self._stage_initialization(forcing)
-        population = self._stage_warmup(population, seed_member, forcing)
+        # Create executor once for all stages if multiprocessing enabled
+        executor = None
+        params = self.config.hyper
+        if params.num_workers != 0:
+            # Prepare parameters dict for workers
+            params_dict = {
+                "mutation_iterations": params.mutation_iterations,
+                "mutation_width_fraction": params.mutation_width_fraction,
+                "mutation_displacement_fraction": params.mutation_displacement_fraction,
+                "selection_acceptance_rate_warmup": params.selection_acceptance_rate_warmup,
+                "selection_acceptance_rate": params.selection_acceptance_rate,
+                "crossover_strategy": params.crossover_strategy,
+                "hazards_enabled": params.hazards_enabled,
+                "num_elites": params.num_elites,
+                "learning_rate_time": params.learning_rate_time,
+                "learning_rate_space": params.learning_rate_space,
+                "time_increment": params.time_increment,
+                "distance_increment": params.distance_increment,
+            }
 
-        # Initialize adaptive parameters for genetic algorithm
-        W = self.config.hyper.mutation_width_fraction
-        D = self.config.hyper.mutation_displacement_fraction
-        q = self.config.hyper.selection_quantile
+            # Generate seed for worker initialization
+            worker_seed = int(self._rng.integers(0, 2**31 - 1))
 
-        # Genetic algorithm generation loop
-        for _ in range(self.config.hyper.generations):
-            population = self._stage_ga_mutation(
-                population, seed_member, forcing, W, D, q
+            executor = ProcessPoolExecutor(
+                max_workers=params.num_workers,
+                initializer=_initialize_worker,
+                initargs=(forcing, worker_seed, params_dict),
             )
-            population = self._stage_ga_crossover(population, seed_member, forcing)
-            population = self._stage_ga_selection(population, seed_member, q)
-            W, D, q = self._stage_ga_adaptation(W, D, q)
 
-        elite_population = self._stage_post_processing(population, forcing)
+        try:
+            # Stage 0 to 4:
+            seed_member, population = self._stage_initialization(forcing)
+            population = self._stage_warmup(population, seed_member, forcing, executor)
 
-        return RoutingResult(
-            seed_member=seed_member,
-            elite_population=elite_population,
-            logs=self.log,
-        )
+            # Initialize adaptive parameters for genetic algorithm
+            W = self.config.hyper.mutation_width_fraction
+            D = self.config.hyper.mutation_displacement_fraction
+            q = self.config.hyper.selection_quantile
+
+            # Genetic algorithm generation loop
+            for _ in range(self.config.hyper.generations):
+                population = self._stage_ga_mutation(
+                    population, seed_member, forcing, W, D, q, executor
+                )
+                population = self._stage_ga_crossover(
+                    population, seed_member, forcing, executor
+                )
+                population = self._stage_ga_selection(population, seed_member, q)
+                W, D, q = self._stage_ga_adaptation(W, D, q)
+
+            elite_population = self._stage_post_processing(
+                population, forcing, executor
+            )
+
+            return RoutingResult(
+                seed_member=seed_member,
+                elite_population=elite_population,
+                logs=self.log,
+            )
+        finally:
+            # Clean up worker pool
+            if executor is not None:
+                executor.shutdown()
 
     @profile
     def _load_forcing(self, journey_config) -> ForcingData:
@@ -624,6 +662,7 @@ class RoutingApp:
         population: Population,
         seed_member: PopulationMember,
         forcing: ForcingData,
+        executor: ProcessPoolExecutor | None = None,
     ) -> Population:
         """Stage 1: Warmup - diversify initial population.
 
@@ -633,31 +672,21 @@ class RoutingApp:
         params = self.config.hyper
         rng = self._ensure_rng()
 
-        # Prepare parameters dict for workers
-        params_dict = {
-            "mutation_iterations": params.mutation_iterations,
-            "mutation_width_fraction": params.mutation_width_fraction,
-            "mutation_displacement_fraction": params.mutation_displacement_fraction,
-            "selection_acceptance_rate_warmup": params.selection_acceptance_rate_warmup,
-            "hazards_enabled": params.hazards_enabled,
-        }
-
         # Mutate M-1 members with warmup parameters
         members_to_process = population.members[:-1]
 
-        # Use multiprocessing if enabled, otherwise process sequentially
-        if params.num_workers != 0:
-            # Generate seed for worker initialization
-            worker_seed = int(rng.integers(0, 2**31 - 1))
-
-            with ProcessPoolExecutor(
-                max_workers=params.num_workers,
-                initializer=_initialize_worker,
-                initargs=(forcing, worker_seed, params_dict),
-            ) as executor:
-                warmed_members = list(executor.map(_warmup_worker, members_to_process))
+        # Use provided executor if available, otherwise process sequentially
+        if executor is not None:
+            warmed_members = list(executor.map(_warmup_worker, members_to_process))
         else:
             # Sequential mode: initialize worker state inline
+            params_dict = {
+                "mutation_iterations": params.mutation_iterations,
+                "mutation_width_fraction": params.mutation_width_fraction,
+                "mutation_displacement_fraction": params.mutation_displacement_fraction,
+                "selection_acceptance_rate_warmup": params.selection_acceptance_rate_warmup,
+                "hazards_enabled": params.hazards_enabled,
+            }
             _initialize_worker(forcing, int(rng.integers(0, 2**31 - 1)), params_dict)
             warmed_members = [_warmup_worker(member) for member in members_to_process]
 
@@ -681,18 +710,12 @@ class RoutingApp:
         W: float,
         D: float,
         q: float,
+        executor: ProcessPoolExecutor | None = None,
     ) -> Population:
         """GA sub-stage 1: Directed mutation of population members."""
         params = self.config.hyper
         rng = self._ensure_rng()
         members = population.members
-
-        # Prepare parameters dict for workers
-        params_dict = {
-            "mutation_iterations": params.mutation_iterations,
-            "selection_acceptance_rate": params.selection_acceptance_rate,
-            "hazards_enabled": params.hazards_enabled,
-        }
 
         # Directed mutation
         members_to_process = members[:-1]
@@ -700,21 +723,16 @@ class RoutingApp:
         # Prepare arguments for workers (member, W, D)
         worker_args = [(member, W, D) for member in members_to_process]
 
-        # Use multiprocessing if enabled, otherwise process sequentially
-        if params.num_workers != 0:
-            # Generate seed for worker initialization
-            worker_seed = int(rng.integers(0, 2**31 - 1))
-
-            with ProcessPoolExecutor(
-                max_workers=params.num_workers,
-                initializer=_initialize_worker,
-                initargs=(forcing, worker_seed, params_dict),
-            ) as executor:
-                mutated_members = list(
-                    executor.map(_mutation_worker, *zip(*worker_args))
-                )
+        # Use provided executor if available, otherwise process sequentially
+        if executor is not None:
+            mutated_members = list(executor.map(_mutation_worker, *zip(*worker_args)))
         else:
             # Sequential mode: initialize worker state inline
+            params_dict = {
+                "mutation_iterations": params.mutation_iterations,
+                "selection_acceptance_rate": params.selection_acceptance_rate,
+                "hazards_enabled": params.hazards_enabled,
+            }
             _initialize_worker(forcing, int(rng.integers(0, 2**31 - 1)), params_dict)
             mutated_members = [
                 _mutation_worker(member, W, D) for member in members_to_process
@@ -736,6 +754,7 @@ class RoutingApp:
         population: Population,
         seed_member: PopulationMember,
         forcing: ForcingData,
+        executor: ProcessPoolExecutor | None = None,
     ) -> Population:
         """GA sub-stage 2: Crossover to generate offspring."""
         params = self.config.hyper
@@ -773,19 +792,11 @@ class RoutingApp:
                 for parent_indices in parent_indices_list
             ]
 
-            # Use multiprocessing if enabled, otherwise process sequentially
-            if params.num_workers != 0:
-                # Generate seed for worker initialization
-                worker_seed = int(rng.integers(0, 2**31 - 1))
-
-                with ProcessPoolExecutor(
-                    max_workers=params.num_workers,
-                    initializer=_initialize_worker,
-                    initargs=(forcing, worker_seed, params_dict),
-                ) as executor:
-                    offspring_members = list(
-                        executor.map(_crossover_worker, *zip(*worker_args))
-                    )
+            # Use provided executor or process sequentially
+            if executor is not None:
+                offspring_members = list(
+                    executor.map(_crossover_worker, *zip(*worker_args))
+                )
             else:
                 # Sequential mode: initialize worker state inline
                 _initialize_worker(
@@ -860,6 +871,7 @@ class RoutingApp:
         self,
         population: Population,
         forcing: ForcingData,
+        executor: ProcessPoolExecutor | None = None,
     ) -> Population:
         """Stage 3: Gradient descent polishing of elite members."""
         params = self.config.hyper
@@ -891,19 +903,11 @@ class RoutingApp:
 
         # Outer loop: GD iterations (like GA generations)
         for gd_iter in range(params.gd_iterations):
-            # Use multiprocessing if enabled, otherwise process sequentially
-            if params.num_workers != 0:
-                # Generate seed for worker initialization
-                worker_seed = int(rng.integers(0, 2**31 - 1))
-
-                with ProcessPoolExecutor(
-                    max_workers=params.num_workers,
-                    initializer=_initialize_worker,
-                    initargs=(forcing, worker_seed, params_dict),
-                ) as executor:
-                    updated_members = list(
-                        executor.map(_gradient_descent_worker, elite_members)
-                    )
+            # Use provided executor or process sequentially
+            if executor is not None:
+                updated_members = list(
+                    executor.map(_gradient_descent_worker, elite_members)
+                )
             else:
                 # Sequential mode: initialize worker state inline
                 _initialize_worker(

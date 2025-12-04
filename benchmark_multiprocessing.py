@@ -27,28 +27,28 @@ from src.ship_routing.app.config import (
 )
 
 # Benchmark configuration
-WORKER_COUNTS = [0, 2, 4, 8]  # Test scaling
-REPETITIONS = 2
+WORKER_COUNTS = [16, 8, 4, 2, 0]  # Test scaling
+REPETITIONS = 1
 
 BENCHMARK_CONFIG = {
-    "population_size": 16,
+    "population_size": 128,
     "generations": 2,
     "crossover_rounds": 1,
-    "mutation_iterations": 2,
+    "mutation_iterations": 5,
     "gd_iterations": 0,
     "num_elites": 2,
     "random_seed": 42,
 }
 
+# Use same config as working example_routing.py
 JOURNEY_CONFIG = {
     "lon_waypoints": (-80.5, -62.0),
     "lat_waypoints": (30.0, 35.0),
     "time_start": "2021-01-01T00:00",
     "speed_knots": 7.0,
-    "time_resolution_hours": 12.0,
+    "time_resolution_hours": 4.0,
 }
 
-# Real forcing data for CPU-bound benchmark
 base = Path(__file__).resolve().parent / "doc" / "examples" / "data_large"
 
 FORCING_CONFIG = {

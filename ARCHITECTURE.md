@@ -76,10 +76,8 @@ sequenceDiagram
     participant WN as Worker N
 
     Main->>Main: load_forcing()
-    Main->>Main: create seed route
-    Main->>Main: initialize population
 
-    Note over Main,WN: Stage 1: Warmup
+    Note over Main,WN: Worker Initialization (once per run)
     Main->>Exec: create ProcessPoolExecutor(num_workers=N)
     Exec->>W1: spawn process
     Exec->>W2: spawn process
@@ -91,6 +89,10 @@ sequenceDiagram
     W2->>W2: set _WORKER_STATE global
     WN->>WN: set _WORKER_STATE global
 
+    Main->>Main: create seed route
+    Main->>Main: initialize population
+
+    Note over Main,WN: Stage 1: Warmup
     Main->>Exec: executor.map(_warmup_worker, members)
     Exec->>W1: _warmup_worker(member_1)
     Exec->>W2: _warmup_worker(member_2)
@@ -100,24 +102,7 @@ sequenceDiagram
     WN-->>Exec: warmed_member_N
     Exec-->>Main: warmed_members list
 
-    Main->>Exec: exit with block
-    Exec->>W1: terminate
-    Exec->>W2: terminate
-    Exec->>WN: terminate
-    destroy W1
-    destroy W2
-    destroy WN
-    destroy Exec
-
     Note over Main,WN: Stage 2: GA Generation 1 - Mutation
-    Main->>Exec: create NEW ProcessPoolExecutor(num_workers=N)
-    Exec->>W1: spawn process
-    Exec->>W2: spawn process
-    Exec->>WN: spawn process
-    Exec->>W1: _initialize_worker(forcing, seed, params)
-    Exec->>W2: _initialize_worker(forcing, seed, params)
-    Exec->>WN: _initialize_worker(forcing, seed, params)
-
     Main->>Exec: executor.map(_mutation_worker, members, W, D)
     Exec->>W1: _mutation_worker(member_1, W, D)
     Exec->>W2: _mutation_worker(member_2, W, D)
@@ -127,47 +112,71 @@ sequenceDiagram
     WN-->>Exec: mutated_member_N
     Exec-->>Main: mutated_members list
 
-    Main->>Exec: exit with block
-    Exec->>W1: terminate
-    Exec->>W2: terminate
-    Exec->>WN: terminate
-    destroy W1
-    destroy W2
-    destroy WN
-    destroy Exec
+    Note over Main,WN: Stage 3: GA Generation 1 - Crossover
+    Main->>Exec: executor.map(_crossover_worker, parent_pairs)
+    Exec->>W1: _crossover_worker(pair_1)
+    Exec->>W2: _crossover_worker(pair_2)
+    Exec->>WN: _crossover_worker(pair_N)
+    W1-->>Exec: offspring_1
+    W2-->>Exec: offspring_2
+    WN-->>Exec: offspring_N
+    Exec-->>Main: offspring list
+
+    Note over Main: Stage 4: Selection & Adaptation (sequential)
+    Main->>Main: select_from_population()
+    Main->>Main: adapt parameters (W, D, q)
 
     Note over Main: ... more generations ...
-    Note over Main: Selection & Adaptation (sequential)
 
-    Note over Main,WN: Stage 3: Gradient Descent
-    Main->>Exec: create NEW ProcessPoolExecutor(num_workers=N)
-    Note over Exec,WN: Worker lifecycle repeats again...
+    Note over Main,WN: Stage 5: Gradient Descent (on elites)
+    Main->>Exec: executor.map(_gradient_descent_worker, elites)
+    Exec->>W1: _gradient_descent_worker(elite_1)
+    Exec->>W2: _gradient_descent_worker(elite_2)
+    Exec->>WN: _gradient_descent_worker(elite_N)
+    W1-->>Exec: polished_elite_1
+    W2-->>Exec: polished_elite_2
+    WN-->>Exec: polished_elite_N
+    Exec-->>Main: polished elites list
+
+    Note over Main,WN: Worker Cleanup (once per run)
+    Main->>Exec: shutdown()
+    destroy W1
+    Exec->>W1: terminate
+    destroy W2
+    Exec->>W2: terminate
+    destroy WN
+    Exec->>WN: terminate
+    destroy Exec
+    Main->>Exec: cleanup complete
 
     Main->>Main: return RoutingResult
 ```
 
 ### Worker Lifecycle Notes
 
-**Per-Stage Worker Creation:**
-- Workers are created and destroyed for EACH parallelized stage (warmup, mutation, crossover, gradient descent)
-- With 2 generations: 1 warmup + 2 mutations + 2 crossovers = 5 worker pool creations
-- Each pool creation/destruction incurs overhead (~1-2s with 8 workers)
+**Single Worker Pool Per Run:**
+- Workers are created ONCE at the start of `RoutingApp.run()`
+- The same worker pool is reused across ALL parallelized stages
+- Workers are destroyed ONCE at the end via `finally` block
+- This eliminates the overhead of repeated process creation/destruction
 
-**Current Overhead Impact:**
-- Benchmark with 16 routes, 2 generations, 8 workers:
-  - Actual work: ~15s
-  - Worker overhead: ~15s (5 pools × ~3s each)
-  - Total: ~30s (vs 15.8s sequential)
+**Performance Impact:**
+- Previous implementation: Workers created/destroyed for each stage
+  - With 2 generations: 1 warmup + 2 mutations + 2 crossovers = 5 pool creations
+  - Overhead: ~15s for 5 pools × ~3s each with 8 workers
   - Result: Negative speedup (0.51x with 8 workers)
+- Current implementation: Single worker pool
+  - One-time creation overhead: ~3s with 8 workers
+  - Expected: Positive speedup as workers amortize initialization cost
 
 **Sequential vs Parallel Stages:**
 - **Parallel stages** (use workers): Warmup, mutation, crossover, gradient descent
-- **Sequential stages** (main process only): Selection, adaptation
+- **Sequential stages** (main process only): Initialization, selection, adaptation
 
 **Worker State Management:**
 - Each worker maintains a `_WORKER_STATE` global variable
 - Forcing data is passed to workers at initialization to avoid serialization overhead
-- RNG seeds are unique per worker to maintain reproducibility
+- RNG seeds are unique per worker (determinism sacrificed for performance)
 
 ### Key Operations
 
