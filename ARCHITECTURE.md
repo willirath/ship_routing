@@ -63,6 +63,112 @@ flowchart LR
     Return --> End([End])
 ```
 
+## Execution Sequence
+
+The following sequence diagram shows a typical `RoutingApp.run()` execution with multiprocessing enabled, illustrating the worker lifecycle and data flow:
+
+```mermaid
+sequenceDiagram
+    participant Main as RoutingApp
+    participant Exec as ProcessPoolExecutor
+    participant W1 as Worker 1
+    participant W2 as Worker 2
+    participant WN as Worker N
+
+    Main->>Main: load_forcing()
+    Main->>Main: create seed route
+    Main->>Main: initialize population
+
+    Note over Main,WN: Stage 1: Warmup
+    Main->>Exec: create ProcessPoolExecutor(num_workers=N)
+    Exec->>W1: spawn process
+    Exec->>W2: spawn process
+    Exec->>WN: spawn process
+    Exec->>W1: _initialize_worker(forcing, seed, params)
+    Exec->>W2: _initialize_worker(forcing, seed, params)
+    Exec->>WN: _initialize_worker(forcing, seed, params)
+    W1->>W1: set _WORKER_STATE global
+    W2->>W2: set _WORKER_STATE global
+    WN->>WN: set _WORKER_STATE global
+
+    Main->>Exec: executor.map(_warmup_worker, members)
+    Exec->>W1: _warmup_worker(member_1)
+    Exec->>W2: _warmup_worker(member_2)
+    Exec->>WN: _warmup_worker(member_N)
+    W1-->>Exec: warmed_member_1
+    W2-->>Exec: warmed_member_2
+    WN-->>Exec: warmed_member_N
+    Exec-->>Main: warmed_members list
+
+    Main->>Exec: exit with block
+    Exec->>W1: terminate
+    Exec->>W2: terminate
+    Exec->>WN: terminate
+    destroy W1
+    destroy W2
+    destroy WN
+    destroy Exec
+
+    Note over Main,WN: Stage 2: GA Generation 1 - Mutation
+    Main->>Exec: create NEW ProcessPoolExecutor(num_workers=N)
+    Exec->>W1: spawn process
+    Exec->>W2: spawn process
+    Exec->>WN: spawn process
+    Exec->>W1: _initialize_worker(forcing, seed, params)
+    Exec->>W2: _initialize_worker(forcing, seed, params)
+    Exec->>WN: _initialize_worker(forcing, seed, params)
+
+    Main->>Exec: executor.map(_mutation_worker, members, W, D)
+    Exec->>W1: _mutation_worker(member_1, W, D)
+    Exec->>W2: _mutation_worker(member_2, W, D)
+    Exec->>WN: _mutation_worker(member_N, W, D)
+    W1-->>Exec: mutated_member_1
+    W2-->>Exec: mutated_member_2
+    WN-->>Exec: mutated_member_N
+    Exec-->>Main: mutated_members list
+
+    Main->>Exec: exit with block
+    Exec->>W1: terminate
+    Exec->>W2: terminate
+    Exec->>WN: terminate
+    destroy W1
+    destroy W2
+    destroy WN
+    destroy Exec
+
+    Note over Main: ... more generations ...
+    Note over Main: Selection & Adaptation (sequential)
+
+    Note over Main,WN: Stage 3: Gradient Descent
+    Main->>Exec: create NEW ProcessPoolExecutor(num_workers=N)
+    Note over Exec,WN: Worker lifecycle repeats again...
+
+    Main->>Main: return RoutingResult
+```
+
+### Worker Lifecycle Notes
+
+**Per-Stage Worker Creation:**
+- Workers are created and destroyed for EACH parallelized stage (warmup, mutation, crossover, gradient descent)
+- With 2 generations: 1 warmup + 2 mutations + 2 crossovers = 5 worker pool creations
+- Each pool creation/destruction incurs overhead (~1-2s with 8 workers)
+
+**Current Overhead Impact:**
+- Benchmark with 16 routes, 2 generations, 8 workers:
+  - Actual work: ~15s
+  - Worker overhead: ~15s (5 pools × ~3s each)
+  - Total: ~30s (vs 15.8s sequential)
+  - Result: Negative speedup (0.51x with 8 workers)
+
+**Sequential vs Parallel Stages:**
+- **Parallel stages** (use workers): Warmup, mutation, crossover, gradient descent
+- **Sequential stages** (main process only): Selection, adaptation
+
+**Worker State Management:**
+- Each worker maintains a `_WORKER_STATE` global variable
+- Forcing data is passed to workers at initialization to avoid serialization overhead
+- RNG seeds are unique per worker to maintain reproducibility
+
 ### Key Operations
 
 - `Mutation` ($M_{W,D}$): Stochastic perturbation moving waypoints perpendicular to route
