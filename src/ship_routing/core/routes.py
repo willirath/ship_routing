@@ -889,6 +889,7 @@ class Route:
             s0, s1 = self_r.split_at_distance(distance_meters=d)
             self_segments_rev.append(s1)
             self_r = s0
+        # Append remaining prefix (handles zero-intersection case where loop does not run)
         self_segments_rev.append(self_r)
         other_segments_rev = []
         other_r = other
@@ -896,6 +897,7 @@ class Route:
             s0, s1 = other_r.split_at_distance(distance_meters=d)
             other_segments_rev.append(s1)
             other_r = s0
+        # Append remaining prefix (handles zero-intersection case where loop does not run)
         other_segments_rev.append(other_r)
         return tuple(self_segments_rev[::-1]), tuple(other_segments_rev[::-1])
 
