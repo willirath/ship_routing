@@ -312,6 +312,7 @@ class Leg:
         wave_data_set: xr.Dataset = None,
         ship: Ship = SHIP_DEFAULT,
         physics: Physics = PHYSICS_DEFAULT,
+        ignore_hazards: bool = False,
     ):
         u_ship_og, v_ship_og = self.uv_over_ground_ms
         if current_data_set is not None:
@@ -353,6 +354,20 @@ class Leg:
             w_wave_height = ds_wave.wh
         else:
             w_wave_height = 0
+        if not ignore_hazards:
+            hazard = hazard_conditions_wave_height(
+                u_current_ms=u_current,
+                v_current_ms=v_current,
+                u_wind_ms=u_wind,
+                v_wind_ms=v_wind,
+                w_wave_height=w_wave_height,
+                u_ship_og_ms=u_ship_og,
+                v_ship_og_ms=v_ship_og,
+                ship=ship,
+                physics=physics,
+            )
+            if np.any(hazard):
+                return np.inf
         pwr = power_maintain_speed(
             u_current_ms=u_current,
             v_current_ms=v_current,
@@ -742,6 +757,7 @@ class Route:
         wave_data_set: xr.Dataset = None,
         ship: Ship = SHIP_DEFAULT,
         physics: Physics = PHYSICS_DEFAULT,
+        ignore_hazards: bool = False,
     ):
         """Cost along whole route."""
         return sum(
@@ -751,6 +767,7 @@ class Route:
                 wave_data_set=wave_data_set,
                 ship=ship,
                 physics=physics,
+                ignore_hazards=ignore_hazards,
             )
         )
 
@@ -763,6 +780,7 @@ class Route:
         wave_data_set: xr.Dataset = None,
         ship: Ship = SHIP_DEFAULT,
         physics: Physics = PHYSICS_DEFAULT,
+        ignore_hazards: bool = False,
     ):
         """Cost along each leg."""
         return tuple(
@@ -773,6 +791,7 @@ class Route:
                     wave_data_set=wave_data_set,
                     ship=ship,
                     physics=physics,
+                    ignore_hazards=ignore_hazards,
                 )
                 for l in self.legs
             )

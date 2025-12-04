@@ -82,6 +82,7 @@ class HyperParams:
     mutation_iterations: int = 2  # N_mut
     crossover_strategy: Literal["minimal_cost", "random"] = "minimal_cost"  # C_e or C_r
     crossover_rounds: int = 1
+    hazards_enabled: bool = True
 
     # Stage 3: Gradient descent
     num_elites: int = 2  # k
