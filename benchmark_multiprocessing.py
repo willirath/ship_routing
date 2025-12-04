@@ -27,14 +27,14 @@ from src.ship_routing.app.config import (
 )
 
 # Benchmark configuration
-WORKER_COUNTS = [16, 8, 4, 2, 0]  # Test scaling
+WORKER_COUNTS = [8, 1]  # Test scaling
 REPETITIONS = 1
 
 BENCHMARK_CONFIG = {
-    "population_size": 128,
-    "generations": 2,
+    "population_size": 64,
+    "generations": 1,
     "crossover_rounds": 1,
-    "mutation_iterations": 5,
+    "mutation_iterations": 2,
     "gd_iterations": 0,
     "num_elites": 2,
     "random_seed": 42,
