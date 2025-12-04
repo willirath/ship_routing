@@ -1315,6 +1315,71 @@ def test_route_hazard_through_zero_waves():
     assert not hazard
 
 
+def test_route_cost_infinite_when_hazardous():
+    route = Route(
+        way_points=(
+            WayPoint(lon=0, lat=-1 / 60.0, time=np.datetime64("2001-01-01T00:00:00")),
+            WayPoint(lon=0, lat=0.0, time=np.datetime64("2001-01-01T06:00:00")),
+            WayPoint(lon=0, lat=1 / 60.0, time=np.datetime64("2001-01-01T12:00:00")),
+        )
+    )
+    current_data_set = load_currents(
+        data_file=TEST_DATA_DIR
+        / "currents/cmems_mod_glo_phy-cur_anfc_0.083deg_P1D-m_2021-01_1deg_5day.nc"
+    )
+    wind_data_set = load_winds(
+        data_file=TEST_DATA_DIR
+        / "winds/cmems_obs-wind_glo_phy_my_l4_0.125deg_PT1H_2021-01_6hours_0.5deg_100W-020E_10N-65N.nc"
+    )
+    wave_data_set = load_waves(
+        data_file=TEST_DATA_DIR
+        / "waves/cmems_mod_glo_wav_my_0.2deg_PT3H-i_VHM0_2021-01_1d-max_100W-020E_10N-65N.nc"
+    )
+    # Make all waves hazardous
+    wave_data_set["wh"] = 50.0 + 0.0 * wave_data_set["wh"].fillna(0.0)
+
+    cost = route.cost_through(
+        current_data_set=make_hashable(current_data_set),
+        wind_data_set=make_hashable(wind_data_set),
+        wave_data_set=make_hashable(wave_data_set),
+    )
+
+    assert np.isinf(cost)
+
+
+def test_route_cost_finite_when_hazard_ignored():
+    route = Route(
+        way_points=(
+            WayPoint(lon=0, lat=-1 / 60.0, time=np.datetime64("2001-01-01T00:00:00")),
+            WayPoint(lon=0, lat=0.0, time=np.datetime64("2001-01-01T06:00:00")),
+            WayPoint(lon=0, lat=1 / 60.0, time=np.datetime64("2001-01-01T12:00:00")),
+        )
+    )
+    current_data_set = load_currents(
+        data_file=TEST_DATA_DIR
+        / "currents/cmems_mod_glo_phy-cur_anfc_0.083deg_P1D-m_2021-01_1deg_5day.nc"
+    )
+    wind_data_set = load_winds(
+        data_file=TEST_DATA_DIR
+        / "winds/cmems_obs-wind_glo_phy_my_l4_0.125deg_PT1H_2021-01_6hours_0.5deg_100W-020E_10N-65N.nc"
+    )
+    wave_data_set = load_waves(
+        data_file=TEST_DATA_DIR
+        / "waves/cmems_mod_glo_wav_my_0.2deg_PT3H-i_VHM0_2021-01_1d-max_100W-020E_10N-65N.nc"
+    )
+    # Make all waves hazardous
+    wave_data_set["wh"] = 50.0 + 0.0 * wave_data_set["wh"].fillna(0.0)
+
+    cost = route.cost_through(
+        current_data_set=make_hashable(current_data_set),
+        wind_data_set=make_hashable(wind_data_set),
+        wave_data_set=make_hashable(wave_data_set),
+        ignore_hazards=True,
+    )
+
+    assert np.isfinite(cost)
+
+
 def test_route_waypoint_azimuth():
     route = Route(
         way_points=(

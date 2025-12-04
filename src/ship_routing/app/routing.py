@@ -688,6 +688,7 @@ class RoutingApp:
             current_data_set=forcing.currents,
             wave_data_set=forcing.waves,
             wind_data_set=forcing.winds,
+            ignore_hazards=False,
         )
 
     def _population_stats(
