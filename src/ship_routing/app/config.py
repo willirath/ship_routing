@@ -92,6 +92,9 @@ class HyperParams:
     time_increment: float = 1_200.0  # delta t
     distance_increment: float = 10_000.0  # delta d
 
+    # Multiprocessing
+    num_workers: int | None = None  # None = use all available CPUs
+
 
 @dataclass(frozen=True)
 class RoutingConfig:
