@@ -21,6 +21,7 @@ from .parallel import (
     _get_state,
 )
 from matplotlib import pyplot as plt
+import cartopy
 import pandas as pd
 
 from ..algorithms import (
@@ -166,16 +167,41 @@ class RoutingResult:
     def plot_routes(self, ax=None):
         """Plot seed and elite routes."""
         if ax is None:
-            _, ax = plt.subplots(1, 1)
+            _lonlat = self.seed_member.route.data_frame[["lon", "lat"]]
+            central_lon, central_lat = _lonlat.mean()
+            ax_extent = [
+                _lonlat.lon.min() - 5.0,
+                _lonlat.lon.max() + 5.0,
+                _lonlat.lat.min() - 5.0,
+                _lonlat.lat.max() + 5.0,
+            ]
+            _, ax = plt.subplots(
+                1,
+                1,
+                subplot_kw={
+                    "projection": cartopy.crs.Gnomonic(
+                        central_latitude=central_lat, central_longitude=central_lon
+                    )
+                },
+            )
+            plt_add_kwargs = {"transform": cartopy.crs.PlateCarree()}
+        else:
+            plt_add_kwargs = {}
 
         seed_member = self.seed_member
         elite_members = self.elite_population.members
 
         for em in elite_members:
-            ax.plot(*em.route.line_string.xy, "black")
-        ax.plot(*seed_member.route.line_string.xy, "orange")
-        ax.grid()
-        ax.set_title("routes")
+            ax.plot(*em.route.line_string.xy, "black", **plt_add_kwargs)
+        ax.plot(*seed_member.route.line_string.xy, "orange", **plt_add_kwargs)
+        try:
+            ax.gridlines(draw_labels=False)
+            ax.coastlines()
+            ax.set_extent(ax_extent)
+            ax.set_title("routes, Gnomonic proj")
+        except:
+            ax.grid()
+            ax.set_title("routes")
         return ax
 
     def plot_elite_cost(self, ax=None):
