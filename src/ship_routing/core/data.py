@@ -68,6 +68,8 @@ def load_currents(
     HashableDataset
         Dataset with standardized variable names (lon, lat, time, uo, vo)
     """
+    if data_file is None:
+        return None
     ds = xr.open_dataset(data_file, **kwargs)
     ds = ds.rename(
         {
@@ -137,6 +139,8 @@ def load_winds(
     HashableDataset
         Dataset with standardized variable names (lon, lat, time, uw, vw)
     """
+    if data_file is None:
+        return None
     ds = xr.open_dataset(data_file, **kwargs)
     ds = ds.rename(
         {
@@ -203,6 +207,8 @@ def load_waves(
     HashableDataset
         Dataset with standardized variable names (lon, lat, time, wh)
     """
+    if data_file is None:
+        return None
     ds = xr.open_dataset(data_file, **kwargs)
     ds = ds.rename(
         {

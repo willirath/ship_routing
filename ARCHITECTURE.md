@@ -63,6 +63,154 @@ flowchart LR
     Return --> End([End])
 ```
 
+## Execution Sequence
+
+The routing application supports three execution modes: **multiprocessing**, **multithreading**, and **sequential**. The mode is controlled by `HyperParams.executor_type` and `HyperParams.num_workers`.
+
+### Parallel Execution
+
+The following sequence diagram shows a typical `RoutingApp.run()` execution with parallel execution enabled (`executor_type="process"` or `"thread"`):
+
+```mermaid
+sequenceDiagram
+    participant Main as RoutingApp
+    participant Exec as Executor
+    participant W1 as Worker 1
+    participant W2 as Worker 2
+    participant WN as Worker N
+
+    Main->>Main: load_forcing()
+    Main->>Main: initialize globals
+
+    Note over Main,WN: Worker Initialization (once per run)
+    Note over Main,WN: Process: Create ProcessPoolExecutor, serialize forcing<br/>Thread: Create ThreadPoolExecutor, set _SHARED_FORCING<br/>Sequential: Create SequentialExecutor
+    Main->>Exec: _create_executor(forcing, params)
+    Exec->>W1: spawn worker (process/thread)
+    Exec->>W2: spawn worker (process/thread)
+    Exec->>WN: spawn worker (process/thread)
+    Note over Main,WN: Process: _initialize_worker_process(forcing, seed, params)<br/>Thread: _initialize_worker_thread(seed, params)<br/>Sequential: _initialize_sequential(forcing, seed, params)
+    Exec->>W1: initialize worker
+    Exec->>W2: initialize worker
+    Exec->>WN: initialize worker
+    Note over W1,WN: Process: set _WORKER_STATE<br/>Thread: set _THREAD_LOCAL_STATE.state<br/>Sequential: set _WORKER_STATE (main thread)
+
+    Main->>Main: create seed route
+    Main->>Main: initialize population
+
+    Note over Main,WN: Stage 1: Warmup
+    Main->>Exec: executor.map(_task_warmup, members)
+    Exec->>W1: _task_warmup(member_1)
+    Exec->>W2: _task_warmup(member_2)
+    Exec->>WN: _task_warmup(member_N)
+    W1-->>Exec: warmed_member_1
+    W2-->>Exec: warmed_member_2
+    WN-->>Exec: warmed_member_N
+    Exec-->>Main: warmed_members list
+
+    Note over Main,WN: Stage 2: GA Generation 1 - Mutation
+    Main->>Exec: executor.map(_task_mutation, members, W, D)
+    Exec->>W1: _task_mutation(member_1, W, D)
+    Exec->>W2: _task_mutation(member_2, W, D)
+    Exec->>WN: _task_mutation(member_N, W, D)
+    W1-->>Exec: mutated_member_1
+    W2-->>Exec: mutated_member_2
+    WN-->>Exec: mutated_member_N
+    Exec-->>Main: mutated_members list
+
+    Note over Main,WN: Stage 3: GA Generation 1 - Crossover
+    Main->>Exec: executor.map(_task_crossover, parent_pairs)
+    Exec->>W1: _task_crossover(pair_1, population)
+    Exec->>W2: _task_crossover(pair_2, population)
+    Exec->>WN: _task_crossover(pair_N, population)
+    W1-->>Exec: offspring_1
+    W2-->>Exec: offspring_2
+    WN-->>Exec: offspring_N
+    Exec-->>Main: offspring list
+
+    Note over Main: Stage 4: Selection & Adaptation (sequential)
+    Main->>Main: select_from_population()
+    Main->>Main: adapt parameters (W, D, q)
+
+    Note over Main: ... more generations ...
+
+    Note over Main,WN: Stage 5: Gradient Descent (on elites)
+    Main->>Exec: executor.map(_task_gradient_descent, elites)
+    Exec->>W1: _task_gradient_descent(elite_1)
+    Exec->>W2: _task_gradient_descent(elite_2)
+    Exec->>WN: _task_gradient_descent(elite_N)
+    W1-->>Exec: polished_elite_1
+    W2-->>Exec: polished_elite_2
+    WN-->>Exec: polished_elite_N
+    Exec-->>Main: polished elites list
+
+    Note over Main,WN: Worker Cleanup (once per run)
+    Main->>Exec: shutdown()
+    destroy W1
+    Exec->>W1: terminate
+    destroy W2
+    Exec->>W2: terminate
+    destroy WN
+    Exec->>WN: terminate
+    destroy Exec
+    Main->>Exec: cleanup complete
+    Main->>Main: clean up globals
+
+    Main->>Main: return RoutingResult
+```
+
+### Worker Lifecycle Notes
+
+**Single Worker Pool Per Run:**
+- An executor is ALWAYS created at the start of `RoutingApp.run()` via `_create_executor()`
+- The same executor is reused across ALL stages (warmup, mutation, crossover, gradient descent)
+- Workers are shut down at the end via `executor.shutdown()`
+- This eliminates the overhead of repeated process/thread creation/destruction and provides unified interface
+
+**Unified Executor Interface:**
+- All three execution modes implement the same `.map()` interface
+- Stage methods always call `executor.map(task_function, items)` regardless of mode
+- Eliminates conditional logic (`if executor is not None`) throughout stage methods
+- `SequentialExecutor` mimics `concurrent.futures.Executor` API for consistency
+
+**Execution Modes:**
+- **Process** (`executor_type="process"`): Uses `ProcessPoolExecutor`
+  - Each worker is a separate process with isolated memory
+  - Forcing data serialized and passed to each worker at initialization
+  - Best for CPU-bound workloads with minimal data transfer
+  - Overhead: ~3s startup with 8 workers, but avoids Python GIL
+- **Thread** (`executor_type="thread"`): Uses `ThreadPoolExecutor`
+  - Workers are threads sharing the main process memory
+  - Forcing data shared via `_SHARED_FORCING` module-level global (no serialization)
+  - Best for NumPy-heavy workloads where operations release GIL
+  - Lower overhead than processes, but subject to GIL for pure Python code
+- **Sequential** (`executor_type="sequential"`): Uses `SequentialExecutor` with unified interface
+  - All tasks executed sequentially in main thread via `executor.map()`
+  - Zero parallelization overhead, useful for debugging and baseline benchmarks
+  - Worker state initialized once at executor creation, same as parallel modes
+
+**Performance Impact:**
+- Previous implementation: Workers created/destroyed for each stage
+  - With 2 generations: 1 warmup + 2 mutations + 2 crossovers = 5 pool creations
+  - Overhead: ~15s for 5 pools × ~3s each with 8 workers
+  - Result: Negative speedup (0.51x with 8 workers)
+- Current implementation: Single worker pool
+  - One-time creation overhead: ~3s with 8 workers (process mode)
+  - Observed speedup: 1.33x with 4 process workers on test workload
+  - Threading overhead: Lower startup cost but limited by GIL for this workload
+
+**Sequential vs Parallel Stages:**
+- **Parallelized stages** (use workers when enabled): Warmup, mutation, crossover, gradient descent
+- **Always sequential stages** (main process only): Initialization, selection, adaptation
+
+**Worker State Management:**
+- **Process workers**: Each maintains separate `_WORKER_STATE` global in its memory space
+  - Forcing data is passed at initialization to avoid repeated serialization
+  - RNG seeds unique per worker (based on main RNG seed)
+- **Thread workers**: Each maintains thread-local state via `_THREAD_LOCAL_STATE`
+  - Forcing data accessed from shared `_SHARED_FORCING` (no serialization needed)
+  - RNG seeds unique per thread (seed + thread ID for uniqueness)
+- **Sequential mode**: Uses `_WORKER_STATE` in main thread, initialized once at executor creation
+
 ### Key Operations
 
 - `Mutation` ($M_{W,D}$): Stochastic perturbation moving waypoints perpendicular to route
@@ -179,6 +327,8 @@ classDiagram
         -learning_rate_space: float
         -time_increment: float
         -distance_increment: float
+        -num_workers: int
+        -executor_type: Literal
     }
 
     class RoutingLog {
@@ -357,6 +507,7 @@ classDiagram
 
 ### Implementation Methods
 
+**Main Pipeline Methods:**
 - `_load_forcing()` - Load environmental data
 - `_stage_initialization()` - Create seed and initialize population
 - `_stage_warmup()` - Diversify population with mutations
@@ -365,6 +516,21 @@ classDiagram
 - `_stage_ga_selection()` - Select best routes
 - `_stage_ga_adaptation()` - Update hyperparameters W, D, q
 - `_stage_post_processing()` - Apply gradient descent to elites
+
+**Worker Management (Internal):**
+- `SequentialExecutor` - Executor class for sequential execution with unified `.map()` interface
+- `WorkerState` - Dataclass holding forcing data, RNG, and HyperParams for workers
+- `_create_executor()` - Create and initialize appropriate executor based on configuration
+- `_initialize_worker_process()` - Initialize process worker with serialized forcing data
+- `_initialize_worker_thread()` - Initialize thread worker with shared forcing data
+- `_initialize_sequential()` - Initialize sequential executor worker state in main thread
+- `_get_state()` - Retrieve worker state (thread-local or process-global)
+
+**Task Functions (Internal):**
+- `_task_warmup()` - Parallel warmup task: mutation + selection with warmup parameters
+- `_task_mutation()` - Parallel GA mutation task: mutation + selection with adaptive parameters
+- `_task_crossover()` - Parallel GA crossover task: create offspring from parent pairs
+- `_task_gradient_descent()` - Parallel GD task: apply gradient descent to elite routes
 
 ### APP Layer: Orchestration & Configuration
 
@@ -380,7 +546,9 @@ The APP layer orchestrates the complete optimization workflow and manages config
 - `RoutingConfig` is the root, containing all sub-configurations
 - `JourneyConfig` defines the trip: waypoints, duration, vessel speed
 - `ForcingConfig` specifies data sources and loading parameters
-- `HyperParams` contains all optimization hyperparameters (population size, generations, learning rates, etc.)
+- `HyperParams` contains all optimization hyperparameters:
+  - Algorithm parameters: population size, generations, learning rates, mutation/crossover settings
+  - Parallelization: `executor_type` (process/thread/sequential) and `num_workers`
 - `Ship` and `Physics` provide vessel characteristics and physical constants
 
 **_Results & Logging_**:

@@ -92,6 +92,14 @@ class HyperParams:
     time_increment: float = 1_200.0  # delta t
     distance_increment: float = 10_000.0  # delta d
 
+    # Parallelization
+    num_workers: int = (
+        2  # Number of worker processes/threads (ignored if executor_type="sequential")
+    )
+    executor_type: Literal["process", "thread", "sequential"] = (
+        "sequential"  # Executor type
+    )
+
 
 @dataclass(frozen=True)
 class RoutingConfig:
