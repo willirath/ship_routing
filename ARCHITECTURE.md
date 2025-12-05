@@ -83,16 +83,16 @@ sequenceDiagram
     Main->>Main: initialize globals
 
     Note over Main,WN: Worker Initialization (once per run)
-    Note over Main,WN: Process: Create ProcessPoolExecutor, serialize forcing<br/>Thread: Create ThreadPoolExecutor, set _SHARED_FORCING
-    Main->>Exec: create executor(num_workers=N)
+    Note over Main,WN: Process: Create ProcessPoolExecutor, serialize forcing<br/>Thread: Create ThreadPoolExecutor, set _SHARED_FORCING<br/>Sequential: Create SequentialExecutor
+    Main->>Exec: _create_executor(forcing, params)
     Exec->>W1: spawn worker (process/thread)
     Exec->>W2: spawn worker (process/thread)
     Exec->>WN: spawn worker (process/thread)
-    Note over Main,WN: Process: _initialize_process(forcing, seed, params)<br/>Thread: _initialize_thread(seed, params)
+    Note over Main,WN: Process: _initialize_worker_process(forcing, seed, params)<br/>Thread: _initialize_worker_thread(seed, params)<br/>Sequential: _initialize_sequential(forcing, seed, params)
     Exec->>W1: initialize worker
     Exec->>W2: initialize worker
     Exec->>WN: initialize worker
-    Note over W1,WN: Process: set _WORKER_STATE<br/>Thread: set _THREAD_LOCAL_STATE.state
+    Note over W1,WN: Process: set _WORKER_STATE<br/>Thread: set _THREAD_LOCAL_STATE.state<br/>Sequential: set _WORKER_STATE (main thread)
 
     Main->>Main: create seed route
     Main->>Main: initialize population
@@ -161,10 +161,16 @@ sequenceDiagram
 ### Worker Lifecycle Notes
 
 **Single Worker Pool Per Run:**
-- Workers are created ONCE at the start of `RoutingApp.run()` (if parallelization enabled)
-- The same worker pool is reused across ALL parallelized stages
-- Workers are destroyed ONCE at the end via `finally` block
-- This eliminates the overhead of repeated process/thread creation/destruction
+- An executor is ALWAYS created at the start of `RoutingApp.run()` via `_create_executor()`
+- The same executor is reused across ALL stages (warmup, mutation, crossover, gradient descent)
+- Workers are shut down at the end via `executor.shutdown()`
+- This eliminates the overhead of repeated process/thread creation/destruction and provides unified interface
+
+**Unified Executor Interface:**
+- All three execution modes implement the same `.map()` interface
+- Stage methods always call `executor.map(task_function, items)` regardless of mode
+- Eliminates conditional logic (`if executor is not None`) throughout stage methods
+- `SequentialExecutor` mimics `concurrent.futures.Executor` API for consistency
 
 **Execution Modes:**
 - **Process** (`executor_type="process"`): Uses `ProcessPoolExecutor`
@@ -177,10 +183,10 @@ sequenceDiagram
   - Forcing data shared via `_SHARED_FORCING` module-level global (no serialization)
   - Best for NumPy-heavy workloads where operations release GIL
   - Lower overhead than processes, but subject to GIL for pure Python code
-- **Sequential** (`executor_type="sequential"`): No executor, inline processing
-  - All tasks executed sequentially in main thread
+- **Sequential** (`executor_type="sequential"`): Uses `SequentialExecutor` with unified interface
+  - All tasks executed sequentially in main thread via `executor.map()`
   - Zero parallelization overhead, useful for debugging and baseline benchmarks
-  - Worker state initialized inline before each stage
+  - Worker state initialized once at executor creation, same as parallel modes
 
 **Performance Impact:**
 - Previous implementation: Workers created/destroyed for each stage
@@ -203,7 +209,7 @@ sequenceDiagram
 - **Thread workers**: Each maintains thread-local state via `_THREAD_LOCAL_STATE`
   - Forcing data accessed from shared `_SHARED_FORCING` (no serialization needed)
   - RNG seeds unique per thread (seed + thread ID for uniqueness)
-- **Sequential mode**: Uses `_WORKER_STATE` in main thread, re-initialized before each stage
+- **Sequential mode**: Uses `_WORKER_STATE` in main thread, initialized once at executor creation
 
 ### Key Operations
 
@@ -512,9 +518,12 @@ classDiagram
 - `_stage_post_processing()` - Apply gradient descent to elites
 
 **Worker Management (Internal):**
+- `SequentialExecutor` - Executor class for sequential execution with unified `.map()` interface
 - `WorkerState` - Dataclass holding forcing data, RNG, and HyperParams for workers
-- `_initialize_process()` - Initialize process worker with serialized forcing data
-- `_initialize_thread()` - Initialize thread worker with shared forcing data
+- `_create_executor()` - Create and initialize appropriate executor based on configuration
+- `_initialize_worker_process()` - Initialize process worker with serialized forcing data
+- `_initialize_worker_thread()` - Initialize thread worker with shared forcing data
+- `_initialize_sequential()` - Initialize sequential executor worker state in main thread
 - `_get_state()` - Retrieve worker state (thread-local or process-global)
 
 **Task Functions (Internal):**
