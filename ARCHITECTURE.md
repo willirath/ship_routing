@@ -25,30 +25,30 @@ flowchart LR
 
     Warmup --> InitParams[Initialize adaptive params<br/>W, D, q]
 
-    InitParams --> GALoop
+    InitParams --> GALoop_Decision
 
     subgraph GALoop["Stage 3: Genetic Evolution"]
-        LoopStart{g < N_G?}
-        LoopStart -->|Yes| GAMutation
+        GALoop_Decision{"For generation g &le; N_G"}
+        GALoop_Decision --> GAMutation
 
         subgraph GAIteration["Generation g"]
             GAMutation[Mutation: M-1 members<br/>M_W,D + S_2^p]
             GAMutation --> PreserveSeed2[Preserve seed<br/>P <- P U r_seed]
-            PreserveSeed2 --> GACrossover[Crossover: Create P_offspring<br/>M_offspring via C_s]
-            GACrossover --> AddSeed[Add seed to offspring<br/>P_offspring <- P_offspring U r_seed]
+            PreserveSeed2 --> GACrossover[Crossover: N_crossover rounds<br/>Accumulate offspring P_all]
+            GACrossover --> AddSeed[Add seed to offspring<br/>P_all <- P_all U r_seed]
             AddSeed --> GASelection[Selection: S_M,q,M-1<br/>select M-1 best]
             GASelection --> PreserveSeed3[Preserve seed<br/>P <- P U r_seed]
             PreserveSeed3 --> GAAdaptation[Adapt parameters<br/>W, D, q]
         end
 
-        GAAdaptation --> LoopStart
+        GAAdaptation --> GALoop_Decision
     end
 
-    LoopStart -->|No| PostProc
+    GALoop_Decision -->|after N_G iterations| PostProc_Decision
 
     subgraph PostProc["Stage 4: Post-processing"]
-        PostLoop{n < N_gd?}
-        PostLoop -->|Yes| SelectElites
+        PostProc_Decision{"For iteration n &le; N_GD"}
+        PostProc_Decision --> SelectElites
 
         subgraph GDIteration["Gradient Descent n"]
             SelectElites[Select k elites<br/>S_M,k/M,M-1]
@@ -56,10 +56,10 @@ flowchart LR
             PreserveSeed4 --> ApplyGD[Apply gradient descent<br/>G_t^gamma_t o G_perp^gamma_perp to each elite]
         end
 
-        ApplyGD --> PostLoop
+        ApplyGD --> PostProc_Decision
     end
 
-    PostLoop -->|No| Return[Return RoutingResult<br/>seed_member, elite_population, logs]
+    PostProc_Decision -->|after N_GD iterations| Return[Return RoutingResult<br/>seed_member, elite_population, logs]
     Return --> End([End])
 ```
 
@@ -117,15 +117,18 @@ sequenceDiagram
     WN-->>Exec: mutated_member_N
     Exec-->>Main: mutated_members list
 
-    Note over Main,WN: Stage 3: GA Generation 1 - Crossover
-    Main->>Exec: executor.map(_task_crossover, parent_pairs)
-    Exec->>W1: _task_crossover(pair_1, population)
-    Exec->>W2: _task_crossover(pair_2, population)
-    Exec->>WN: _task_crossover(pair_N, population)
+    Note over Main,WN: Stage 3: GA Generation 1 - Crossover (Round 1 of N_crossover)
+    Main->>Exec: executor.map(_task_crossover, parent_pairs, P_source)
+    Exec->>W1: _task_crossover(pair_1, P_source)
+    Exec->>W2: _task_crossover(pair_2, P_source)
+    Exec->>WN: _task_crossover(pair_N, P_source)
     W1-->>Exec: offspring_1
     W2-->>Exec: offspring_2
     WN-->>Exec: offspring_N
-    Exec-->>Main: offspring list
+    Exec-->>Main: round_offspring list
+    Note over Main: Accumulate: P_all += round_offspring
+    Note over Main: Update source: P_source = round_offspring
+    Note over Main: ... repeat for N_crossover rounds ...
 
     Note over Main: Stage 4: Selection & Adaptation (sequential)
     Main->>Main: select_from_population()
@@ -316,6 +319,7 @@ classDiagram
         -mutation_displacement_fraction_warmup: float
         -generations: int
         -offspring_size: int
+        -crossover_rounds: int
         -selection_quantile: float
         -selection_acceptance_rate: float
         -mutation_width_fraction: float
