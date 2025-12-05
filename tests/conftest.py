@@ -1,4 +1,5 @@
 """Pytest configuration and shared fixtures."""
+
 from pathlib import Path
 
 # Project root is two levels up from this file

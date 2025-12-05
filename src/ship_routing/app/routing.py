@@ -826,6 +826,7 @@ class RoutingApp:
             current_data_set=state.forcing.currents,
             wave_data_set=state.forcing.waves,
             wind_data_set=state.forcing.winds,
+            ignore_hazards=not state.params.hazards_enabled,  # TODO: change hyperparam to ignore_hazards (incl logic!)
         )
         cost = route.cost_through(
             current_data_set=state.forcing.currents,
