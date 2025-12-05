@@ -13,19 +13,19 @@ pixi shell          # drop into an activated shell
 pixi run jupyterlab # (optional) start the notebook environment
 ```
 
-If you need additional tools, add them to `pixi.toml` so every contributor
+If you need additional tools, add them to [pixi.toml](pixi.toml) so every contributor
 inherits the same setup.
 
 ## Data Setup
 
-- `data/test/`: Included, ~10 MB
-- `data/large/`:  Download separately, ~23 GB, use `pixi run download-data`
+- [data/test/](data/test/): Included, ~10 MB
+- [data/large/](data/large/):  Download separately, ~23 GB, use `pixi run download-data`
 
-See `data/README.md` for more details.
+See [data/README.md](data/README.md) for more details.
 
 ## Testing
 
-See `tests/`.
+See [tests/](tests/).
 
 ```bash
 pixi run tests

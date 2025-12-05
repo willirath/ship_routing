@@ -4,10 +4,10 @@ Small datasets for test suite and small demos.
 
 ## Contents
 
-- `currents/` - Ocean currents (u, v)
-- `waves/` - Significant wave height
-- `winds/` - Wind velocity components
-- `segmentation/` - CSV files for route tests
+- [currents/](currents/) - Ocean currents (u, v)
+- [waves/](waves/) - Significant wave height
+- [winds/](winds/) - Wind velocity components
+- [segmentation/](segmentation/) - CSV files for route tests
 
 ## Provenance
 
