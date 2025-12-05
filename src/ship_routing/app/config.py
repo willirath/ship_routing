@@ -92,8 +92,9 @@ class HyperParams:
     time_increment: float = 1_200.0  # delta t
     distance_increment: float = 10_000.0  # delta d
 
-    # Multiprocessing
-    num_workers: int = 2  # Number of worker processes (0 = sequential)
+    # Parallelization
+    num_workers: int = 2  # Number of worker processes/threads (0 = sequential)
+    executor_type: Literal["process", "thread"] = "process"  # Executor type
 
 
 @dataclass(frozen=True)

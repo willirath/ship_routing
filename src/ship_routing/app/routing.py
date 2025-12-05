@@ -1,12 +1,13 @@
 from __future__ import annotations
 
-from concurrent.futures import ProcessPoolExecutor
+from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
 import json
 import logging
 from pathlib import Path
 from statistics import mean
+import threading
 from typing import Any, Sequence
 
 import numpy as np
@@ -38,10 +39,14 @@ except NameError:
         return func
 
 
-# Worker functions for multiprocessing (must be module-level for pickling)
+# Worker functions for multiprocessing/multithreading (must be module-level for pickling)
 
 # Global state for worker processes (initialized once per worker)
 _WORKER_STATE = None
+# Thread-local state for worker threads
+_THREAD_LOCAL_STATE = threading.local()
+# Shared forcing data for thread workers (threads share memory, no serialization needed)
+_SHARED_FORCING = None
 
 
 @dataclass
@@ -63,7 +68,7 @@ class WorkerState:
     params: dict
 
 
-def _initialize_worker(forcing: ForcingData, seed: int, params: dict) -> None:
+def _initialize_worker_process(forcing: ForcingData, seed: int, params: dict) -> None:
     """Initialize worker process with shared state.
 
     Called once per worker process at creation time. Avoids expensive
@@ -86,6 +91,42 @@ def _initialize_worker(forcing: ForcingData, seed: int, params: dict) -> None:
     )
 
 
+def _initialize_worker_thread(seed: int, params: dict) -> None:
+    """Initialize worker thread with thread-local state.
+
+    Called once per worker thread at creation time. Threads share memory,
+    so forcing data is accessed from module-level _SHARED_FORCING.
+
+    Parameters
+    ----------
+    seed : int
+        Random seed base for this worker's RNG
+    params : dict
+        Algorithm parameters to share across tasks
+    """
+    _THREAD_LOCAL_STATE.state = WorkerState(
+        forcing=_SHARED_FORCING,
+        rng=np.random.default_rng(seed + threading.get_ident()),
+        params=params,
+    )
+
+
+def _get_worker_state() -> WorkerState:
+    """Get the worker state for current process/thread.
+
+    Returns thread-local state if running in a worker thread,
+    otherwise returns global process state.
+
+    Returns
+    -------
+    WorkerState
+        The worker state for this process or thread
+    """
+    if hasattr(_THREAD_LOCAL_STATE, 'state'):
+        return _THREAD_LOCAL_STATE.state
+    return _WORKER_STATE
+
+
 def _warmup_worker(member: PopulationMember) -> PopulationMember:
     """Worker function for parallel warmup stage.
 
@@ -99,7 +140,7 @@ def _warmup_worker(member: PopulationMember) -> PopulationMember:
     PopulationMember
         The processed member after mutation and selection
     """
-    state = _WORKER_STATE
+    state = _get_worker_state()
     length = member.route.length_meters
 
     mutated_route = stochastic_mutation(
@@ -144,7 +185,7 @@ def _mutation_worker(member: PopulationMember, W: float, D: float) -> Population
     PopulationMember
         The processed member after mutation and selection
     """
-    state = _WORKER_STATE
+    state = _get_worker_state()
     length = member.route.length_meters
 
     mutated_route = stochastic_mutation(
@@ -188,7 +229,7 @@ def _crossover_worker(
     PopulationMember
         The offspring member after crossover
     """
-    state = _WORKER_STATE
+    state = _get_worker_state()
     parent_a = population_members[parent_indices[0]]
     parent_b = population_members[parent_indices[1]]
 
@@ -229,7 +270,7 @@ def _gradient_descent_worker(member: PopulationMember) -> PopulationMember:
     PopulationMember
         The processed member after gradient descent
     """
-    state = _WORKER_STATE
+    state = _get_worker_state()
 
     route = gradient_descent(
         route=member.route,
@@ -481,12 +522,14 @@ class RoutingApp:
     @profile
     def run(self) -> RoutingResult:
         """Execute the optimisation pipeline."""
+        global _SHARED_FORCING
+
         self._log_stage_metrics("run", message="starting routing run")
         self._rng = np.random.default_rng(self.config.hyper.random_seed)
 
         forcing = self._load_forcing(self.config.journey)
 
-        # Create executor once for all stages if multiprocessing enabled
+        # Create executor once for all stages if parallelization enabled
         executor = None
         params = self.config.hyper
         if params.num_workers != 0:
@@ -509,11 +552,22 @@ class RoutingApp:
             # Generate seed for worker initialization
             worker_seed = int(self._rng.integers(0, 2**31 - 1))
 
-            executor = ProcessPoolExecutor(
-                max_workers=params.num_workers,
-                initializer=_initialize_worker,
-                initargs=(forcing, worker_seed, params_dict),
-            )
+            # Choose executor type based on configuration
+            if params.executor_type == "thread":
+                # For threads: share forcing via module scope (no serialization needed)
+                _SHARED_FORCING = forcing
+
+                executor = ThreadPoolExecutor(
+                    max_workers=params.num_workers,
+                    initializer=_initialize_worker_thread,
+                    initargs=(worker_seed, params_dict),
+                )
+            else:  # "process" (default)
+                executor = ProcessPoolExecutor(
+                    max_workers=params.num_workers,
+                    initializer=_initialize_worker_process,
+                    initargs=(forcing, worker_seed, params_dict),
+                )
 
         try:
             # Stage 0 to 4:
@@ -549,6 +603,8 @@ class RoutingApp:
             # Clean up worker pool
             if executor is not None:
                 executor.shutdown()
+            # Clean up shared forcing data for threads
+            _SHARED_FORCING = None
 
     @profile
     def _load_forcing(self, journey_config) -> ForcingData:
@@ -687,7 +743,7 @@ class RoutingApp:
                 "selection_acceptance_rate_warmup": params.selection_acceptance_rate_warmup,
                 "hazards_enabled": params.hazards_enabled,
             }
-            _initialize_worker(forcing, int(rng.integers(0, 2**31 - 1)), params_dict)
+            _initialize_worker_process(forcing, int(rng.integers(0, 2**31 - 1)), params_dict)
             warmed_members = [_warmup_worker(member) for member in members_to_process]
 
         # Add seed back: P ← P ∪ {r_seed}
@@ -733,7 +789,7 @@ class RoutingApp:
                 "selection_acceptance_rate": params.selection_acceptance_rate,
                 "hazards_enabled": params.hazards_enabled,
             }
-            _initialize_worker(forcing, int(rng.integers(0, 2**31 - 1)), params_dict)
+            _initialize_worker_process(forcing, int(rng.integers(0, 2**31 - 1)), params_dict)
             mutated_members = [
                 _mutation_worker(member, W, D) for member in members_to_process
             ]
@@ -799,7 +855,7 @@ class RoutingApp:
                 )
             else:
                 # Sequential mode: initialize worker state inline
-                _initialize_worker(
+                _initialize_worker_process(
                     forcing, int(rng.integers(0, 2**31 - 1)), params_dict
                 )
                 offspring_members = [
@@ -910,7 +966,7 @@ class RoutingApp:
                 )
             else:
                 # Sequential mode: initialize worker state inline
-                _initialize_worker(
+                _initialize_worker_process(
                     forcing, int(rng.integers(0, 2**31 - 1)), params_dict
                 )
                 updated_members = [
