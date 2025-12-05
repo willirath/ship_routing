@@ -7,3 +7,6 @@ doc/examples/data_large
 tuning/runs/*json
 tuning/results/*json
 tuning/data_large
+
+# Data directories
+data/large/
