@@ -6,9 +6,7 @@ from ship_routing.core import Route, WayPoint
 from ship_routing.core.data import load_currents, load_waves, load_winds, make_hashable
 
 from pathlib import Path
-
-
-TEST_DATA_DIR = Path(__file__).parent.parent / "test_data"
+from conftest import TEST_DATA_DIR
 
 
 def _hazard_forcing():

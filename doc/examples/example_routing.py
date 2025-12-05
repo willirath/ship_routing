@@ -36,7 +36,17 @@ def run_example() -> RoutingResult:
         speed_knots=7.0,
         time_resolution_hours=12.0,
     )
-    base = Path(__file__).resolve().parent / "data_large"
+    # Find project root and data directory
+    PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
+    LARGE_DATA_DIR = PROJECT_ROOT / "data" / "large"
+
+    if not LARGE_DATA_DIR.exists() or not any(LARGE_DATA_DIR.glob("*.zarr")):
+        print(f"ERROR: Large data not found at {LARGE_DATA_DIR}")
+        print("\nTo download the required data, run:")
+        print("  pixi run download-data")
+        sys.exit(1)
+
+    base = LARGE_DATA_DIR
     forcing = ForcingConfig(
         currents_path=str(
             base

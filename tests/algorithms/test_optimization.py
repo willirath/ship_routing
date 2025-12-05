@@ -19,8 +19,7 @@ import numpy as np
 import pytest
 
 from pathlib import Path
-
-TEST_DATA_DIR = Path(__file__).parent.parent.resolve() / "test_data"
+from conftest import TEST_DATA_DIR
 
 
 def test_gradient_descent_across_track_left_zero_gradients_error():

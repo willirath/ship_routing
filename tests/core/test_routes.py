@@ -19,11 +19,10 @@ import pint
 import pandas as pd
 
 import pytest
+from conftest import TEST_DATA_DIR
 
 
 # fixtures etc.
-
-TEST_DATA_DIR = Path(__file__).parent.parent.resolve() / "test_data"
 
 
 # way points
