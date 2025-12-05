@@ -84,6 +84,8 @@ generate_commands() {
 	local gd_iterations=(0 1)
 	local crossover_strategies=("minimal_cost" "random")
 	local crossover_rounds=(0 1)
+	local mutation_width_fractions_warmup=(0.5 0.7 0.9)
+	local mutation_displacement_fractions_warmup=(0.1 0.15 0.2 0.25)
 
 	# Generate N random samples
 	for ((i=0; i<num_samples; i++)); do
@@ -97,6 +99,8 @@ generate_commands() {
 		local gd_iter=${gd_iterations[$(random_int) % ${#gd_iterations[@]}]}
 		local cross_strat=${crossover_strategies[$(random_int) % ${#crossover_strategies[@]}]}
 		local cross_rounds=${crossover_rounds[$(random_int) % ${#crossover_rounds[@]}]}
+		local mut_width_warmup=${mutation_width_fractions_warmup[$(random_int) % ${#mutation_width_fractions_warmup[@]}]}
+		local mut_disp_warmup=${mutation_displacement_fractions_warmup[$(random_int) % ${#mutation_displacement_fractions_warmup[@]}]}
 
 		echo "./run_experiment.py" \
 			"--redis-host ${REDIS_HOST}" \
@@ -108,13 +112,16 @@ generate_commands() {
 			"--speed-knots ${speed_knots}" \
 			"--random-seed ${rand_seed}" \
 			"--population-size ${pop_size}" \
+			"--mutation-width-fraction-warmup ${mut_width_warmup}" \
+			"--mutation-displacement-fraction-warmup ${mut_disp_warmup}" \
 			"--generations ${gen}" \
+			"--offspring-size ${pop_size}" \
+			"--crossover-rounds ${cross_rounds}" \
 			"--mutation-iterations ${mut_iter}" \
 			"--gd-iterations ${gd_iter}" \
 			"--crossover-strategy ${cross_strat}" \
 			"--selection-quantile ${sel_quant}" \
-			"--selection-acceptance-rate ${sel_accept}" \
-			"--crossover-rounds ${cross_rounds}"
+			"--selection-acceptance-rate ${sel_accept}"
 	done
 }
 

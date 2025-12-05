@@ -70,23 +70,34 @@ def run_example() -> RoutingResult:
         ship=Ship(),
         physics=Physics(),
         hyper=HyperParams(
+            # Population
             population_size=4,
             random_seed=345,
-            generations=2,
-            selection_quantile=0.5,
+            # Stage 2: Warmup
             selection_acceptance_rate_warmup=0.1,
+            mutation_width_fraction_warmup=0.5,
+            mutation_displacement_fraction_warmup=0.15,
+            # Stage 3: Genetic evolution
+            generations=2,
+            offspring_size=4,
+            crossover_rounds=1,
+            selection_quantile=0.5,
             selection_acceptance_rate=0.1,
             mutation_width_fraction=0.5,
             mutation_displacement_fraction=0.1,
             mutation_iterations=1,
-            crossover_rounds=1,
+            crossover_strategy="minimal_cost",
+            hazards_enabled=True,
+            # Stage 4: Post-processing (Gradient descent)
             num_elites=2,
             gd_iterations=1,
             learning_rate_time=0.5,
             learning_rate_space=0.5,
             time_increment=1_200.0,
             distance_increment=10_000.0,
-            crossover_strategy="minimal_cost",
+            # Parallelization
+            num_workers=2,
+            executor_type="sequential",
         ),
     )
     app = RoutingApp(config=config)
