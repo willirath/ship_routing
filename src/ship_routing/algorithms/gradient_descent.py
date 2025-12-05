@@ -34,6 +34,7 @@ def gradient_descent_time_shift(
     learning_rate_percent: float = None,
     ship=SHIP_DEFAULT,
     physics=PHYSICS_DEFAULT,
+    ignore_hazards: bool = False,
 ):
     """Do one step of gradient descent by shifting times.
 
@@ -58,6 +59,8 @@ def gradient_descent_time_shift(
         Ship characteristics
     physics : Physics, default=PHYSICS_DEFAULT
         Physics parameters
+    ignore_hazards : bool, default=False
+        Whether to ignore hazard conditions when computing costs
 
     Returns
     -------
@@ -81,6 +84,7 @@ def gradient_descent_time_shift(
                 time_shift_seconds=time_shift_seconds,
                 ship=ship,
                 physics=physics,
+                ignore_hazards=ignore_hazards,
             )
             for n in range(1, len(route) - 1)
         ]
@@ -91,6 +95,7 @@ def gradient_descent_time_shift(
         wave_data_set=wave_data_set,
         ship=ship,
         physics=physics,
+        ignore_hazards=ignore_hazards,
     )
     desired_cost_reduction = learning_rate_percent / 100 * cost_before
     gradients_squared_sum = (gradients**2).sum()
@@ -119,6 +124,7 @@ def gradient_descent_along_track(
     learning_rate_percent: float = None,
     ship=SHIP_DEFAULT,
     physics=PHYSICS_DEFAULT,
+    ignore_hazards: bool = False,
 ):
     """Do one step of gradient descent with along-track shifts.
 
@@ -143,6 +149,8 @@ def gradient_descent_along_track(
         Ship characteristics
     physics : Physics, default=PHYSICS_DEFAULT
         Physics parameters
+    ignore_hazards : bool, default=False
+        Whether to ignore hazard conditions when computing costs
 
     Returns
     -------
@@ -168,6 +176,7 @@ def gradient_descent_along_track(
                 distance_meters=distance_meters,
                 ship=ship,
                 physics=physics,
+                ignore_hazards=ignore_hazards,
             )
             for n in range(1, len(route) - 1)
         ]
@@ -178,6 +187,7 @@ def gradient_descent_along_track(
         wave_data_set=wave_data_set,
         ship=ship,
         physics=physics,
+        ignore_hazards=ignore_hazards,
     )
     desired_cost_reduction = learning_rate_percent / 100 * cost_before
     gradients_squared_sum = (gradients**2).sum()
@@ -208,6 +218,7 @@ def gradient_descent_across_track_left(
     learning_rate_percent: float = None,
     ship=SHIP_DEFAULT,
     physics=PHYSICS_DEFAULT,
+    ignore_hazards: bool = False,
 ):
     """Do one step of gradient descent with across-track shifts.
 
@@ -232,6 +243,8 @@ def gradient_descent_across_track_left(
         Ship characteristics
     physics : Physics, default=PHYSICS_DEFAULT
         Physics parameters
+    ignore_hazards : bool, default=False
+        Whether to ignore hazard conditions when computing costs
 
     Returns
     -------
@@ -257,6 +270,7 @@ def gradient_descent_across_track_left(
                 distance_meters=distance_meters,
                 ship=ship,
                 physics=physics,
+                ignore_hazards=ignore_hazards,
             )
             for n in range(1, len(route) - 1)
         ]
@@ -267,6 +281,7 @@ def gradient_descent_across_track_left(
         wave_data_set=wave_data_set,
         ship=ship,
         physics=physics,
+        ignore_hazards=ignore_hazards,
     )
     desired_cost_reduction = learning_rate_percent / 100 * cost_before
     gradients_squared_sum = (gradients**2).sum()
@@ -298,6 +313,7 @@ def gradient_descent(
     current_data_set: xr.Dataset = None,
     wave_data_set: xr.Dataset = None,
     wind_data_set: xr.Dataset = None,
+    ignore_hazards: bool = False,
 ) -> Route:
     """Execute a single iteration of gradient descent (3 steps: time, across, along).
 
@@ -326,6 +342,8 @@ def gradient_descent(
         Wave forcing data
     wind_data_set : xr.Dataset
         Wind forcing data
+    ignore_hazards : bool, default=False
+        Whether to ignore hazard conditions when computing costs
 
     Returns
     -------
@@ -340,6 +358,7 @@ def gradient_descent(
             wind_data_set=wind_data_set,
             time_shift_seconds=time_increment,
             learning_rate_percent=learning_rate_percent_time,
+            ignore_hazards=ignore_hazards,
         )
     except ZeroGradientsError:
         pass
@@ -357,6 +376,7 @@ def gradient_descent(
             wind_data_set=wind_data_set,
             distance_meters=dist_shift_across,
             learning_rate_percent=learning_rate_percent_across,
+            ignore_hazards=ignore_hazards,
         )
     except ZeroGradientsError:
         pass
@@ -374,6 +394,7 @@ def gradient_descent(
             wind_data_set=wind_data_set,
             distance_meters=dist_shift_along,
             learning_rate_percent=learning_rate_percent_along,
+            ignore_hazards=ignore_hazards,
         )
     except ZeroGradientsError:
         pass

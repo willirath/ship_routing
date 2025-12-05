@@ -107,10 +107,10 @@ from ship_routing.core.population import Population, PopulationMember
     help="Number of crossover rounds (N_crossover). Set to 0 to skip crossover.",
 )
 @click.option(
-    "--hazards-enabled",
+    "--ignore-hazards",
     type=bool,
-    default=True,
-    help="Enable hazard avoidance.",
+    default=False,
+    help="Ignore hazard conditions during routing.",
 )
 # Stage 4: Post-processing (Gradient descent)
 @click.option("--num-elites", type=int, default=2, help="Number of elite members (k).")
@@ -226,7 +226,7 @@ def run_experiment(
     mutation_iterations,
     crossover_strategy,
     crossover_rounds,
-    hazards_enabled,
+    ignore_hazards,
     num_elites,
     gd_iterations,
     learning_rate_time,
@@ -296,7 +296,7 @@ def run_experiment(
             mutation_displacement_fraction=mutation_displacement_fraction,
             mutation_iterations=mutation_iterations,
             crossover_strategy=crossover_strategy,
-            hazards_enabled=hazards_enabled,
+            ignore_hazards=ignore_hazards,
             # Stage 4: Post-processing (Gradient descent)
             num_elites=num_elites,
             gd_iterations=gd_iterations,

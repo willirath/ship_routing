@@ -41,7 +41,7 @@ def _simple_route():
 
 
 def test_route_cost_respects_hazards_flag_enabled():
-    config = RoutingConfig(hyper=HyperParams(hazards_enabled=True))
+    config = RoutingConfig(hyper=HyperParams(ignore_hazards=False))
     app = RoutingApp(config=config)
     forcing = _hazard_forcing()
     cost = app._route_cost(route=_simple_route(), forcing=forcing)
@@ -49,7 +49,7 @@ def test_route_cost_respects_hazards_flag_enabled():
 
 
 def test_route_cost_respects_hazards_flag_disabled():
-    config = RoutingConfig(hyper=HyperParams(hazards_enabled=False))
+    config = RoutingConfig(hyper=HyperParams(ignore_hazards=True))
     app = RoutingApp(config=config)
     forcing = _hazard_forcing()
     cost = app._route_cost(route=_simple_route(), forcing=forcing)

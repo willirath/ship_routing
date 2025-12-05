@@ -326,7 +326,7 @@ classDiagram
         -mutation_displacement_fraction: float
         -mutation_iterations: int
         -crossover_strategy: Literal
-        -hazards_enabled: bool
+        -ignore_hazards: bool
         -num_elites: int
         -gd_iterations: int
         -learning_rate_time: float
@@ -601,7 +601,7 @@ The CORE layer provides immutable data structures and physics-based calculations
 - `HashableDataset`: Extends xarray.Dataset with hash method for LRU caching of expensive operations
 - `DataModule`: Functions to load environmental data (currents, winds, waves) and extract data for specific legs
 - `CostModule`: Functions to calculate fuel consumption (`power_maintain_speed`) and check hazard conditions
-  - Hazard detection uses wave-height stability (`wh / L > 1/40` from Mannarini et al. 2016). When hazards are enabled, hazardous legs return infinite cost; `hyper.hazards_enabled` toggles enforcement.
+  - Hazard detection uses wave-height stability (`wh / L > 1/40` from Mannarini et al. 2016). When hazards are not ignored, hazardous legs return infinite cost; `hyper.ignore_hazards` controls enforcement (False = enforce, True = ignore).
 
 ### Key Design Patterns
 
