@@ -171,6 +171,12 @@ from ship_routing.core.population import Population, PopulationMember
 )
 # Journey parameters
 @click.option(
+    "--journey-name",
+    type=str,
+    default="Journey",
+    help="Human-readable name for this journey (e.g., 'NYC-London-Winter').",
+)
+@click.option(
     "--lon-wp",
     "lon_waypoints",
     type=float,
@@ -237,6 +243,7 @@ def run_experiment(
     redis_host,
     redis_port,
     redis_password,
+    journey_name,
     lon_waypoints,
     lat_waypoints,
     time_start,
@@ -248,6 +255,7 @@ def run_experiment(
     logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 
     journey = JourneyConfig(
+        name=journey_name,
         lon_waypoints=lon_waypoints,
         lat_waypoints=lat_waypoints,
         time_start=time_start,

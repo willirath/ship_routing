@@ -11,6 +11,7 @@ from ..core.config import Physics, Ship
 class JourneyConfig:
     """Definition of the trip that needs to be routed."""
 
+    name: str = "Journey"
     lon_waypoints: Tuple[float, ...] = (-80.5, -75.5)
     lat_waypoints: Tuple[float, ...] = (30.0, 30.0)
     time_start: str = "2021-01-01T00:00"

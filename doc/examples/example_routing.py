@@ -30,6 +30,7 @@ def run_example() -> RoutingResult:
     """Configure and run a routing experiment."""
     logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
     journey = JourneyConfig(
+        name="Example-Atlantic-Journey",
         lon_waypoints=(-80.5, -62.0),
         lat_waypoints=(30.0, 35.0),
         time_start="2021-01-01T00:00",

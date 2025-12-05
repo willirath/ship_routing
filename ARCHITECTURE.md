@@ -285,6 +285,7 @@ classDiagram
     }
 
     class JourneyConfig {
+        -name: str
         -lon_waypoints: Tuple[float]
         -lat_waypoints: Tuple[float]
         -time_start: str
@@ -550,7 +551,7 @@ The APP layer orchestrates the complete optimization workflow and manages config
 
 **_Configuration Classes_** form a hierarchical structure:
 - `RoutingConfig` is the root, containing all sub-configurations
-- `JourneyConfig` defines the trip: waypoints, duration, vessel speed
+- `JourneyConfig` defines the trip: human-readable name, waypoints, duration, vessel speed
 - `ForcingConfig` specifies data sources and loading parameters
 - `HyperParams` contains all optimization hyperparameters:
   - Algorithm parameters: population size, generations, learning rates, mutation/crossover settings
