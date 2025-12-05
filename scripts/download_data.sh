@@ -2,7 +2,7 @@
 set -e
 
 REPO_URL="https://git.geomar.de/willi-rath/ship_routing_data.git"
-PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+PROJECT_ROOT="$(realpath "$(dirname "${BASH_SOURCE[0]}")/..")"
 DATA_LARGE_DIR="${PROJECT_ROOT}/data/large"
 
 # Check if data exists
@@ -12,14 +12,14 @@ if [ -d "${DATA_LARGE_DIR}" ] && [ -n "$(ls -A "${DATA_LARGE_DIR}"/*.zarr 2>/dev
     exit 0
 fi
 
-# Create temp directory in system temp (HPC-friendly)
+# Create temp directory in system temp (potentially more HPC-friendly)
 TEMP_CLONE_DIR=$(mktemp -d -t ship_routing_data.XXXXXX)
 trap "rm -rf ${TEMP_CLONE_DIR}" EXIT  # Cleanup on exit
 
 mkdir -p "${DATA_LARGE_DIR}"
 
 echo "Cloning Git LFS repository from ${REPO_URL}..."
-echo "This may take a while (downloading ~23GB)..."
+echo "This may take a while (downloading ~NN GB)..."
 echo "Using temp directory: ${TEMP_CLONE_DIR}"
 
 # Clone and extract

@@ -55,7 +55,7 @@ JOURNEY_CONFIG = {
     "time_resolution_hours": 4.0,
 }
 
-PROJECT_ROOT = Path(__file__).resolve().parent.parent
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
 base = PROJECT_ROOT / "data" / "large"
 
 FORCING_CONFIG = {

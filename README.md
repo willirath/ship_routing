@@ -13,37 +13,26 @@ pixi shell          # drop into an activated shell
 pixi run jupyterlab # (optional) start the notebook environment
 ```
 
-The default environment targets Python 3.11 and uses the Conda-Forge channel.
 If you need additional tools, add them to `pixi.toml` so every contributor
 inherits the same setup.
 
 ## Data Setup
 
-- **Test data** (`data/test/`): Included, ~10 MB
-- **Large data** (`data/large/`): Download separately, ~23 GB
+- `data/test/`: Included, ~10 MB
+- `data/large/`:  Download separately, ~23 GB, use `pixi run download-data`
 
-### Quick Start
-Tests only (data included):
+See `data/README.md` for more details.
+
+## Testing
+
+See `tests/`.
+
 ```bash
 pixi run tests
+pixi run coverage
 ```
 
-Examples (requires large data):
-```bash
-pixi run download-data  # One-time setup
-python doc/examples/example_routing.py
-```
-
-See `data/README.md` for details.
-
-## Example routing workflow
-
-The repository contains a minimal script at `doc/examples/example_routing.py`
-that demonstrates how to configure a journey, point the routing app to forcing
-datasets, and run the optimisation pipeline. To run it:
-
-1. Download the forcing datasets (currents, winds, waves) by running
-   `pixi run download-data`. This will clone the data from
-   `https://git.geomar.de/willi-rath/ship_routing_data` into `data/large/`.
-2. Activate the Pixi environment (`pixi shell`) and execute
-   `python doc/examples/example_routing.py`.
+## TODO: 
+- document benchmarking
+- document example run
+- document hyperparameter tuning

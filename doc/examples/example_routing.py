@@ -37,7 +37,7 @@ def run_example() -> RoutingResult:
         time_resolution_hours=12.0,
     )
     # Find project root and data directory
-    PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
+    PROJECT_ROOT = Path(__file__).resolve().parents[2]
     LARGE_DATA_DIR = PROJECT_ROOT / "data" / "large"
 
     if not LARGE_DATA_DIR.exists() or not any(LARGE_DATA_DIR.glob("*.zarr")):
