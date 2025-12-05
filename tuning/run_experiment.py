@@ -101,6 +101,12 @@ from ship_routing.core.population import Population, PopulationMember
     help="Crossover strategy: minimal_cost or random.",
 )
 @click.option(
+    "--crossover-rounds",
+    type=int,
+    default=1,
+    help="Number of crossover rounds (N_crossover). Set to 0 to skip crossover.",
+)
+@click.option(
     "--hazards-enabled",
     type=bool,
     default=True,
@@ -219,6 +225,7 @@ def run_experiment(
     mutation_displacement_fraction,
     mutation_iterations,
     crossover_strategy,
+    crossover_rounds,
     hazards_enabled,
     num_elites,
     gd_iterations,
@@ -282,6 +289,7 @@ def run_experiment(
             # Stage 3: Genetic evolution
             generations=generations,
             offspring_size=offspring_size,
+            crossover_rounds=crossover_rounds,
             selection_quantile=selection_quantile,
             selection_acceptance_rate=selection_acceptance_rate,
             mutation_width_fraction=mutation_width_fraction,

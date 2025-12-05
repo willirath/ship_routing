@@ -40,6 +40,7 @@ BENCHMARK_CONFIG = {
     "population_size": 8,
     "generations": 1,
     "offspring_size": 8,
+    "crossover_rounds": 1,
     "mutation_iterations": 2,
     "gd_iterations": 0,
     "num_elites": 2,

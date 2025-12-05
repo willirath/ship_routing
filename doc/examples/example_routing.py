@@ -80,6 +80,7 @@ def run_example() -> RoutingResult:
             # Stage 3: Genetic evolution
             generations=2,
             offspring_size=4,
+            crossover_rounds=1,
             selection_quantile=0.5,
             selection_acceptance_rate=0.1,
             mutation_width_fraction=0.5,

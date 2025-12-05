@@ -693,40 +693,62 @@ class RoutingApp:
         forcing: ForcingData,
         executor: ProcessPoolExecutor | None = None,
     ) -> Population:
-        """GA sub-stage 2: Crossover to generate offspring."""
+        """GA sub-stage 2: Crossover to generate offspring through accumulating rounds.
+
+        Implements N_crossover rounds where each round:
+        - Creates offspring_size offspring from the previous round's offspring
+        - Accumulates all offspring: P -> (P + P') -> (P + P' + P'') -> ...
+
+        If crossover_rounds = 0, skips crossover entirely.
+        """
         params = self.config.hyper
         M = params.population_size
-
-        # Crossover
-        # Generate all parent pairs upfront
         rng = self._ensure_rng()
-        num_offspring = params.offspring_size
 
-        # Select parent indices for all offspring
-        parent_indices_list = []
-        for _ in range(num_offspring):
-            indices = rng.choice(len(population.members), size=2, replace=False)
-            parent_indices_list.append(tuple(indices))
+        # Handle crossover_rounds = 0: skip crossover entirely
+        if params.crossover_rounds == 0:
+            return population.add_member(seed_member)
 
-            # Prepare arguments for workers (parent_indices, population_members)
+        # Accumulating rounds: each round creates offspring from previous round
+        current_source = list(population.members)
+        accumulated_offspring = []
+
+        for round_idx in range(params.crossover_rounds):
+            # Select parent indices for all offspring in this round
+            parent_indices_list = []
+            for _ in range(params.offspring_size):
+                indices = rng.choice(len(current_source), size=2, replace=False)
+                parent_indices_list.append(tuple(indices))
+
+            # Prepare arguments for workers (bug fix: moved outside offspring loop)
             worker_args = [
-                (parent_indices, population.members)
+                (parent_indices, current_source)
                 for parent_indices in parent_indices_list
             ]
 
-            offspring_members = list(
+            # Create offspring for this round in parallel
+            round_offspring = list(
                 executor.map(RoutingApp._task_crossover, *zip(*worker_args))
             )
 
-        # Add back seed member
-        offspring = Population.from_members(offspring_members).add_member(seed_member)
+            # Accumulate offspring
+            accumulated_offspring.extend(round_offspring)
+
+            # For next round, use only this round's offspring as parents
+            current_source = round_offspring
+
+        # Combine: P (original population) + all accumulated offspring + seed
+        combined_members = list(population.members) + accumulated_offspring
+        result_population = Population.from_members(combined_members).add_member(
+            seed_member
+        )
 
         self._log_stage_metrics(
             "ga_crossover",
-            **self._population_stats(offspring.members),
+            **self._population_stats(result_population.members),
         )
 
-        return offspring
+        return result_population
 
     @profile
     def _stage_ga_selection(

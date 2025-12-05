@@ -80,6 +80,7 @@ class HyperParams:
     # Stage 3: Genetic evolution
     generations: int = 5  # N_G
     offspring_size: int = 4  # M_offspring
+    crossover_rounds: int = 1  # N_crossover
     selection_quantile: float = 0.2  # q
     selection_acceptance_rate: float = 0.0  # p
     mutation_width_fraction: float = 0.9  # W
