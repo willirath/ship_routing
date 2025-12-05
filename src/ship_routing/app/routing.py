@@ -39,13 +39,22 @@ except NameError:
         return func
 
 
-# Worker functions for multiprocessing/multithreading (must be module-level for pickling)
+# ========== Worker State Management ==========
+# Module-level state required for concurrent.futures executor pattern.
+#
+# Why globals are necessary:
+# - concurrent.futures requires worker functions to be picklable (module-level)
+# - Executor initializers run once per worker to set up shared state efficiently
+# - Process isolation: Each process has separate memory, so process-level globals are safe
+# - Thread-local storage: threading.local() provides thread-safe state for worker threads
+#
+# State variables (initialized in RoutingApp.run() when executors are created):
+# - _WORKER_STATE: Per-process state for ProcessPoolExecutor workers
+# - _THREAD_LOCAL_STATE: Per-thread state for ThreadPoolExecutor workers
+# - _SHARED_FORCING: Shared forcing data for threads only (avoids serialization overhead)
 
-# Global state for worker processes (initialized once per worker)
 _WORKER_STATE = None
-# Thread-local state for worker threads
-_THREAD_LOCAL_STATE = threading.local()
-# Shared forcing data for thread workers (threads share memory, no serialization needed)
+_THREAD_LOCAL_STATE = None
 _SHARED_FORCING = None
 
 
@@ -59,16 +68,16 @@ class WorkerState:
         Ocean forcing data (currents, winds, waves)
     rng : np.random.Generator
         Random number generator for this worker
-    params : dict
-        Algorithm parameters dictionary
+    params : HyperParams
+        Algorithm hyperparameters
     """
 
     forcing: ForcingData
     rng: np.random.Generator
-    params: dict
+    params: "HyperParams"
 
 
-def _initialize_worker_process(forcing: ForcingData, seed: int, params: dict) -> None:
+def _initialize_process(forcing: ForcingData, seed: int, params: "HyperParams") -> None:
     """Initialize worker process with shared state.
 
     Called once per worker process at creation time. Avoids expensive
@@ -80,8 +89,8 @@ def _initialize_worker_process(forcing: ForcingData, seed: int, params: dict) ->
         Ocean forcing data to share across tasks
     seed : int
         Random seed for this worker's RNG
-    params : dict
-        Algorithm parameters to share across tasks
+    params : HyperParams
+        Algorithm hyperparameters to share across tasks
     """
     global _WORKER_STATE
     _WORKER_STATE = WorkerState(
@@ -91,7 +100,7 @@ def _initialize_worker_process(forcing: ForcingData, seed: int, params: dict) ->
     )
 
 
-def _initialize_worker_thread(seed: int, params: dict) -> None:
+def _initialize_thread(seed: int, params: "HyperParams") -> None:
     """Initialize worker thread with thread-local state.
 
     Called once per worker thread at creation time. Threads share memory,
@@ -101,8 +110,8 @@ def _initialize_worker_thread(seed: int, params: dict) -> None:
     ----------
     seed : int
         Random seed base for this worker's RNG
-    params : dict
-        Algorithm parameters to share across tasks
+    params : HyperParams
+        Algorithm hyperparameters to share across tasks
     """
     _THREAD_LOCAL_STATE.state = WorkerState(
         forcing=_SHARED_FORCING,
@@ -111,7 +120,7 @@ def _initialize_worker_thread(seed: int, params: dict) -> None:
     )
 
 
-def _get_worker_state() -> WorkerState:
+def _get_state() -> WorkerState:
     """Get the worker state for current process/thread.
 
     Returns thread-local state if running in a worker thread,
@@ -122,13 +131,13 @@ def _get_worker_state() -> WorkerState:
     WorkerState
         The worker state for this process or thread
     """
-    if hasattr(_THREAD_LOCAL_STATE, 'state'):
+    if hasattr(_THREAD_LOCAL_STATE, "state"):
         return _THREAD_LOCAL_STATE.state
     return _WORKER_STATE
 
 
-def _warmup_worker(member: PopulationMember) -> PopulationMember:
-    """Worker function for parallel warmup stage.
+def _task_warmup(member: PopulationMember) -> PopulationMember:
+    """Task function for parallel warmup stage.
 
     Parameters
     ----------
@@ -140,25 +149,25 @@ def _warmup_worker(member: PopulationMember) -> PopulationMember:
     PopulationMember
         The processed member after mutation and selection
     """
-    state = _get_worker_state()
+    state = _get_state()
     length = member.route.length_meters
 
     mutated_route = stochastic_mutation(
         route=member.route,
-        number_of_iterations=state.params["mutation_iterations"],
-        mod_width=state.params["mutation_width_fraction"] * length,
-        max_move_meters=state.params["mutation_displacement_fraction"] * length,
+        number_of_iterations=state.params.mutation_iterations,
+        mod_width=state.params.mutation_width_fraction * length,
+        max_move_meters=state.params.mutation_displacement_fraction * length,
         rng=state.rng,
     )
     mutated_cost = mutated_route.cost_through(
         current_data_set=state.forcing.currents,
         wave_data_set=state.forcing.waves,
         wind_data_set=state.forcing.winds,
-        ignore_hazards=not state.params["hazards_enabled"],
+        ignore_hazards=not state.params.hazards_enabled,
     )
 
     selected_route, selected_cost = select_from_pair(
-        p=state.params["selection_acceptance_rate_warmup"],
+        p=state.params.selection_acceptance_rate_warmup,
         route_a=member.route,
         route_b=mutated_route,
         cost_a=member.cost,
@@ -168,8 +177,8 @@ def _warmup_worker(member: PopulationMember) -> PopulationMember:
     return PopulationMember(route=selected_route, cost=selected_cost)
 
 
-def _mutation_worker(member: PopulationMember, W: float, D: float) -> PopulationMember:
-    """Worker function for parallel GA mutation stage.
+def _task_mutation(member: PopulationMember, W: float, D: float) -> PopulationMember:
+    """Task function for parallel GA mutation stage.
 
     Parameters
     ----------
@@ -185,12 +194,12 @@ def _mutation_worker(member: PopulationMember, W: float, D: float) -> Population
     PopulationMember
         The processed member after mutation and selection
     """
-    state = _get_worker_state()
+    state = _get_state()
     length = member.route.length_meters
 
     mutated_route = stochastic_mutation(
         route=member.route,
-        number_of_iterations=state.params["mutation_iterations"],
+        number_of_iterations=state.params.mutation_iterations,
         mod_width=W * length,
         max_move_meters=D * length,
         rng=state.rng,
@@ -199,10 +208,10 @@ def _mutation_worker(member: PopulationMember, W: float, D: float) -> Population
         current_data_set=state.forcing.currents,
         wave_data_set=state.forcing.waves,
         wind_data_set=state.forcing.winds,
-        ignore_hazards=not state.params["hazards_enabled"],
+        ignore_hazards=not state.params.hazards_enabled,
     )
     selected_route, selected_cost = select_from_pair(
-        p=state.params["selection_acceptance_rate"],
+        p=state.params.selection_acceptance_rate,
         route_a=member.route,
         route_b=mutated_route,
         cost_a=member.cost,
@@ -212,10 +221,10 @@ def _mutation_worker(member: PopulationMember, W: float, D: float) -> Population
     return PopulationMember(route=selected_route, cost=selected_cost)
 
 
-def _crossover_worker(
+def _task_crossover(
     parent_indices: tuple[int, int], population_members: list[PopulationMember]
 ) -> PopulationMember:
-    """Worker function for parallel GA crossover stage.
+    """Task function for parallel GA crossover stage.
 
     Parameters
     ----------
@@ -229,12 +238,12 @@ def _crossover_worker(
     PopulationMember
         The offspring member after crossover
     """
-    state = _get_worker_state()
+    state = _get_state()
     parent_a = population_members[parent_indices[0]]
     parent_b = population_members[parent_indices[1]]
 
     try:
-        if state.params["crossover_strategy"] == "minimal_cost":
+        if state.params.crossover_strategy == "minimal_cost":
             child_route = crossover_routes_minimal_cost(
                 parent_a.route,
                 parent_b.route,
@@ -252,13 +261,13 @@ def _crossover_worker(
         current_data_set=state.forcing.currents,
         wave_data_set=state.forcing.waves,
         wind_data_set=state.forcing.winds,
-        ignore_hazards=not state.params["hazards_enabled"],
+        ignore_hazards=not state.params.hazards_enabled,
     )
     return PopulationMember(route=child_route, cost=child_cost)
 
 
-def _gradient_descent_worker(member: PopulationMember) -> PopulationMember:
-    """Worker function for parallel gradient descent stage.
+def _task_gradient_descent(member: PopulationMember) -> PopulationMember:
+    """Task function for parallel gradient descent stage.
 
     Parameters
     ----------
@@ -270,16 +279,16 @@ def _gradient_descent_worker(member: PopulationMember) -> PopulationMember:
     PopulationMember
         The processed member after gradient descent
     """
-    state = _get_worker_state()
+    state = _get_state()
 
     route = gradient_descent(
         route=member.route,
-        learning_rate_percent_time=state.params["learning_rate_time"],
-        time_increment=state.params["time_increment"],
-        learning_rate_percent_along=state.params["learning_rate_space"],
-        dist_shift_along=state.params["distance_increment"],
-        learning_rate_percent_across=state.params["learning_rate_space"],
-        dist_shift_across=state.params["distance_increment"],
+        learning_rate_percent_time=state.params.learning_rate_time,
+        time_increment=state.params.time_increment,
+        learning_rate_percent_along=state.params.learning_rate_space,
+        dist_shift_along=state.params.distance_increment,
+        learning_rate_percent_across=state.params.learning_rate_space,
+        dist_shift_across=state.params.distance_increment,
         current_data_set=state.forcing.currents,
         wave_data_set=state.forcing.waves,
         wind_data_set=state.forcing.winds,
@@ -288,7 +297,7 @@ def _gradient_descent_worker(member: PopulationMember) -> PopulationMember:
         current_data_set=state.forcing.currents,
         wave_data_set=state.forcing.waves,
         wind_data_set=state.forcing.winds,
-        ignore_hazards=not state.params["hazards_enabled"],
+        ignore_hazards=not state.params.hazards_enabled,
     )
     return PopulationMember(route=route, cost=cost)
 
@@ -522,33 +531,26 @@ class RoutingApp:
     @profile
     def run(self) -> RoutingResult:
         """Execute the optimisation pipeline."""
-        global _SHARED_FORCING
+        global _WORKER_STATE, _THREAD_LOCAL_STATE, _SHARED_FORCING
 
         self._log_stage_metrics("run", message="starting routing run")
         self._rng = np.random.default_rng(self.config.hyper.random_seed)
 
         forcing = self._load_forcing(self.config.journey)
 
-        # Create executor once for all stages if parallelization enabled
+        # Initialize worker state globals (used by executor workers)
+        _WORKER_STATE = None
+        _THREAD_LOCAL_STATE = threading.local()
+        _SHARED_FORCING = None
+
+        # Create executor based on parallelization configuration
         executor = None
         params = self.config.hyper
-        if params.num_workers != 0:
-            # Prepare parameters dict for workers
-            params_dict = {
-                "mutation_iterations": params.mutation_iterations,
-                "mutation_width_fraction": params.mutation_width_fraction,
-                "mutation_displacement_fraction": params.mutation_displacement_fraction,
-                "selection_acceptance_rate_warmup": params.selection_acceptance_rate_warmup,
-                "selection_acceptance_rate": params.selection_acceptance_rate,
-                "crossover_strategy": params.crossover_strategy,
-                "hazards_enabled": params.hazards_enabled,
-                "num_elites": params.num_elites,
-                "learning_rate_time": params.learning_rate_time,
-                "learning_rate_space": params.learning_rate_space,
-                "time_increment": params.time_increment,
-                "distance_increment": params.distance_increment,
-            }
 
+        if params.executor_type == "sequential":
+            # Sequential mode: no executor, process items inline
+            executor = None
+        elif params.num_workers != 0:
             # Generate seed for worker initialization
             worker_seed = int(self._rng.integers(0, 2**31 - 1))
 
@@ -559,14 +561,14 @@ class RoutingApp:
 
                 executor = ThreadPoolExecutor(
                     max_workers=params.num_workers,
-                    initializer=_initialize_worker_thread,
-                    initargs=(worker_seed, params_dict),
+                    initializer=_initialize_thread,
+                    initargs=(worker_seed, params),
                 )
-            else:  # "process" (default)
+            else:  # "process"
                 executor = ProcessPoolExecutor(
                     max_workers=params.num_workers,
-                    initializer=_initialize_worker_process,
-                    initargs=(forcing, worker_seed, params_dict),
+                    initializer=_initialize_process,
+                    initargs=(forcing, worker_seed, params),
                 )
 
         try:
@@ -603,7 +605,9 @@ class RoutingApp:
             # Clean up worker pool
             if executor is not None:
                 executor.shutdown()
-            # Clean up shared forcing data for threads
+            # Clean up worker state globals
+            _WORKER_STATE = None
+            _THREAD_LOCAL_STATE = None
             _SHARED_FORCING = None
 
     @profile
@@ -733,18 +737,11 @@ class RoutingApp:
 
         # Use provided executor if available, otherwise process sequentially
         if executor is not None:
-            warmed_members = list(executor.map(_warmup_worker, members_to_process))
+            warmed_members = list(executor.map(_task_warmup, members_to_process))
         else:
             # Sequential mode: initialize worker state inline
-            params_dict = {
-                "mutation_iterations": params.mutation_iterations,
-                "mutation_width_fraction": params.mutation_width_fraction,
-                "mutation_displacement_fraction": params.mutation_displacement_fraction,
-                "selection_acceptance_rate_warmup": params.selection_acceptance_rate_warmup,
-                "hazards_enabled": params.hazards_enabled,
-            }
-            _initialize_worker_process(forcing, int(rng.integers(0, 2**31 - 1)), params_dict)
-            warmed_members = [_warmup_worker(member) for member in members_to_process]
+            _initialize_process(forcing, int(rng.integers(0, 2**31 - 1)), params)
+            warmed_members = [_task_warmup(member) for member in members_to_process]
 
         # Add seed back: P ← P ∪ {r_seed}
         population = Population.from_members(warmed_members).add_member(seed_member)
@@ -781,17 +778,12 @@ class RoutingApp:
 
         # Use provided executor if available, otherwise process sequentially
         if executor is not None:
-            mutated_members = list(executor.map(_mutation_worker, *zip(*worker_args)))
+            mutated_members = list(executor.map(_task_mutation, *zip(*worker_args)))
         else:
             # Sequential mode: initialize worker state inline
-            params_dict = {
-                "mutation_iterations": params.mutation_iterations,
-                "selection_acceptance_rate": params.selection_acceptance_rate,
-                "hazards_enabled": params.hazards_enabled,
-            }
-            _initialize_worker_process(forcing, int(rng.integers(0, 2**31 - 1)), params_dict)
+            _initialize_process(forcing, int(rng.integers(0, 2**31 - 1)), params)
             mutated_members = [
-                _mutation_worker(member, W, D) for member in members_to_process
+                _task_mutation(member, W, D) for member in members_to_process
             ]
 
         # New population incl. seed member again
@@ -826,12 +818,6 @@ class RoutingApp:
                 else list(population.members[:-1])
             )
         else:
-            # Prepare parameters dict for workers
-            params_dict = {
-                "crossover_strategy": params.crossover_strategy,
-                "hazards_enabled": params.hazards_enabled,
-            }
-
             # Generate all parent pairs upfront
             rng = self._ensure_rng()
             num_offspring = params.crossover_rounds * M
@@ -851,15 +837,13 @@ class RoutingApp:
             # Use provided executor or process sequentially
             if executor is not None:
                 offspring_members = list(
-                    executor.map(_crossover_worker, *zip(*worker_args))
+                    executor.map(_task_crossover, *zip(*worker_args))
                 )
             else:
                 # Sequential mode: initialize worker state inline
-                _initialize_worker_process(
-                    forcing, int(rng.integers(0, 2**31 - 1)), params_dict
-                )
+                _initialize_process(forcing, int(rng.integers(0, 2**31 - 1)), params)
                 offspring_members = [
-                    _crossover_worker(parent_indices, population.members)
+                    _task_crossover(parent_indices, population.members)
                     for parent_indices in parent_indices_list
                 ]
 
@@ -945,15 +929,6 @@ class RoutingApp:
             elites=len(elite_members),
         )
 
-        # Prepare parameters dict for workers
-        params_dict = {
-            "learning_rate_time": params.learning_rate_time,
-            "time_increment": params.time_increment,
-            "learning_rate_space": params.learning_rate_space,
-            "distance_increment": params.distance_increment,
-            "hazards_enabled": params.hazards_enabled,
-        }
-
         # Initialize worker state (for both parallel and sequential modes)
         rng = self._ensure_rng()
 
@@ -962,15 +937,13 @@ class RoutingApp:
             # Use provided executor or process sequentially
             if executor is not None:
                 updated_members = list(
-                    executor.map(_gradient_descent_worker, elite_members)
+                    executor.map(_task_gradient_descent, elite_members)
                 )
             else:
                 # Sequential mode: initialize worker state inline
-                _initialize_worker_process(
-                    forcing, int(rng.integers(0, 2**31 - 1)), params_dict
-                )
+                _initialize_process(forcing, int(rng.integers(0, 2**31 - 1)), params)
                 updated_members = [
-                    _gradient_descent_worker(member) for member in elite_members
+                    _task_gradient_descent(member) for member in elite_members
                 ]
 
             # Update elite population for next iteration

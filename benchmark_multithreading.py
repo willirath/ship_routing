@@ -27,15 +27,14 @@ from src.ship_routing.app.config import (
 
 # Benchmark configuration
 # Test configurations: (num_workers, executor_type)
-# num_workers=0 means sequential (no executor used)
 TEST_CONFIGS = [
-    (0, "process"),  # Sequential baseline (executor_type ignored)
+    (0, "sequential"),  # Sequential baseline
     (1, "process"),  # Single process worker
-    (1, "thread"),   # Single thread worker
+    (1, "thread"),  # Single thread worker
     (4, "process"),  # Multi-process
-    (4, "thread"),   # Multi-thread
+    (4, "thread"),  # Multi-thread
 ]
-REPETITIONS = 3
+REPETITIONS = 1  # Reduced for quick testing
 
 BENCHMARK_CONFIG = {
     "population_size": 8,
@@ -97,9 +96,7 @@ def benchmark_single_run(num_workers: int, executor_type: str) -> float:
         journey=JourneyConfig(**JOURNEY_CONFIG),
         forcing=ForcingConfig(**FORCING_CONFIG),
         hyper=HyperParams(
-            num_workers=num_workers,
-            executor_type=executor_type,
-            **BENCHMARK_CONFIG
+            num_workers=num_workers, executor_type=executor_type, **BENCHMARK_CONFIG
         ),
     )
 
@@ -136,7 +133,11 @@ def run_benchmark() -> pd.DataFrame:
 
     for num_workers, executor_type in TEST_CONFIGS:
         for rep in range(1, REPETITIONS + 1):
-            config_desc = f"sequential" if num_workers == 0 else f"{executor_type} workers={num_workers}"
+            config_desc = (
+                f"sequential"
+                if num_workers == 0
+                else f"{executor_type} workers={num_workers}"
+            )
             print(
                 f"Running: {config_desc}, rep {rep}/{REPETITIONS}...",
                 end=" ",
@@ -146,7 +147,13 @@ def run_benchmark() -> pd.DataFrame:
             try:
                 # Run as fresh subprocess to avoid JIT/caching effects
                 result = subprocess.run(
-                    [sys.executable, __file__, "--single-run", str(num_workers), executor_type],
+                    [
+                        sys.executable,
+                        __file__,
+                        "--single-run",
+                        str(num_workers),
+                        executor_type,
+                    ],
                     capture_output=True,
                     text=True,
                     check=True,
@@ -191,7 +198,13 @@ def analyze_results(df: pd.DataFrame) -> pd.DataFrame:
         .reset_index()
     )
 
-    summary.columns = ["num_workers", "executor_type", "mean_time", "std_time", "n_runs"]
+    summary.columns = [
+        "num_workers",
+        "executor_type",
+        "mean_time",
+        "std_time",
+        "n_runs",
+    ]
 
     # Calculate speedup relative to sequential (num_workers=0)
     sequential_time = summary[summary["num_workers"] == 0]["mean_time"].iloc[0]
@@ -199,9 +212,12 @@ def analyze_results(df: pd.DataFrame) -> pd.DataFrame:
 
     # Create config label for display
     summary["config"] = summary.apply(
-        lambda row: "sequential" if row["num_workers"] == 0
-        else f"{row['executor_type']}(n={row['num_workers']})",
-        axis=1
+        lambda row: (
+            "sequential"
+            if row["num_workers"] == 0
+            else f"{row['executor_type']}(n={row['num_workers']})"
+        ),
+        axis=1,
     )
 
     return summary
@@ -225,9 +241,9 @@ def display_results(summary: pd.DataFrame, raw_df: pd.DataFrame):
 
     # Format summary table
     print(
-        summary[
-            ["config", "mean_time", "std_time", "speedup_vs_sequential"]
-        ].to_string(index=False, float_format="%.2f")
+        summary[["config", "mean_time", "std_time", "speedup_vs_sequential"]].to_string(
+            index=False, float_format="%.2f"
+        )
     )
     print()
 
@@ -238,31 +254,55 @@ def display_results(summary: pd.DataFrame, raw_df: pd.DataFrame):
     print()
 
     # Compare num_workers=1
-    proc1 = summary[(summary["num_workers"] == 1) & (summary["executor_type"] == "process")]
-    thread1 = summary[(summary["num_workers"] == 1) & (summary["executor_type"] == "thread")]
+    proc1 = summary[
+        (summary["num_workers"] == 1) & (summary["executor_type"] == "process")
+    ]
+    thread1 = summary[
+        (summary["num_workers"] == 1) & (summary["executor_type"] == "thread")
+    ]
 
     if not proc1.empty and not thread1.empty:
         print("Single worker (n=1):")
-        print(f"  Process: {proc1['mean_time'].iloc[0]:.2f}s (speedup: {proc1['speedup_vs_sequential'].iloc[0]:.2f}x)")
-        print(f"  Thread:  {thread1['mean_time'].iloc[0]:.2f}s (speedup: {thread1['speedup_vs_sequential'].iloc[0]:.2f}x)")
-        if thread1['mean_time'].iloc[0] < proc1['mean_time'].iloc[0]:
-            print(f"  -> Thread is {proc1['mean_time'].iloc[0] / thread1['mean_time'].iloc[0]:.2f}x faster")
+        print(
+            f"  Process: {proc1['mean_time'].iloc[0]:.2f}s (speedup: {proc1['speedup_vs_sequential'].iloc[0]:.2f}x)"
+        )
+        print(
+            f"  Thread:  {thread1['mean_time'].iloc[0]:.2f}s (speedup: {thread1['speedup_vs_sequential'].iloc[0]:.2f}x)"
+        )
+        if thread1["mean_time"].iloc[0] < proc1["mean_time"].iloc[0]:
+            print(
+                f"  -> Thread is {proc1['mean_time'].iloc[0] / thread1['mean_time'].iloc[0]:.2f}x faster"
+            )
         else:
-            print(f"  -> Process is {thread1['mean_time'].iloc[0] / proc1['mean_time'].iloc[0]:.2f}x faster")
+            print(
+                f"  -> Process is {thread1['mean_time'].iloc[0] / proc1['mean_time'].iloc[0]:.2f}x faster"
+            )
         print()
 
     # Compare num_workers=4
-    proc4 = summary[(summary["num_workers"] == 4) & (summary["executor_type"] == "process")]
-    thread4 = summary[(summary["num_workers"] == 4) & (summary["executor_type"] == "thread")]
+    proc4 = summary[
+        (summary["num_workers"] == 4) & (summary["executor_type"] == "process")
+    ]
+    thread4 = summary[
+        (summary["num_workers"] == 4) & (summary["executor_type"] == "thread")
+    ]
 
     if not proc4.empty and not thread4.empty:
         print("Multiple workers (n=4):")
-        print(f"  Process: {proc4['mean_time'].iloc[0]:.2f}s (speedup: {proc4['speedup_vs_sequential'].iloc[0]:.2f}x)")
-        print(f"  Thread:  {thread4['mean_time'].iloc[0]:.2f}s (speedup: {thread4['speedup_vs_sequential'].iloc[0]:.2f}x)")
-        if thread4['mean_time'].iloc[0] < proc4['mean_time'].iloc[0]:
-            print(f"  -> Thread is {proc4['mean_time'].iloc[0] / thread4['mean_time'].iloc[0]:.2f}x faster")
+        print(
+            f"  Process: {proc4['mean_time'].iloc[0]:.2f}s (speedup: {proc4['speedup_vs_sequential'].iloc[0]:.2f}x)"
+        )
+        print(
+            f"  Thread:  {thread4['mean_time'].iloc[0]:.2f}s (speedup: {thread4['speedup_vs_sequential'].iloc[0]:.2f}x)"
+        )
+        if thread4["mean_time"].iloc[0] < proc4["mean_time"].iloc[0]:
+            print(
+                f"  -> Thread is {proc4['mean_time'].iloc[0] / thread4['mean_time'].iloc[0]:.2f}x faster"
+            )
         else:
-            print(f"  -> Process is {thread4['mean_time'].iloc[0] / proc4['mean_time'].iloc[0]:.2f}x faster")
+            print(
+                f"  -> Process is {thread4['mean_time'].iloc[0] / proc4['mean_time'].iloc[0]:.2f}x faster"
+            )
         print()
 
     # Save results
