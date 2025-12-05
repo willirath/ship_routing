@@ -8,7 +8,7 @@ timing, speedup, and comparison between executor types.
 Each repetition is run as a fresh Python process to avoid JIT/caching effects.
 
 Usage:
-    pixi run python benchmark_multithreading.py
+    pixi run python benchmark/benchmark_parallelism.py
 """
 
 import sys
@@ -17,8 +17,8 @@ import subprocess
 import pandas as pd
 from pathlib import Path
 
-from src.ship_routing.app.routing import RoutingApp
-from src.ship_routing.app.config import (
+from ship_routing.app.routing import RoutingApp
+from ship_routing.app.config import (
     RoutingConfig,
     HyperParams,
     JourneyConfig,
@@ -55,7 +55,8 @@ JOURNEY_CONFIG = {
     "time_resolution_hours": 4.0,
 }
 
-base = Path(__file__).resolve().parent.parent / "doc" / "examples" / "data_large"
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+base = PROJECT_ROOT / "data" / "large"
 
 FORCING_CONFIG = {
     "currents_path": str(
@@ -306,11 +307,11 @@ def display_results(summary: pd.DataFrame, raw_df: pd.DataFrame):
         print()
 
     # Save results
-    output_file = "benchmark_multithreading_results.csv"
+    output_file = "benchmark_parallelism_results.csv"
     raw_df.to_csv(output_file, index=False)
     print(f"Detailed results saved to: {output_file}")
 
-    summary_file = "benchmark_multithreading_summary.csv"
+    summary_file = "benchmark_parallelism_summary.csv"
     summary.to_csv(summary_file, index=False)
     print(f"Summary saved to: {summary_file}")
 

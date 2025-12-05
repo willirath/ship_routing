@@ -8,9 +8,7 @@ from ship_routing.algorithms import (
 )
 from ship_routing.core import Route, WayPoint
 from ship_routing.core.data import load_currents, load_waves, load_winds
-
-
-TEST_DATA_DIR = Path(__file__).parent.parent / "test_data"
+from conftest import TEST_DATA_DIR
 
 
 @pytest.fixture(scope="session")
