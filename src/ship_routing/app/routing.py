@@ -185,6 +185,8 @@ class RoutingResult:
                 },
             )
             plt_add_kwargs = {"transform": cartopy.crs.PlateCarree()}
+        else:
+            plt_add_kwargs = {}
 
         seed_member = self.seed_member
         elite_members = self.elite_population.members
@@ -196,9 +198,10 @@ class RoutingResult:
             ax.gridlines(draw_labels=False)
             ax.coastlines()
             ax.set_extent(ax_extent)
+            ax.set_title("routes, Gnomonic proj")
         except:
             ax.grid()
-        ax.set_title("routes, Gnomonic proj")
+            ax.set_title("routes")
         return ax
 
     def plot_elite_cost(self, ax=None):
