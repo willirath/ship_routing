@@ -7,13 +7,15 @@ from pathlib import Path
 from ship_routing.app import RoutingResult
 
 
-def load_results(msgpack_file: str) -> dict[str, RoutingResult]:
+def load_results(msgpack_file: str, first_n: int = None) -> dict[str, RoutingResult]:
     """Load all results from msgpack file.
 
     Parameters
     ----------
     msgpack_file : str
         Path to msgpack file containing serialized results.
+    first_n: int, optional
+        Only extract first_n results.
 
     Returns
     -------
@@ -24,7 +26,7 @@ def load_results(msgpack_file: str) -> dict[str, RoutingResult]:
         raw_results = msgpack.unpack(f, raw=False)
 
     return {
-        key: RoutingResult.from_msgpack(value) for key, value in raw_results.items()
+        key: RoutingResult.from_msgpack(value) for key, value in list(raw_results.items())[:first_n]
     }
 
 
