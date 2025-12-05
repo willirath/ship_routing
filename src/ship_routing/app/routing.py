@@ -513,7 +513,7 @@ class RoutingApp:
             current_data_set=state.forcing.currents,
             wave_data_set=state.forcing.waves,
             wind_data_set=state.forcing.winds,
-            ignore_hazards=not state.params.hazards_enabled,
+            ignore_hazards=state.params.ignore_hazards,
         )
 
         selected_route, selected_cost = select_from_pair(
@@ -592,7 +592,7 @@ class RoutingApp:
             current_data_set=state.forcing.currents,
             wave_data_set=state.forcing.waves,
             wind_data_set=state.forcing.winds,
-            ignore_hazards=not state.params.hazards_enabled,
+            ignore_hazards=state.params.ignore_hazards,
         )
         selected_route, selected_cost = select_from_pair(
             p=state.params.selection_acceptance_rate,
@@ -681,7 +681,7 @@ class RoutingApp:
             current_data_set=state.forcing.currents,
             wave_data_set=state.forcing.waves,
             wind_data_set=state.forcing.winds,
-            ignore_hazards=not state.params.hazards_enabled,
+            ignore_hazards=state.params.ignore_hazards,
         )
         return PopulationMember(route=child_route, cost=child_cost)
 
@@ -826,13 +826,13 @@ class RoutingApp:
             current_data_set=state.forcing.currents,
             wave_data_set=state.forcing.waves,
             wind_data_set=state.forcing.winds,
-            ignore_hazards=not state.params.hazards_enabled,  # TODO: change hyperparam to ignore_hazards (incl logic!)
+            ignore_hazards=state.params.ignore_hazards,
         )
         cost = route.cost_through(
             current_data_set=state.forcing.currents,
             wave_data_set=state.forcing.waves,
             wind_data_set=state.forcing.winds,
-            ignore_hazards=not state.params.hazards_enabled,
+            ignore_hazards=state.params.ignore_hazards,
         )
         return PopulationMember(route=route, cost=cost)
 
@@ -895,7 +895,7 @@ class RoutingApp:
             current_data_set=forcing.currents,
             wave_data_set=forcing.waves,
             wind_data_set=forcing.winds,
-            ignore_hazards=not params.hazards_enabled,
+            ignore_hazards=params.ignore_hazards,
         )
 
     def _population_stats(
