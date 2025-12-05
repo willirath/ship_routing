@@ -55,7 +55,7 @@ JOURNEY_CONFIG = {
     "time_resolution_hours": 4.0,
 }
 
-base = Path(__file__).resolve().parent / "doc" / "examples" / "data_large"
+base = Path(__file__).resolve().parent.parent / "doc" / "examples" / "data_large"
 
 FORCING_CONFIG = {
     "currents_path": str(
