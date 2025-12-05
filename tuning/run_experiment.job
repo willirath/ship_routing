@@ -85,7 +85,6 @@ generate_commands() {
 	local crossover_strategies=("minimal_cost" "random")
 	local mutation_width_fractions_warmup=(0.5 0.7 0.9)
 	local mutation_displacement_fractions_warmup=(0.1 0.15 0.2 0.25)
-	local offspring_sizes=(0 4 8 16 32)
 
 	# Generate N random samples
 	for ((i=0; i<num_samples; i++)); do
@@ -100,7 +99,6 @@ generate_commands() {
 		local cross_strat=${crossover_strategies[$(random_int) % ${#crossover_strategies[@]}]}
 		local mut_width_warmup=${mutation_width_fractions_warmup[$(random_int) % ${#mutation_width_fractions_warmup[@]}]}
 		local mut_disp_warmup=${mutation_displacement_fractions_warmup[$(random_int) % ${#mutation_displacement_fractions_warmup[@]}]}
-		local offspring=${offspring_sizes[$(random_int) % ${#offspring_sizes[@]}]}
 
 		echo "./run_experiment.py" \
 			"--redis-host ${REDIS_HOST}" \
@@ -115,7 +113,7 @@ generate_commands() {
 			"--mutation-width-fraction-warmup ${mut_width_warmup}" \
 			"--mutation-displacement-fraction-warmup ${mut_disp_warmup}" \
 			"--generations ${gen}" \
-			"--offspring-size ${offspring}" \
+			"--offspring-size ${pop_size}" \
 			"--mutation-iterations ${mut_iter}" \
 			"--gd-iterations ${gd_iter}" \
 			"--crossover-strategy ${cross_strat}" \
