@@ -72,23 +72,27 @@ class HyperParams:
     population_size: int = 4
     random_seed: int | None = 345
 
-    # Stage 2: Genetic evolution
-    generations: int = 5  # N_G
-    selection_quantile: float = 0.2  # q
+    # Stage 2: Warmup
     selection_acceptance_rate_warmup: float = 0.3  # p_w
+    mutation_width_fraction_warmup: float = 0.9  # W_w
+    mutation_displacement_fraction_warmup: float = 0.2  # D_w
+
+    # Stage 3: Genetic evolution
+    generations: int = 5  # N_G
+    offspring_size: int = 4  # M_offspring
+    selection_quantile: float = 0.2  # q
     selection_acceptance_rate: float = 0.0  # p
     mutation_width_fraction: float = 0.9  # W
-    mutation_displacement_fraction: float = 0.1  # D_max
+    mutation_displacement_fraction: float = 0.1  # D
     mutation_iterations: int = 2  # N_mut
     crossover_strategy: Literal["minimal_cost", "random"] = "minimal_cost"  # C_e or C_r
-    crossover_rounds: int = 1
     hazards_enabled: bool = True
 
-    # Stage 3: Gradient descent
+    # Stage 4: Post-processing (Gradient descent)
     num_elites: int = 2  # k
     gd_iterations: int = 2  # N_GD
     learning_rate_time: float = 0.5  # gamma_t
-    learning_rate_space: float = 0.5  # gamma_s (applied to along/across)
+    learning_rate_space: float = 0.5  # gamma_perp (applied to along/across)
     time_increment: float = 1_200.0  # delta t
     distance_increment: float = 10_000.0  # delta d
 

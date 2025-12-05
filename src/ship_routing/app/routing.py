@@ -505,8 +505,8 @@ class RoutingApp:
         mutated_route = stochastic_mutation(
             route=member.route,
             number_of_iterations=state.params.mutation_iterations,
-            mod_width=state.params.mutation_width_fraction * length,
-            max_move_meters=state.params.mutation_displacement_fraction * length,
+            mod_width=state.params.mutation_width_fraction_warmup * length,
+            max_move_meters=state.params.mutation_displacement_fraction_warmup * length,
             rng=state.rng,
         )
         mutated_cost = mutated_route.cost_through(
@@ -698,24 +698,15 @@ class RoutingApp:
         M = params.population_size
 
         # Crossover
-        if params.crossover_rounds == 0:
-            # No crossover: use mutated population directly
-            # Get members without seed (last member is always seed)
-            offspring_members = (
-                population.members[:-1].copy()
-                if hasattr(population.members[:-1], "copy")
-                else list(population.members[:-1])
-            )
-        else:
-            # Generate all parent pairs upfront
-            rng = self._ensure_rng()
-            num_offspring = params.crossover_rounds * M
+        # Generate all parent pairs upfront
+        rng = self._ensure_rng()
+        num_offspring = params.offspring_size
 
-            # Select parent indices for all offspring
-            parent_indices_list = []
-            for _ in range(num_offspring):
-                indices = rng.choice(len(population.members), size=2, replace=False)
-                parent_indices_list.append(tuple(indices))
+        # Select parent indices for all offspring
+        parent_indices_list = []
+        for _ in range(num_offspring):
+            indices = rng.choice(len(population.members), size=2, replace=False)
+            parent_indices_list.append(tuple(indices))
 
             # Prepare arguments for workers (parent_indices, population_members)
             worker_args = [

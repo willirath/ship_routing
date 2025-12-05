@@ -311,15 +311,17 @@ classDiagram
     class HyperParams {
         -population_size: int
         -random_seed: int
-        -generations: int
-        -selection_quantile: float
         -selection_acceptance_rate_warmup: float
+        -mutation_width_fraction_warmup: float
+        -mutation_displacement_fraction_warmup: float
+        -generations: int
+        -offspring_size: int
+        -selection_quantile: float
         -selection_acceptance_rate: float
         -mutation_width_fraction: float
         -mutation_displacement_fraction: float
         -mutation_iterations: int
         -crossover_strategy: Literal
-        -crossover_rounds: int
         -hazards_enabled: bool
         -num_elites: int
         -gd_iterations: int

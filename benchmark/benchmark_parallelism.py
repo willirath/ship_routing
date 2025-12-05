@@ -39,7 +39,7 @@ REPETITIONS = 1  # Reduced for quick testing
 BENCHMARK_CONFIG = {
     "population_size": 8,
     "generations": 1,
-    "crossover_rounds": 1,
+    "offspring_size": 8,
     "mutation_iterations": 2,
     "gd_iterations": 0,
     "num_elites": 2,
