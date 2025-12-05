@@ -53,11 +53,13 @@ class WorkerState:
     params: HyperParams
 
 
-def _initialize_process(forcing: ForcingData, seed: int, params: HyperParams) -> None:
+def _initialize_worker_process(
+    forcing: ForcingData, seed: int, params: HyperParams
+) -> None:
     """Initialize worker process with shared state.
 
-    Called once per worker process at creation time. Avoids expensive
-    serialization of forcing data and RNG initialization on every task.
+    Called once per worker process at creation time by ProcessPoolExecutor.
+    Avoids expensive serialization of forcing data and RNG initialization on every task.
 
     Parameters
     ----------
@@ -76,11 +78,11 @@ def _initialize_process(forcing: ForcingData, seed: int, params: HyperParams) ->
     )
 
 
-def _initialize_thread(seed: int, params: HyperParams) -> None:
+def _initialize_worker_thread(seed: int, params: HyperParams) -> None:
     """Initialize worker thread with thread-local state.
 
-    Called once per worker thread at creation time. Threads share memory,
-    so forcing data is accessed from module-level _SHARED_FORCING.
+    Called once per worker thread at creation time by ThreadPoolExecutor.
+    Threads share memory, so forcing data is accessed from module-level _SHARED_FORCING.
 
     Parameters
     ----------
@@ -92,6 +94,31 @@ def _initialize_thread(seed: int, params: HyperParams) -> None:
     _THREAD_LOCAL_STATE.state = WorkerState(
         forcing=_SHARED_FORCING,
         rng=np.random.default_rng(seed + threading.get_ident()),
+        params=params,
+    )
+
+
+def _initialize_sequential(
+    forcing: ForcingData, seed: int, params: HyperParams
+) -> None:
+    """Initialize worker state for sequential execution.
+
+    Called once at setup when running in sequential mode (no executor).
+    Sets up global state that will be reused across all stages.
+
+    Parameters
+    ----------
+    forcing : ForcingData
+        Ocean forcing data to share across tasks
+    seed : int
+        Random seed for the sequential executor's RNG
+    params : HyperParams
+        Algorithm hyperparameters to share across tasks
+    """
+    global _WORKER_STATE
+    _WORKER_STATE = WorkerState(
+        forcing=forcing,
+        rng=np.random.default_rng(seed),
         params=params,
     )
 
@@ -110,3 +137,63 @@ def _get_state() -> WorkerState:
     if hasattr(_THREAD_LOCAL_STATE, "state"):
         return _THREAD_LOCAL_STATE.state
     return _WORKER_STATE
+
+
+class SequentialExecutor:
+    """Sequential executor that mimics concurrent.futures.Executor interface.
+
+    Provides a `.map()` method for compatibility with ThreadPoolExecutor
+    and ProcessPoolExecutor, but executes tasks sequentially in the main thread.
+    This allows for a unified executor interface across all execution modes,
+    eliminating conditional branching in stage methods.
+    """
+
+    def __init__(self, initializer=None, initargs=()):
+        """Initialize the sequential executor.
+
+        Parameters
+        ----------
+        initializer : callable, optional
+            Function to call before executing tasks
+        initargs : tuple, optional
+            Arguments to pass to the initializer
+        """
+        if initializer is not None:
+            initializer(*initargs)
+
+    def map(self, func, *iterables):
+        """Map a function over iterables sequentially.
+
+        Compatible with concurrent.futures.Executor.map() interface.
+
+        Parameters
+        ----------
+        func : callable
+            Function to apply to each element
+        *iterables : iterables
+            One or more iterables to map over
+
+        Yields
+        ------
+        Results of applying func to elements
+        """
+        return map(func, *iterables)
+
+    def shutdown(self, wait=True):
+        """Shutdown the executor (no-op for sequential execution).
+
+        Parameters
+        ----------
+        wait : bool, optional
+            Ignored for sequential execution (exists for interface compatibility)
+        """
+        pass
+
+    def __enter__(self):
+        """Context manager entry."""
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        """Context manager exit."""
+        self.shutdown()
+        return False
