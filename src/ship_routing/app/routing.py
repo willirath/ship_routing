@@ -743,7 +743,7 @@ class RoutingApp:
             # Select parent indices for all offspring in this round
             parent_indices_list = []
             for _ in range(params.offspring_size):
-                indices = rng.choice(len(current_source), size=2, replace=False)
+                indices = rng.choice(len(current_source), size=2, replace=True)
                 parent_indices_list.append(tuple(indices))
 
             # Prepare arguments for workers (bug fix: moved outside offspring loop)
