@@ -22,6 +22,7 @@ RESULTS_FILE="results/results_testing_${SLURM_JOB_ID}.msgpack"
 # Parallelization
 EXECUTOR_TYPE="process"
 NUM_WORKERS=4
+MAX_RUNTIME_PER_COMMAND="300"  # seconds
 
 # Route parameters
 LON_START=-80.5
@@ -161,7 +162,7 @@ generate_commands() {
 		local time_resolution_hours=$(sample_from_array TIME_RESOLUTION_HOURS_VALUES)
 		local time_end=$(sample_from_array TIME_ENDS)
 
-		echo "./run_experiment.py" \
+		echo "timeout ${MAX_RUNTIME_PER_COMMAND} ./run_experiment.py" \
 			"--data-dir ${data_dir}" \
 			"--random-seed ${rand_seed}" \
 			"--population-size ${pop_size}" \
