@@ -14,7 +14,7 @@
 
 # Configuration
 NRUNS=1000
-RESULTS_FILE="results/results.msgpack"
+RESULTS_FILE="results/results_${SLURM_JOB_ID}.msgpack"
 EXECUTOR_TYPE="process"
 NUM_WORKERS=16
 
