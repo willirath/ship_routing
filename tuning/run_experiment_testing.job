@@ -89,7 +89,7 @@ REDIS_DIR="/tmp/redis_data_${SLURM_JOB_ID}"
 REDIS_PASSWORD=$(openssl rand -base64 32)
 mkdir -p "$REDIS_DIR"
 
-srun --ntasks=1 --exclusive --job-name=redis_server bash -c "
+srun --ntasks=1 --exclusive --export=ALL -c "${SLURM_CPUS_PER_TASK}" --job-name=redis_server bash -c "
     echo \$(hostname) > .redis_host_${SLURM_JOB_ID}
     redis-server --port ${REDIS_PORT} \
                  --protected-mode no \
@@ -112,7 +112,7 @@ run_batched() {
 	local batch_size=$(( (${#cmds[@]} + SLURM_NTASKS - 2) / (SLURM_NTASKS - 1) ))
 	printf '%s\n' "${cmds[@]}" | \
 		xargs -d '\n' -L${batch_size} -P$((SLURM_NTASKS-1)) srun --ntasks=1 \
-			--exclusive -c "${SLURM_CPUS_PER_TASK}" bash -c \
+			--exclusive --export=ALL -c "${SLURM_CPUS_PER_TASK}" bash -c \
 			'for cmd in "$@"; do bash -c "$cmd"; done' bash
 }
 
