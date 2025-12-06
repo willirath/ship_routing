@@ -30,13 +30,24 @@ def run_example() -> RoutingResult:
     """Configure and run a routing experiment."""
     logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
     journey = JourneyConfig(
+        name="Example-Atlantic-Journey",
         lon_waypoints=(-80.5, -62.0),
         lat_waypoints=(30.0, 35.0),
         time_start="2021-01-01T00:00",
         speed_knots=7.0,
         time_resolution_hours=12.0,
     )
-    base = Path(__file__).resolve().parent / "data_large"
+    # Find project root and data directory
+    PROJECT_ROOT = Path(__file__).resolve().parents[2]
+    LARGE_DATA_DIR = PROJECT_ROOT / "data" / "large"
+
+    if not LARGE_DATA_DIR.exists() or not any(LARGE_DATA_DIR.glob("*.zarr")):
+        print(f"ERROR: Large data not found at {LARGE_DATA_DIR}")
+        print("\nTo download the required data, run:")
+        print("  pixi run download-data")
+        sys.exit(1)
+
+    base = LARGE_DATA_DIR
     forcing = ForcingConfig(
         currents_path=str(
             base
@@ -60,23 +71,34 @@ def run_example() -> RoutingResult:
         ship=Ship(),
         physics=Physics(),
         hyper=HyperParams(
+            # Population
             population_size=4,
             random_seed=345,
-            generations=2,
-            selection_quantile=0.5,
+            # Stage 2: Warmup
             selection_acceptance_rate_warmup=0.1,
+            mutation_width_fraction_warmup=0.5,
+            mutation_displacement_fraction_warmup=0.15,
+            # Stage 3: Genetic evolution
+            generations=2,
+            offspring_size=4,
+            crossover_rounds=1,
+            selection_quantile=0.5,
             selection_acceptance_rate=0.1,
             mutation_width_fraction=0.5,
             mutation_displacement_fraction=0.1,
             mutation_iterations=1,
-            crossover_rounds=1,
+            crossover_strategy="minimal_cost",
+            ignore_hazards=False,
+            # Stage 4: Post-processing (Gradient descent)
             num_elites=2,
             gd_iterations=1,
             learning_rate_time=0.5,
             learning_rate_space=0.5,
             time_increment=1_200.0,
             distance_increment=10_000.0,
-            crossover_strategy="minimal_cost",
+            # Parallelization
+            num_workers=2,
+            executor_type="sequential",
         ),
     )
     app = RoutingApp(config=config)

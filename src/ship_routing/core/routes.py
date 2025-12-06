@@ -945,6 +945,7 @@ class Route:
         distance_meters: float = None,
         ship: Ship = SHIP_DEFAULT,
         physics: Physics = PHYSICS_DEFAULT,
+        ignore_hazards: bool = False,
     ):
         route_mod_fwd = self.move_waypoint(
             n=n,
@@ -963,6 +964,7 @@ class Route:
                 wave_data_set=wave_data_set,
                 ship=ship,
                 physics=physics,
+                ignore_hazards=ignore_hazards,
             )
             - route_mod_bwd.cost_through(
                 current_data_set=current_data_set,
@@ -970,6 +972,7 @@ class Route:
                 wave_data_set=wave_data_set,
                 ship=ship,
                 physics=physics,
+                ignore_hazards=ignore_hazards,
             )
         ) / distance_meters
 
@@ -983,6 +986,7 @@ class Route:
         distance_meters: float = None,
         ship: Ship = SHIP_DEFAULT,
         physics: Physics = PHYSICS_DEFAULT,
+        ignore_hazards: bool = False,
     ):
         route_mod_fwd = self.move_waypoint(
             n=n,
@@ -1001,6 +1005,7 @@ class Route:
                 wave_data_set=wave_data_set,
                 ship=ship,
                 physics=physics,
+                ignore_hazards=ignore_hazards,
             )
             - route_mod_bwd.cost_through(
                 current_data_set=current_data_set,
@@ -1008,6 +1013,7 @@ class Route:
                 wave_data_set=wave_data_set,
                 ship=ship,
                 physics=physics,
+                ignore_hazards=ignore_hazards,
             )
         ) / distance_meters
 
@@ -1021,6 +1027,7 @@ class Route:
         time_shift_seconds: float = None,
         ship: Ship = SHIP_DEFAULT,
         physics: Physics = PHYSICS_DEFAULT,
+        ignore_hazards: bool = False,
     ):
         # This is important: If we just do 0.5 * np.timedelta65(1, "s") * ..., this will
         # map to timediff=0 in the internal integer representation of np.timedelta64 ...
@@ -1041,6 +1048,7 @@ class Route:
                 wave_data_set=wave_data_set,
                 ship=ship,
                 physics=physics,
+                ignore_hazards=ignore_hazards,
             )
             - route_mod_bwd.cost_through(
                 current_data_set=current_data_set,
@@ -1048,6 +1056,7 @@ class Route:
                 wave_data_set=wave_data_set,
                 ship=ship,
                 physics=physics,
+                ignore_hazards=ignore_hazards,
             )
         ) / time_shift_seconds
 

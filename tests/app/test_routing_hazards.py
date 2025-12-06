@@ -6,9 +6,7 @@ from ship_routing.core import Route, WayPoint
 from ship_routing.core.data import load_currents, load_waves, load_winds, make_hashable
 
 from pathlib import Path
-
-
-TEST_DATA_DIR = Path(__file__).parent.parent / "test_data"
+from conftest import TEST_DATA_DIR
 
 
 def _hazard_forcing():
@@ -43,7 +41,7 @@ def _simple_route():
 
 
 def test_route_cost_respects_hazards_flag_enabled():
-    config = RoutingConfig(hyper=HyperParams(hazards_enabled=True))
+    config = RoutingConfig(hyper=HyperParams(ignore_hazards=False))
     app = RoutingApp(config=config)
     forcing = _hazard_forcing()
     cost = app._route_cost(route=_simple_route(), forcing=forcing)
@@ -51,7 +49,7 @@ def test_route_cost_respects_hazards_flag_enabled():
 
 
 def test_route_cost_respects_hazards_flag_disabled():
-    config = RoutingConfig(hyper=HyperParams(hazards_enabled=False))
+    config = RoutingConfig(hyper=HyperParams(ignore_hazards=True))
     app = RoutingApp(config=config)
     forcing = _hazard_forcing()
     cost = app._route_cost(route=_simple_route(), forcing=forcing)

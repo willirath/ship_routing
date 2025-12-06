@@ -46,6 +46,21 @@ lint = "black --check src tests"
 format = "black src tests"
 jupyterlab = "jupyter lab"
 coverage = "coverage erase && coverage run --source=src/ship_routing -m pytest && coverage report --show-missing"
+download-data = { cmd = "bash scripts/download_data.sh", description = "Download large data files from Git LFS repository" }
+check-data = { cmd = """
+    python -c '
+from pathlib import Path
+import sys
+PROJECT_ROOT = Path.cwd()
+TEST_DATA_DIR = PROJECT_ROOT / "data" / "test"
+LARGE_DATA_DIR = PROJECT_ROOT / "data" / "large"
+test_ok = TEST_DATA_DIR.exists() and any(TEST_DATA_DIR.glob("*/*.nc"))
+large_ok = LARGE_DATA_DIR.exists() and any(LARGE_DATA_DIR.glob("*.zarr"))
+print("Test data: " + ("OK" if test_ok else "MISSING"))
+print("Large data: " + ("OK" if large_ok else "MISSING (run pixi run download-data)"))
+sys.exit(0 if test_ok else 1)
+'
+""", description = "Check if data directories are properly set up" }
 
 [pypi-dependencies]
 "ship_routing" = { path = ".", editable = true }

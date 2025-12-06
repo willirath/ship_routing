@@ -1,15 +1,27 @@
 from __future__ import annotations
 
+from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
 import json
 import logging
 from pathlib import Path
 from statistics import mean
+import threading
 from typing import Any, Sequence
 
 import numpy as np
+from . import parallel
+from .parallel import (
+    WorkerState,
+    SequentialExecutor,
+    _initialize_worker_process,
+    _initialize_worker_thread,
+    _initialize_sequential,
+    _get_state,
+)
 from matplotlib import pyplot as plt
+import cartopy
 import pandas as pd
 
 from ..algorithms import (
@@ -155,16 +167,41 @@ class RoutingResult:
     def plot_routes(self, ax=None):
         """Plot seed and elite routes."""
         if ax is None:
-            _, ax = plt.subplots(1, 1)
+            _lonlat = self.seed_member.route.data_frame[["lon", "lat"]]
+            central_lon, central_lat = _lonlat.mean()
+            ax_extent = [
+                _lonlat.lon.min() - 5.0,
+                _lonlat.lon.max() + 5.0,
+                _lonlat.lat.min() - 5.0,
+                _lonlat.lat.max() + 5.0,
+            ]
+            _, ax = plt.subplots(
+                1,
+                1,
+                subplot_kw={
+                    "projection": cartopy.crs.Gnomonic(
+                        central_latitude=central_lat, central_longitude=central_lon
+                    )
+                },
+            )
+            plt_add_kwargs = {"transform": cartopy.crs.PlateCarree()}
+        else:
+            plt_add_kwargs = {}
 
         seed_member = self.seed_member
         elite_members = self.elite_population.members
 
         for em in elite_members:
-            ax.plot(*em.route.line_string.xy, "black")
-        ax.plot(*seed_member.route.line_string.xy, "orange")
-        ax.grid()
-        ax.set_title("routes")
+            ax.plot(*em.route.line_string.xy, "black", **plt_add_kwargs)
+        ax.plot(*seed_member.route.line_string.xy, "orange", **plt_add_kwargs)
+        try:
+            ax.gridlines(draw_labels=False)
+            ax.coastlines()
+            ax.set_extent(ax_extent)
+            ax.set_title("routes, Gnomonic proj")
+        except:
+            ax.grid()
+            ax.set_title("routes")
         return ax
 
     def plot_elite_cost(self, ax=None):
@@ -263,6 +300,69 @@ class RoutingApp:
         self.log = RoutingLog(config=asdict(config))
         self._rng: np.random.Generator | None = None
 
+    def _create_executor(
+        self, *, forcing: ForcingData, params: HyperParams
+    ) -> SequentialExecutor | ThreadPoolExecutor | ProcessPoolExecutor:
+        """Create and initialize the appropriate executor based on configuration.
+
+        Parameters
+        ----------
+        forcing : ForcingData
+            Ocean forcing data to pass to workers
+        params : HyperParams
+            Configuration parameters including executor type and num_workers
+
+        Returns
+        -------
+        SequentialExecutor | ThreadPoolExecutor | ProcessPoolExecutor
+            Configured executor ready for use
+
+        Raises
+        ------
+        ValueError
+            If executor configuration is invalid
+        """
+        # Initialize worker state globals in parallel module
+        parallel._WORKER_STATE = None
+        parallel._THREAD_LOCAL_STATE = threading.local()
+        parallel._SHARED_FORCING = None
+
+        # Generate seed for worker initialization
+        worker_seed = int(self._rng.integers(0, 2**31 - 1))
+
+        if params.executor_type == "sequential":
+            # Sequential mode: use SequentialExecutor for unified interface
+            if params.num_workers > 1:
+                logging.warning(
+                    f"Sequential executor requested but num_workers={params.num_workers} > 1. "
+                    "Sequential execution will use single thread regardless."
+                )
+            return SequentialExecutor(
+                initializer=_initialize_sequential,
+                initargs=(forcing, worker_seed, params),
+            )
+        elif params.executor_type == "thread":
+            # Thread pool executor: shared memory, GIL-released NumPy operations
+            if params.num_workers == 0:
+                raise ValueError("Thread executor requested but num_workers=0")
+            parallel._SHARED_FORCING = forcing
+            return ThreadPoolExecutor(
+                max_workers=params.num_workers,
+                initializer=_initialize_worker_thread,
+                initargs=(worker_seed, params),
+            )
+        elif params.executor_type == "process":
+            # Process pool executor: true parallelism, serialization overhead
+            if params.num_workers == 0:
+                raise ValueError("Process executor requested but num_workers=0")
+            return ProcessPoolExecutor(
+                max_workers=params.num_workers,
+                initializer=_initialize_worker_process,
+                initargs=(forcing, worker_seed, params),
+            )
+        else:
+            raise ValueError(f"Unknown executor_type: {params.executor_type}")
+
     @profile
     def run(self) -> RoutingResult:
         """Execute the optimisation pipeline."""
@@ -271,9 +371,12 @@ class RoutingApp:
 
         forcing = self._load_forcing(self.config.journey)
 
+        # Create executor for parallel/sequential processing
+        executor = self._create_executor(forcing=forcing, params=self.config.hyper)
+
         # Stage 0 to 4:
         seed_member, population = self._stage_initialization(forcing)
-        population = self._stage_warmup(population, seed_member, forcing)
+        population = self._stage_warmup(population, seed_member, forcing, executor)
 
         # Initialize adaptive parameters for genetic algorithm
         W = self.config.hyper.mutation_width_fraction
@@ -283,13 +386,18 @@ class RoutingApp:
         # Genetic algorithm generation loop
         for _ in range(self.config.hyper.generations):
             population = self._stage_ga_mutation(
-                population, seed_member, forcing, W, D, q
+                population, seed_member, forcing, W, D, q, executor
             )
-            population = self._stage_ga_crossover(population, seed_member, forcing)
+            population = self._stage_ga_crossover(
+                population, seed_member, forcing, executor
+            )
             population = self._stage_ga_selection(population, seed_member, q)
             W, D, q = self._stage_ga_adaptation(W, D, q)
 
-        elite_population = self._stage_post_processing(population, forcing)
+        elite_population = self._stage_post_processing(population, forcing, executor)
+
+        # Clean up executor (GC would handle this, but be explicit)
+        executor.shutdown()
 
         return RoutingResult(
             seed_member=seed_member,
@@ -403,12 +511,54 @@ class RoutingApp:
 
         return seed_member, population
 
+    @staticmethod
+    def _task_warmup(member: PopulationMember) -> PopulationMember:
+        """Task function for parallel warmup stage.
+
+        Parameters
+        ----------
+        member : PopulationMember
+            Population member to mutate and select
+
+        Returns
+        -------
+        PopulationMember
+            The processed member after mutation and selection
+        """
+        state = _get_state()
+        length = member.route.length_meters
+
+        mutated_route = stochastic_mutation(
+            route=member.route,
+            number_of_iterations=state.params.mutation_iterations,
+            mod_width=state.params.mutation_width_fraction_warmup * length,
+            max_move_meters=state.params.mutation_displacement_fraction_warmup * length,
+            rng=state.rng,
+        )
+        mutated_cost = mutated_route.cost_through(
+            current_data_set=state.forcing.currents,
+            wave_data_set=state.forcing.waves,
+            wind_data_set=state.forcing.winds,
+            ignore_hazards=state.params.ignore_hazards,
+        )
+
+        selected_route, selected_cost = select_from_pair(
+            p=state.params.selection_acceptance_rate_warmup,
+            route_a=member.route,
+            route_b=mutated_route,
+            cost_a=member.cost,
+            cost_b=mutated_cost,
+            rng=state.rng,
+        )
+        return PopulationMember(route=selected_route, cost=selected_cost)
+
     @profile
     def _stage_warmup(
         self,
         population: Population,
         seed_member: PopulationMember,
         forcing: ForcingData,
+        executor: ProcessPoolExecutor | None = None,
     ) -> Population:
         """Stage 1: Warmup - diversify initial population.
 
@@ -419,31 +569,9 @@ class RoutingApp:
         rng = self._ensure_rng()
 
         # Mutate M-1 members with warmup parameters
-        warmed_members = []
-        for member in population.members[:-1]:
-            length = member.route.length_meters
+        members_to_process = population.members[:-1]
 
-            # Apply mutation: M_{W_w,D_w}(r_m)
-            mutated_route = stochastic_mutation(
-                route=member.route,
-                number_of_iterations=params.mutation_iterations,
-                mod_width=params.mutation_width_fraction * length,
-                max_move_meters=params.mutation_displacement_fraction * length,
-                rng=rng,
-            )
-            mutated_cost = self._route_cost(mutated_route, forcing)
-
-            selected_route, selected_cost = select_from_pair(
-                p=params.selection_acceptance_rate_warmup,
-                route_a=member.route,
-                route_b=mutated_route,
-                cost_a=member.cost,
-                cost_b=mutated_cost,
-                rng=rng,
-            )
-            warmed_members.append(
-                PopulationMember(route=selected_route, cost=selected_cost)
-            )
+        warmed_members = list(executor.map(RoutingApp._task_warmup, members_to_process))
 
         # Add seed back: P ← P ∪ {r_seed}
         population = Population.from_members(warmed_members).add_member(seed_member)
@@ -456,6 +584,52 @@ class RoutingApp:
 
         return population
 
+    @staticmethod
+    def _task_mutation(
+        member: PopulationMember, W: float, D: float
+    ) -> PopulationMember:
+        """Task function for parallel GA mutation stage.
+
+        Parameters
+        ----------
+        member : PopulationMember
+            Population member to mutate and select
+        W : float
+            Mutation width fraction
+        D : float
+            Mutation displacement fraction
+
+        Returns
+        -------
+        PopulationMember
+            The processed member after mutation and selection
+        """
+        state = _get_state()
+        length = member.route.length_meters
+
+        mutated_route = stochastic_mutation(
+            route=member.route,
+            number_of_iterations=state.params.mutation_iterations,
+            mod_width=W * length,
+            max_move_meters=D * length,
+            rng=state.rng,
+        )
+        mutated_cost = mutated_route.cost_through(
+            current_data_set=state.forcing.currents,
+            wave_data_set=state.forcing.waves,
+            wind_data_set=state.forcing.winds,
+            ignore_hazards=state.params.ignore_hazards,
+        )
+        selected_route, selected_cost = select_from_pair(
+            p=state.params.selection_acceptance_rate,
+            route_a=member.route,
+            route_b=mutated_route,
+            cost_a=member.cost,
+            cost_b=mutated_cost,
+            rng=state.rng,
+        )
+        return PopulationMember(route=selected_route, cost=selected_cost)
+
     @profile
     def _stage_ga_mutation(
         self,
@@ -465,6 +639,7 @@ class RoutingApp:
         W: float,
         D: float,
         q: float,
+        executor: ProcessPoolExecutor | None = None,
     ) -> Population:
         """GA sub-stage 1: Directed mutation of population members."""
         params = self.config.hyper
@@ -472,28 +647,14 @@ class RoutingApp:
         members = population.members
 
         # Directed mutation
-        mutated_members = []
-        for member in members[:-1]:
-            length = member.route.length_meters
-            mutated_route = stochastic_mutation(
-                route=member.route,
-                number_of_iterations=params.mutation_iterations,
-                mod_width=W * length,
-                max_move_meters=D * length,
-                rng=rng,
-            )
-            mutated_cost = self._route_cost(mutated_route, forcing)
-            selected_route, selected_cost = select_from_pair(
-                p=params.selection_acceptance_rate,
-                route_a=member.route,
-                route_b=mutated_route,
-                cost_a=member.cost,
-                cost_b=mutated_cost,
-                rng=rng,
-            )
-            mutated_members.append(
-                PopulationMember(route=selected_route, cost=selected_cost)
-            )
+        members_to_process = members[:-1]
+
+        # Prepare arguments for workers (member, W, D)
+        worker_args = [(member, W, D) for member in members_to_process]
+
+        mutated_members = list(
+            executor.map(RoutingApp._task_mutation, *zip(*worker_args))
+        )
 
         # New population incl. seed member again
         population = Population.from_members(mutated_members).add_member(seed_member)
@@ -505,71 +666,115 @@ class RoutingApp:
 
         return population
 
+    @staticmethod
+    def _task_crossover(
+        parent_indices: tuple[int, int], population_members: list[PopulationMember]
+    ) -> PopulationMember:
+        """Task function for parallel GA crossover stage.
+
+        Parameters
+        ----------
+        parent_indices : tuple[int, int]
+            Indices of parents in population_members
+        population_members : list[PopulationMember]
+            Population to select parents from
+
+        Returns
+        -------
+        PopulationMember
+            The offspring member after crossover
+        """
+        state = _get_state()
+        parent_a = population_members[parent_indices[0]]
+        parent_b = population_members[parent_indices[1]]
+
+        try:
+            if state.params.crossover_strategy == "minimal_cost":
+                child_route = crossover_routes_minimal_cost(
+                    parent_a.route,
+                    parent_b.route,
+                    current_data_set=state.forcing.currents,
+                    wind_data_set=state.forcing.winds,
+                    wave_data_set=state.forcing.waves,
+                )
+            else:  # "random"
+                child_route = crossover_routes_random(parent_a.route, parent_b.route)
+        except Exception:
+            logging.warning("crossover failed; using parent_a")
+            child_route = parent_a.route
+
+        child_cost = child_route.cost_through(
+            current_data_set=state.forcing.currents,
+            wave_data_set=state.forcing.waves,
+            wind_data_set=state.forcing.winds,
+            ignore_hazards=state.params.ignore_hazards,
+        )
+        return PopulationMember(route=child_route, cost=child_cost)
+
     @profile
     def _stage_ga_crossover(
         self,
         population: Population,
         seed_member: PopulationMember,
         forcing: ForcingData,
+        executor: ProcessPoolExecutor | None = None,
     ) -> Population:
-        """GA sub-stage 2: Crossover to generate offspring."""
+        """GA sub-stage 2: Crossover to generate offspring through accumulating rounds.
+
+        Implements N_crossover rounds where each round:
+        - Creates offspring_size offspring from the previous round's offspring
+        - Accumulates all offspring: P -> (P + P') -> (P + P' + P'') -> ...
+
+        If crossover_rounds = 0, skips crossover entirely.
+        """
         params = self.config.hyper
         M = params.population_size
+        rng = self._ensure_rng()
 
-        # Crossover
+        # Handle crossover_rounds = 0: skip crossover entirely
         if params.crossover_rounds == 0:
-            # No crossover: use mutated population directly
-            # Get members without seed (last member is always seed)
-            offspring_members = (
-                population.members[:-1].copy()
-                if hasattr(population.members[:-1], "copy")
-                else list(population.members[:-1])
+            return population.add_member(seed_member)
+
+        # Accumulating rounds: each round creates offspring from previous round
+        current_source = list(population.members)
+        accumulated_offspring = []
+
+        for round_idx in range(params.crossover_rounds):
+            # Select parent indices for all offspring in this round
+            parent_indices_list = []
+            for _ in range(params.offspring_size):
+                indices = rng.choice(len(current_source), size=2, replace=False)
+                parent_indices_list.append(tuple(indices))
+
+            # Prepare arguments for workers (bug fix: moved outside offspring loop)
+            worker_args = [
+                (parent_indices, current_source)
+                for parent_indices in parent_indices_list
+            ]
+
+            # Create offspring for this round in parallel
+            round_offspring = list(
+                executor.map(RoutingApp._task_crossover, *zip(*worker_args))
             )
-        else:
-            offspring_members = []
-            for _ in range(params.crossover_rounds):
-                for _ in range(M):
-                    # Select two parents from current population
-                    parent_a, parent_b = self._rng.choice(
-                        population.members, size=2, replace=False
-                    )
 
-                    # Apply crossover operator C_s
-                    try:
-                        if params.crossover_strategy == "minimal_cost":
-                            child_route = crossover_routes_minimal_cost(
-                                parent_a.route,
-                                parent_b.route,
-                                current_data_set=forcing.currents,
-                                wind_data_set=forcing.winds,
-                                wave_data_set=forcing.waves,
-                            )
-                        else:  # "random"
-                            child_route = crossover_routes_random(
-                                parent_a.route, parent_b.route
-                            )
-                    except Exception:
-                        logging.warning(
-                            "crossover_routes_minimal_cost failed; using parent_a"
-                        )
-                        child_route = parent_a.route
+            # Accumulate offspring
+            accumulated_offspring.extend(round_offspring)
 
-                    offspring_members.append(
-                        PopulationMember(
-                            route=child_route,
-                            cost=self._route_cost(child_route, forcing),
-                        )
-                    )
+            # For next round, use only this round's offspring as parents
+            current_source = round_offspring
 
-        # Add back seed member
-        offspring = Population.from_members(offspring_members).add_member(seed_member)
+        # Combine: P (original population) + all accumulated offspring + seed
+        combined_members = list(population.members) + accumulated_offspring
+        result_population = Population.from_members(combined_members).add_member(
+            seed_member
+        )
 
         self._log_stage_metrics(
             "ga_crossover",
-            **self._population_stats(offspring.members),
+            **self._population_stats(result_population.members),
         )
 
-        return offspring
+        return result_population
 
     @profile
     def _stage_ga_selection(
@@ -620,11 +825,49 @@ class RoutingApp:
 
         return W_new, D_new, q_new
 
+    @staticmethod
+    def _task_gradient_descent(member: PopulationMember) -> PopulationMember:
+        """Task function for parallel gradient descent stage.
+
+        Parameters
+        ----------
+        member : PopulationMember
+            Elite member to optimize with gradient descent
+
+        Returns
+        -------
+        PopulationMember
+            The processed member after gradient descent
+        """
+        state = _get_state()
+
+        route = gradient_descent(
+            route=member.route,
+            learning_rate_percent_time=state.params.learning_rate_time,
+            time_increment=state.params.time_increment,
+            learning_rate_percent_along=state.params.learning_rate_space,
+            dist_shift_along=state.params.distance_increment,
+            learning_rate_percent_across=state.params.learning_rate_space,
+            dist_shift_across=state.params.distance_increment,
+            current_data_set=state.forcing.currents,
+            wave_data_set=state.forcing.waves,
+            wind_data_set=state.forcing.winds,
+            ignore_hazards=state.params.ignore_hazards,
+        )
+        cost = route.cost_through(
+            current_data_set=state.forcing.currents,
+            wave_data_set=state.forcing.waves,
+            wind_data_set=state.forcing.winds,
+            ignore_hazards=state.params.ignore_hazards,
+        )
+        return PopulationMember(route=route, cost=cost)
+
     @profile
     def _stage_post_processing(
         self,
         population: Population,
         forcing: ForcingData,
+        executor: ProcessPoolExecutor | None = None,
     ) -> Population:
         """Stage 3: Gradient descent polishing of elite members."""
         params = self.config.hyper
@@ -642,25 +885,14 @@ class RoutingApp:
             elites=len(elite_members),
         )
 
+        # Initialize worker state (for both parallel and sequential modes)
+        rng = self._ensure_rng()
+
         # Outer loop: GD iterations (like GA generations)
         for gd_iter in range(params.gd_iterations):
-            # Inner loop: Apply GD to each elite member
-            updated_members = []
-            for member in elite_members:
-                route = gradient_descent(
-                    route=member.route,
-                    learning_rate_percent_time=params.learning_rate_time,
-                    time_increment=params.time_increment,
-                    learning_rate_percent_along=params.learning_rate_space,
-                    dist_shift_along=params.distance_increment,
-                    learning_rate_percent_across=params.learning_rate_space,
-                    dist_shift_across=params.distance_increment,
-                    current_data_set=forcing.currents,
-                    wave_data_set=forcing.waves,
-                    wind_data_set=forcing.winds,
-                )
-                cost = self._route_cost(route, forcing)
-                updated_members.append(PopulationMember(route=route, cost=cost))
+            updated_members = list(
+                executor.map(RoutingApp._task_gradient_descent, elite_members)
+            )
 
             # Update elite population for next iteration
             elite_members = updated_members
@@ -689,7 +921,7 @@ class RoutingApp:
             current_data_set=forcing.currents,
             wave_data_set=forcing.waves,
             wind_data_set=forcing.winds,
-            ignore_hazards=not params.hazards_enabled,
+            ignore_hazards=params.ignore_hazards,
         )
 
     def _population_stats(

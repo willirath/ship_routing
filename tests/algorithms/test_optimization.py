@@ -19,8 +19,7 @@ import numpy as np
 import pytest
 
 from pathlib import Path
-
-TEST_DATA_DIR = Path(__file__).parent.parent.resolve() / "test_data"
+from conftest import TEST_DATA_DIR
 
 
 def test_gradient_descent_across_track_left_zero_gradients_error():
@@ -252,11 +251,14 @@ def test_gradient_descent_across_track_left_nonopt():
         wind_data_set=winds,
         distance_meters=2_000.0,
         learning_rate_percent=0.1,
+        ignore_hazards=True,
     )
 
     # calc cost
-    cost_0 = route_0.cost_through(currents)
-    cost_1 = route_1.cost_through(currents)
+    # We don't care about hazards or cost here and are just testing.
+    # So let's ignore hazards for simlicity here.
+    cost_0 = route_0.cost_through(currents, ignore_hazards=True)
+    cost_1 = route_1.cost_through(currents, ignore_hazards=True)
 
     # ensure reduction
     assert cost_1 < cost_0
@@ -294,11 +296,14 @@ def test_gradient_descent_along_track_nonopt():
         wind_data_set=winds,
         distance_meters=5_000.0,
         learning_rate_percent=0.1,
+        ignore_hazards=True,
     )
 
     # calc cost
-    cost_0 = route_0.cost_through(currents)
-    cost_1 = route_1.cost_through(currents)
+    # We don't care about hazards or cost here and are just testing.
+    # So let's ignore hazards for simlicity here.
+    cost_0 = route_0.cost_through(currents, ignore_hazards=True)
+    cost_1 = route_1.cost_through(currents, ignore_hazards=True)
 
     # ensure reduction
     assert cost_1 < cost_0
@@ -336,11 +341,14 @@ def test_gradient_descent_time_shift_nonopt():
         wind_data_set=winds,
         time_shift_seconds=1200.0,
         learning_rate_percent=0.1,
+        ignore_hazards=True,
     )
 
     # calc cost
-    cost_0 = route_0.cost_through(currents)
-    cost_1 = route_1.cost_through(currents)
+    # We don't care about hazards or cost here and are just testing.
+    # So let's ignore hazards for simlicity here.
+    cost_0 = route_0.cost_through(currents, ignore_hazards=True)
+    cost_1 = route_1.cost_through(currents, ignore_hazards=True)
 
     # ensure reduction
     assert cost_1 < cost_0

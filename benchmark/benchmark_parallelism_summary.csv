@@ -1,0 +1,6 @@
+num_workers,executor_type,mean_time,std_time,n_runs,speedup_vs_sequential,config
+0,sequential,14.108658832999936,,1,1.0,sequential
+1,process,15.448190500001147,,1,0.9132887656323819,process(n=1)
+1,thread,14.054155083000296,,1,1.0038781235640104,thread(n=1)
+4,process,9.780423707999944,,1,1.4425406561333014,process(n=4)
+4,thread,14.783033666999472,,1,0.9543818373690808,thread(n=4)

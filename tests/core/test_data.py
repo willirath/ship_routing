@@ -7,8 +7,7 @@ from ship_routing.core.data import (
     load_waves,
 )
 from ship_routing.core.geodesics import compute_ellipse_bbox
-
-TEST_DATA_DIR = Path(__file__).parent.parent.resolve() / "test_data"
+from conftest import TEST_DATA_DIR
 
 
 def get_currents_data_files():

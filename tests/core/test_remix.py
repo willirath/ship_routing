@@ -4,9 +4,7 @@ import shapely
 import pandas as pd
 
 from pathlib import Path
-
-
-TEST_DATA_DIR = Path(__file__).parent.parent.resolve() / "test_data"
+from conftest import TEST_DATA_DIR
 
 
 def test_segmentation_returns_simple_line_strings():

@@ -43,16 +43,32 @@ from ship_routing.core.population import Population, PopulationMember
 @click.option(
     "--random-seed", type=int, default=None, help="Random seed for reproducibility."
 )
-# Stage 2: Genetic evolution
-@click.option("--generations", type=int, default=5, help="Number of generations (N_G).")
-@click.option(
-    "--selection-quantile", type=float, default=0.2, help="Selection quantile (q)."
-)
+# Stage 2: Warmup
 @click.option(
     "--selection-acceptance-rate-warmup",
     type=float,
     default=0.3,
     help="Acceptance rate during warmup (p_w).",
+)
+@click.option(
+    "--mutation-width-fraction-warmup",
+    type=float,
+    default=0.9,
+    help="Width fraction for warmup mutation (W_w).",
+)
+@click.option(
+    "--mutation-displacement-fraction-warmup",
+    type=float,
+    default=0.2,
+    help="Max displacement fraction for warmup (D_w).",
+)
+# Stage 3: Genetic evolution
+@click.option("--generations", type=int, default=5, help="Number of generations (N_G).")
+@click.option(
+    "--offspring-size", type=int, default=4, help="Offspring size (M_offspring)."
+)
+@click.option(
+    "--selection-quantile", type=float, default=0.2, help="Selection quantile (q)."
 )
 @click.option(
     "--selection-acceptance-rate",
@@ -70,7 +86,7 @@ from ship_routing.core.population import Population, PopulationMember
     "--mutation-displacement-fraction",
     type=float,
     default=0.1,
-    help="Max displacement fraction (D_max).",
+    help="Max displacement fraction (D).",
 )
 @click.option(
     "--mutation-iterations",
@@ -85,9 +101,18 @@ from ship_routing.core.population import Population, PopulationMember
     help="Crossover strategy: minimal_cost or random.",
 )
 @click.option(
-    "--crossover-rounds", type=int, default=1, help="Number of crossover rounds."
+    "--crossover-rounds",
+    type=int,
+    default=1,
+    help="Number of crossover rounds (N_crossover). Set to 0 to skip crossover.",
 )
-# Stage 3: Gradient descent
+@click.option(
+    "--ignore-hazards",
+    type=bool,
+    default=False,
+    help="Ignore hazard conditions during routing.",
+)
+# Stage 4: Post-processing (Gradient descent)
 @click.option("--num-elites", type=int, default=2, help="Number of elite members (k).")
 @click.option(
     "--gd-iterations",
@@ -146,6 +171,12 @@ from ship_routing.core.population import Population, PopulationMember
 )
 # Journey parameters
 @click.option(
+    "--journey-name",
+    type=str,
+    default="Journey",
+    help="Human-readable name for this journey (e.g., 'NYC-London-Winter').",
+)
+@click.option(
     "--lon-wp",
     "lon_waypoints",
     type=float,
@@ -189,15 +220,19 @@ def run_experiment(
     data_dir,
     population_size,
     random_seed,
-    generations,
-    selection_quantile,
     selection_acceptance_rate_warmup,
+    mutation_width_fraction_warmup,
+    mutation_displacement_fraction_warmup,
+    generations,
+    offspring_size,
+    selection_quantile,
     selection_acceptance_rate,
     mutation_width_fraction,
     mutation_displacement_fraction,
     mutation_iterations,
     crossover_strategy,
     crossover_rounds,
+    ignore_hazards,
     num_elites,
     gd_iterations,
     learning_rate_time,
@@ -208,6 +243,7 @@ def run_experiment(
     redis_host,
     redis_port,
     redis_password,
+    journey_name,
     lon_waypoints,
     lat_waypoints,
     time_start,
@@ -219,6 +255,7 @@ def run_experiment(
     logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 
     journey = JourneyConfig(
+        name=journey_name,
         lon_waypoints=lon_waypoints,
         lat_waypoints=lat_waypoints,
         time_start=time_start,
@@ -250,23 +287,31 @@ def run_experiment(
         ship=Ship(),
         physics=Physics(),
         hyper=HyperParams(
+            # Population
             population_size=population_size,
             random_seed=random_seed,
-            generations=generations,
-            selection_quantile=selection_quantile,
+            # Stage 2: Warmup
             selection_acceptance_rate_warmup=selection_acceptance_rate_warmup,
+            mutation_width_fraction_warmup=mutation_width_fraction_warmup,
+            mutation_displacement_fraction_warmup=mutation_displacement_fraction_warmup,
+            # Stage 3: Genetic evolution
+            generations=generations,
+            offspring_size=offspring_size,
+            crossover_rounds=crossover_rounds,
+            selection_quantile=selection_quantile,
             selection_acceptance_rate=selection_acceptance_rate,
             mutation_width_fraction=mutation_width_fraction,
             mutation_displacement_fraction=mutation_displacement_fraction,
             mutation_iterations=mutation_iterations,
-            crossover_rounds=crossover_rounds,
+            crossover_strategy=crossover_strategy,
+            ignore_hazards=ignore_hazards,
+            # Stage 4: Post-processing (Gradient descent)
             num_elites=num_elites,
             gd_iterations=gd_iterations,
             learning_rate_time=learning_rate_time,
             learning_rate_space=learning_rate_space,
             time_increment=time_increment,
             distance_increment=distance_increment,
-            crossover_strategy=crossover_strategy,
         ),
     )
     app = RoutingApp(config=config)
