@@ -25,14 +25,15 @@ NUM_WORKERS=4
 MAX_RUNTIME_PER_COMMAND="300"  # seconds
 
 # Route parameters
-LON_START=-80.5
-LON_END=-11.0
-LAT_START=30.0
-LAT_END=50.0
-TIME_START="2021-01-01T00:00"
-SPEED_KNOTS=10.0
-JOURNEY_NAME_FORWARD="Forward-Route_testing"
-JOURNEY_NAME_BACKWARD="Backward-Route_testing"
+LON_START=${LON_START:--80.5}
+LON_END=${LON_END:--11.0}
+LAT_START=${LAT_START:-30.0}
+LAT_END=${LAT_END:-50.0}
+TIME_START=${TIME_START:-"2021-01-01T00:00"}
+SPEED_KNOTS=${SPEED_KNOTS:-10.0}
+JOURNEY_NAME=${JOURNEY_NAME:-"Journey_testing"}
+JOURNEY_NAME_FORWARD="${JOURNEY_NAME}_forward"
+JOURNEY_NAME_BACKWARD="${JOURNEY_NAME}_backward"
 
 # All parameters as arrays (single-element = non-random, multi-element = random)
 # Constants
@@ -52,7 +53,7 @@ DISTANCE_INCREMENTS=(10000.0)
 TIME_RESOLUTION_HOURS_VALUES=(6.0)
 TIME_ENDS=("")
 
-# Random sampling arrays (testing-specific values)
+# Random sampling arrays
 IGNORE_HAZARDS_VALUES=("true" "false")
 SELECTION_QUANTILES=(0.1 0.25)
 SELECTION_ACCEPTANCE_RATES=(0.0 0.25)
@@ -202,12 +203,12 @@ generate_commands() {
 }
 
 # forward route
-generate_commands ${LON_START} ${LON_END} ${LAT_START} ${LAT_END} \
-	"${TIME_START}" ${SPEED_KNOTS} ${NRUNS} "${JOURNEY_NAME_FORWARD}" | run_batched
+generate_commands "${LON_START}" "${LON_END}" "${LAT_START}" "${LAT_END}" \
+	"${TIME_START}" "${SPEED_KNOTS}" "${NRUNS}" "${JOURNEY_NAME_FORWARD}" | run_batched
 
 # backward route (reversed waypoints)
-generate_commands ${LON_END} ${LON_START} ${LAT_END} ${LAT_START} \
-	"${TIME_START}" ${SPEED_KNOTS} ${NRUNS} "${JOURNEY_NAME_BACKWARD}" | run_batched
+generate_commands "${LON_END}" "${LON_START}" "${LAT_END}" "${LAT_START}" \
+	"${TIME_START}" "${SPEED_KNOTS}" "${NRUNS}" "${JOURNEY_NAME_BACKWARD}" | run_batched
 
 # Extract results from Redis
 # Wait for jobs to finish and extract results
