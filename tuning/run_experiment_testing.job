@@ -132,10 +132,10 @@ generate_commands() {
 }
 
 # forward route
-generate_commands -80.5 -11.0 30.0 50.0 "2021-01-01T00:00" 10.0 ${NRUNS} "Forward-Route testing" | run_batched
+generate_commands -80.5 -11.0 30.0 50.0 "2021-01-01T00:00" 10.0 ${NRUNS} "Forward-Route_testing" | run_batched
 
 # backward route (reversed waypoints)
-generate_commands -11.0 -80.5 50.0 30.0 "2021-01-01T00:00" 10.0 ${NRUNS} "Backward-Route testing" | run_batched
+generate_commands -11.0 -80.5 50.0 30.0 "2021-01-01T00:00" 10.0 ${NRUNS} "Backward-Route_testing" | run_batched
 
 # Extract results from Redis
 # Wait for jobs to finish and extract results
