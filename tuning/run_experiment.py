@@ -145,6 +145,18 @@ from ship_routing.core.population import Population, PopulationMember
     help="Distance increment in meters (delta d).",
 )
 @click.option(
+    "--executor-type",
+    type=click.Choice(["process", "thread", "sequential"], case_sensitive=False),
+    default="sequential",
+    help="Executor type for parallelization.",
+)
+@click.option(
+    "--num-workers",
+    type=int,
+    default=2,
+    help="Number of worker processes/threads (ignored if executor-type=sequential).",
+)
+@click.option(
     "--log-dir",
     type=click.Path(),
     default="runs",
@@ -239,6 +251,8 @@ def run_experiment(
     learning_rate_space,
     time_increment,
     distance_increment,
+    executor_type,
+    num_workers,
     log_dir,
     redis_host,
     redis_port,
@@ -312,6 +326,9 @@ def run_experiment(
             learning_rate_space=learning_rate_space,
             time_increment=time_increment,
             distance_increment=distance_increment,
+            # Parallelization
+            executor_type=executor_type,
+            num_workers=num_workers,
         ),
     )
     app = RoutingApp(config=config)

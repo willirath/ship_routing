@@ -7,6 +7,13 @@ doc/examples/data_large
 tuning/runs/*json
 tuning/results/*json
 tuning/data_large
+<<<<<<< Updated upstream
+=======
+
+# Data directories
+data/large/
+tuning/results
+>>>>>>> Stashed changes
 
 # Data directories
 data/large/
