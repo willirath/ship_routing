@@ -7,3 +7,5 @@ doc/examples/data_large
 tuning/results
 tuning/data_large
 data/large
+tuning/.redis_host_*
+tuning/slurm_*.*
