@@ -17,3 +17,4 @@ tuning/results
 
 # Data directories
 data/large/
+*.pyc
