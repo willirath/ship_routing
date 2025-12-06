@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 #SBATCH --job-name=sr_tune
 #SBATCH --ntasks=11
-#SBATCH --cpus-per-task=1
+#SBATCH --cpus-per-task=4
 #SBATCH --mem-per-cpu=4G
 #SBATCH --time=01:00:00
 #SBATCH --partition=base
@@ -15,6 +15,9 @@
 # Configuration
 NRUNS=20
 RESULTS_FILE="results/results_testing.msgpack"
+
+EXECUTOR_TYPE="process"
+NUM_WORKERS=4
 
 # Load compiler environment
 module load gcc12-env
@@ -79,7 +82,7 @@ generate_commands() {
 	local selection_acceptance_rates=(0.0 0.1 0.2)
 	local population_sizes=(4 6 8)
 	local random_seeds=({0..11})
-	local generations=(1 2)
+	local generations=(1 2 3)
 	local mutation_iterations=(1 2)
 	local gd_iterations=(0 1)
 	local crossover_strategies=("minimal_cost" "random")
@@ -122,15 +125,17 @@ generate_commands() {
 			"--gd-iterations ${gd_iter}" \
 			"--crossover-strategy ${cross_strat}" \
 			"--selection-quantile ${sel_quant}" \
-			"--selection-acceptance-rate ${sel_accept}"
+			"--selection-acceptance-rate ${sel_accept}" \
+			"--executor-type ${EXECUTOR_TYPE}" \
+			"--num-workers ${NUM_WORKERS}"
 	done
 }
 
 # forward route
-generate_commands -80.5 -11.0 30.0 50.0 "2021-01-01T00:00" 10.0 ${NRUNS} "Forward-Route" | run_batched
+generate_commands -80.5 -11.0 30.0 50.0 "2021-01-01T00:00" 10.0 ${NRUNS} "Forward-Route testing" | run_batched
 
 # backward route (reversed waypoints)
-generate_commands -11.0 -80.5 50.0 30.0 "2021-01-01T00:00" 10.0 ${NRUNS} "Backward-Route" | run_batched
+generate_commands -11.0 -80.5 50.0 30.0 "2021-01-01T00:00" 10.0 ${NRUNS} "Backward-Route testing" | run_batched
 
 # Extract results from Redis
 # Wait for jobs to finish and extract results

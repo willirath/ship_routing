@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 #SBATCH --job-name=sr_tune
-#SBATCH --ntasks=1001
-#SBATCH --cpus-per-task=1
-#SBATCH --mem-per-cpu=4G
+#SBATCH --ntasks=101
+#SBATCH --cpus-per-task=16
+#SBATCH --mem-per-cpu=5G
 #SBATCH --time=24:00:00
 #SBATCH --partition=base
 
@@ -13,8 +13,10 @@
 # 3. Batch commands into groups and execute in parallel across available tasks
 
 # Configuration
-NRUNS=50000
+NRUNS=1000
 RESULTS_FILE="results/results.msgpack"
+EXECUTOR_TYPE="process"
+NUM_WORKERS=16
 
 # Load compiler environment
 module load gcc12-env
@@ -77,9 +79,9 @@ generate_commands() {
 	# Define parameter arrays
 	local selection_quantiles=(0.2 0.5)
 	local selection_acceptance_rates=(0.0 0.1 0.2)
-	local population_sizes=(16 32 64)
+	local population_sizes=(16 32 64 128)
 	local random_seeds=({0..11})
-	local generations=(2 4 6 8)
+	local generations=(1 2 3 4)
 	local mutation_iterations=(1 2 3)
 	local gd_iterations=(0 1 2)
 	local crossover_strategies=("minimal_cost" "random")
@@ -122,7 +124,9 @@ generate_commands() {
 			"--gd-iterations ${gd_iter}" \
 			"--crossover-strategy ${cross_strat}" \
 			"--selection-quantile ${sel_quant}" \
-			"--selection-acceptance-rate ${sel_accept}"
+			"--selection-acceptance-rate ${sel_accept}" \
+			"--executor-type ${EXECUTOR_TYPE}" \
+			"--num-workers ${NUM_WORKERS}"
 	done
 }
 
