@@ -196,7 +196,7 @@ generate_commands() {
 			"--time-start ${time_start}" \
 			"--speed-knots ${speed_knots}" \
 			"--time-resolution-hours ${time_resolution_hours}" \
-			"--time-end ${time_end}"
+			# "--time-end ${time_end}"
 	done
 }
 
