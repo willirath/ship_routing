@@ -4,17 +4,6 @@
 doc/examples/data_large
 .pixi/
 *.tex
-tuning/runs/*json
-tuning/results/*json
-tuning/data_large
-<<<<<<< Updated upstream
-=======
-
-# Data directories
-data/large/
 tuning/results
->>>>>>> Stashed changes
-
-# Data directories
-data/large/
-*.pyc
+tuning/data_large
+data/large
