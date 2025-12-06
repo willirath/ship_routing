@@ -9,6 +9,8 @@
 #SBATCH --partition=base
 #SBATCH --output=slurm_%j.out
 #SBATCH --error=slurm_%j.err
+#
+# Usage: sbatch --export=LON_START=-75.0,LON_END=-12.0,LAT_START=25.0,JOURNEY_NAME="Atlantic" run_experiment.job
 
 # Script: Random hyperparameter testing
 # 1. Start persistent Redis server for result aggregation
