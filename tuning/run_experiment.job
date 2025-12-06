@@ -2,9 +2,10 @@
 # shellcheck disable=SC2034,SC2155,SC2016
 #SBATCH --job-name=sr_tune
 #SBATCH --ntasks=101
-#SBATCH --cpus-per-task=16
+#SBATCH --cpus-per-task=8
 #SBATCH --mem-per-cpu=5G
-#SBATCH --time=24:00:00
+#SBATCH --time=12:00:00
+#SBATCH --qos=express  # larger cpu count possible
 #SBATCH --partition=base
 #SBATCH --output=slurm_%j.out
 #SBATCH --error=slurm_%j.err
@@ -21,7 +22,7 @@ RESULTS_FILE="results/results_${SLURM_JOB_ID}.msgpack"
 
 # Parallelization
 EXECUTOR_TYPE="process"
-NUM_WORKERS=16
+NUM_WORKERS=8
 
 # Route parameters
 LON_START=-80.5
