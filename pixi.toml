@@ -40,6 +40,7 @@ redis-py = "*"
 msgpack-python = "*"
 shellcheck = ">=0.10.0,<0.11"
 rsync = ">=3.4.1,<4"
+geopandas = ">=1.1.1,<2"
 
 [tasks]
 tests = "pytest -q"
