@@ -5,15 +5,12 @@ Quick performance test comparing executor types (process vs thread) with the
 same worker count. Runs repetitions of each configuration and reports average
 timing, speedup, and comparison between executor types.
 
-Each repetition is run as a fresh Python process to avoid JIT/caching effects.
-
 Usage:
     pixi run python benchmark/benchmark_parallelism.py
 """
 
 import sys
 import time
-import subprocess
 import pandas as pd
 from pathlib import Path
 
@@ -115,8 +112,6 @@ def benchmark_single_run(num_workers: int, executor_type: str) -> float:
 def run_benchmark() -> pd.DataFrame:
     """Run full benchmark with multiple configurations and repetitions.
 
-    Each repetition is run as a fresh subprocess to avoid JIT/caching effects.
-
     Returns
     -------
     pd.DataFrame
@@ -148,20 +143,8 @@ def run_benchmark() -> pd.DataFrame:
             )
 
             try:
-                # Run as fresh subprocess to avoid JIT/caching effects
-                result = subprocess.run(
-                    [
-                        sys.executable,
-                        __file__,
-                        "--single-run",
-                        str(num_workers),
-                        executor_type,
-                    ],
-                    capture_output=True,
-                    text=True,
-                    check=True,
-                )
-                elapsed = float(result.stdout.strip())
+                # Run directly in same process to preserve CPU affinity from Slurm
+                elapsed = benchmark_single_run(num_workers, executor_type)
                 print(f"{elapsed:.2f}s")
                 results.append(
                     {
@@ -171,11 +154,8 @@ def run_benchmark() -> pd.DataFrame:
                         "elapsed_time": elapsed,
                     }
                 )
-            except subprocess.CalledProcessError as e:
-                print(f"FAILED: {e.stderr}")
-                raise
-            except ValueError as e:
-                print(f"FAILED to parse output: {result.stdout}")
+            except Exception as e:
+                print(f"FAILED: {e}")
                 raise
 
     return pd.DataFrame(results)
@@ -319,15 +299,6 @@ def display_results(summary: pd.DataFrame, raw_df: pd.DataFrame):
 
 
 if __name__ == "__main__":
-    # Handle single-run mode (called by subprocess)
-    if len(sys.argv) == 4 and sys.argv[1] == "--single-run":
-        num_workers = int(sys.argv[2])
-        executor_type = sys.argv[3]
-        elapsed = benchmark_single_run(num_workers, executor_type)
-        # Print only the timing (will be captured by parent process)
-        print(elapsed)
-        sys.exit(0)
-
     # Run full benchmark suite
     raw_results = run_benchmark()
 
