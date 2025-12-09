@@ -1,20 +1,72 @@
 #!/usr/bin/env bash
-#SBATCH --job-name=sr_tune
+# shellcheck disable=SC2034,SC2155,SC2016
+#SBATCH --job-name=tune_test
 #SBATCH --ntasks=11
-#SBATCH --cpus-per-task=1
+#SBATCH --cpus-per-task=4
 #SBATCH --mem-per-cpu=4G
 #SBATCH --time=01:00:00
 #SBATCH --partition=base
+#SBATCH --output=slurm_%j.out
+#SBATCH --error=slurm_%j.err
+#
+# Usage: sbatch --export=LON_START=-75.0,LON_END=-12.0,LAT_START=25.0,JOURNEY_NAME="Atlantic_testing" run_experiment_testing.job
 
 # Script: Random hyperparameter testing
 # 1. Start persistent Redis server for result aggregation
 # 2. Generate N random experiment configurations per route (forward + backward)
-#    Tune Parameter ranges in the generate_commands() function below.
+#    Tune parameter ranges in the configuration sections below (before "Load compiler environment").
 # 3. Batch commands into groups and execute in parallel across available tasks
 
 # Configuration
 NRUNS=20
-RESULTS_FILE="results/results_testing.msgpack"
+RESULTS_FILE="results/results_testing_${SLURM_JOB_ID}.msgpack"
+
+# Parallelization
+EXECUTOR_TYPE="process"
+NUM_WORKERS=4
+MAX_RUNTIME_PER_COMMAND="300"  # seconds
+
+# Route parameters
+LON_START=${LON_START:--80.5}
+LON_END=${LON_END:--11.0}
+LAT_START=${LAT_START:-30.0}
+LAT_END=${LAT_END:-50.0}
+TIME_START=${TIME_START:-"2021-01-01T00:00"}
+SPEED_KNOTS=${SPEED_KNOTS:-10.0}
+JOURNEY_NAME=${JOURNEY_NAME:-"Journey_testing"}
+JOURNEY_NAME_FORWARD="${JOURNEY_NAME}_forward"
+JOURNEY_NAME_BACKWARD="${JOURNEY_NAME}_backward"
+
+# All parameters as arrays (single-element = non-random, multi-element = random)
+# Constants
+DATA_DIRS=(".")
+LOG_DIRS=("runs")
+SELECTION_ACCEPTANCE_RATES_WARMUP=(0.3)
+MUTATION_WIDTH_FRACTIONS_WARMUP_SINGLE=(0.9)
+MUTATION_DISPLACEMENT_FRACTIONS_WARMUP_SINGLE=(0.2)
+MUTATION_WIDTH_FRACTIONS_SINGLE=(0.9)
+MUTATION_DISPLACEMENT_FRACTIONS_SINGLE=(0.1)
+NUM_ELITES_VALUES=(2)
+GD_ITERATIONS_VALUES=(2)
+LEARNING_RATES_TIME=(0.5)
+LEARNING_RATES_SPACE=(0.5)
+TIME_INCREMENTS=(1200.0)
+DISTANCE_INCREMENTS=(10000.0)
+TIME_RESOLUTION_HOURS_VALUES=(6.0)
+TIME_ENDS=("")
+
+# Random sampling arrays
+IGNORE_HAZARDS_VALUES=("true" "false")
+SELECTION_QUANTILES=(0.1 0.25)
+SELECTION_ACCEPTANCE_RATES=(0.0 0.25)
+POPULATION_SIZES=(4 8)
+GENERATIONS=(1 2)
+MUTATION_ITERATIONS=(1 2)
+GD_ITERATIONS_ARRAY=(0 1)
+CROSSOVER_STRATEGIES=("minimal_cost" "random")
+CROSSOVER_ROUNDS=(0 1)
+MUTATION_WIDTH_FRACTIONS_WARMUP=(0.5 0.9)
+MUTATION_DISPLACEMENT_FRACTIONS_WARMUP=(0.1 0.25)
 
 # Load compiler environment
 module load gcc12-env
@@ -37,7 +89,7 @@ REDIS_DIR="/tmp/redis_data_${SLURM_JOB_ID}"
 REDIS_PASSWORD=$(openssl rand -base64 32)
 mkdir -p "$REDIS_DIR"
 
-srun --ntasks=1 --exclusive --job-name=redis_server bash -c "
+srun --ntasks=1 --exclusive --export=ALL -c "${SLURM_CPUS_PER_TASK}" --job-name=redis_server bash -c "
     echo \$(hostname) > .redis_host_${SLURM_JOB_ID}
     redis-server --port ${REDIS_PORT} \
                  --protected-mode no \
@@ -60,7 +112,7 @@ run_batched() {
 	local batch_size=$(( (${#cmds[@]} + SLURM_NTASKS - 2) / (SLURM_NTASKS - 1) ))
 	printf '%s\n' "${cmds[@]}" | \
 		xargs -d '\n' -L${batch_size} -P$((SLURM_NTASKS-1)) srun --ntasks=1 \
-			--exclusive -c "${SLURM_CPUS_PER_TASK}" bash -c \
+			--exclusive --export=ALL -c "${SLURM_CPUS_PER_TASK}" bash -c \
 			'for cmd in "$@"; do bash -c "$cmd"; done' bash
 }
 
@@ -69,68 +121,96 @@ random_int() {
 	od -An -tu4 -N4 /dev/urandom | tr -d ' '
 }
 
+# Helper function to sample from array (random if >1 element, direct if =1)
+sample_from_array() {
+	local -n arr=$1  # nameref to array
+	if [ ${#arr[@]} -eq 1 ]; then
+		echo "${arr[0]}"
+	else
+		echo "${arr[$(random_int) % ${#arr[@]}]}"
+	fi
+}
+
 # Function to generate random experiment commands for a route
 generate_commands() {
 	local lon_start=$1 lon_end=$2 lat_start=$3 lat_end=$4
 	local time_start=$5 speed_knots=$6 num_samples=$7 journey_name=$8
 
-	# Define parameter arrays
-	local selection_quantiles=(0.2 0.5)
-	local selection_acceptance_rates=(0.0 0.1 0.2)
-	local population_sizes=(4 6 8)
-	local random_seeds=({0..11})
-	local generations=(1 2)
-	local mutation_iterations=(1 2)
-	local gd_iterations=(0 1)
-	local crossover_strategies=("minimal_cost" "random")
-	local crossover_rounds=(0 1)
-	local mutation_width_fractions_warmup=(0.5 0.7 0.9)
-	local mutation_displacement_fractions_warmup=(0.1 0.15 0.2 0.25)
-
 	# Generate N random samples
 	for ((i=0; i<num_samples; i++)); do
-		# Randomly select one value from each parameter array using /dev/urandom
-		local sel_quant=${selection_quantiles[$(random_int) % ${#selection_quantiles[@]}]}
-		local sel_accept=${selection_acceptance_rates[$(random_int) % ${#selection_acceptance_rates[@]}]}
-		local pop_size=${population_sizes[$(random_int) % ${#population_sizes[@]}]}
-		local rand_seed=${random_seeds[$(random_int) % ${#random_seeds[@]}]}
-		local gen=${generations[$(random_int) % ${#generations[@]}]}
-		local mut_iter=${mutation_iterations[$(random_int) % ${#mutation_iterations[@]}]}
-		local gd_iter=${gd_iterations[$(random_int) % ${#gd_iterations[@]}]}
-		local cross_strat=${crossover_strategies[$(random_int) % ${#crossover_strategies[@]}]}
-		local cross_rounds=${crossover_rounds[$(random_int) % ${#crossover_rounds[@]}]}
-		local mut_width_warmup=${mutation_width_fractions_warmup[$(random_int) % ${#mutation_width_fractions_warmup[@]}]}
-		local mut_disp_warmup=${mutation_displacement_fractions_warmup[$(random_int) % ${#mutation_displacement_fractions_warmup[@]}]}
+		# Sample from each parameter array (length determines if random or fixed)
+		local data_dir=$(sample_from_array DATA_DIRS)
+		local log_dir=$(sample_from_array LOG_DIRS)
+		local ignore_hazards=$(sample_from_array IGNORE_HAZARDS_VALUES)
+		local sel_quant=$(sample_from_array SELECTION_QUANTILES)
+		local sel_accept=$(sample_from_array SELECTION_ACCEPTANCE_RATES)
+		local sel_accept_warmup=$(sample_from_array SELECTION_ACCEPTANCE_RATES_WARMUP)
+		local pop_size=$(sample_from_array POPULATION_SIZES)
+		local rand_seed=$(random_int)
+		local gen=$(sample_from_array GENERATIONS)
+		local mut_iter=$(sample_from_array MUTATION_ITERATIONS)
+		local gd_iter=$(sample_from_array GD_ITERATIONS_ARRAY)
+		local gd_iterations=$(sample_from_array GD_ITERATIONS_VALUES)
+		local cross_strat=$(sample_from_array CROSSOVER_STRATEGIES)
+		local cross_rounds=$(sample_from_array CROSSOVER_ROUNDS)
+		local mut_width=$(sample_from_array MUTATION_WIDTH_FRACTIONS_SINGLE)
+		local mut_disp=$(sample_from_array MUTATION_DISPLACEMENT_FRACTIONS_SINGLE)
+		local mut_width_warmup=$(sample_from_array MUTATION_WIDTH_FRACTIONS_WARMUP)
+		local mut_disp_warmup=$(sample_from_array MUTATION_DISPLACEMENT_FRACTIONS_WARMUP)
+		local num_elites=$(sample_from_array NUM_ELITES_VALUES)
+		local learning_rate_time=$(sample_from_array LEARNING_RATES_TIME)
+		local learning_rate_space=$(sample_from_array LEARNING_RATES_SPACE)
+		local time_increment=$(sample_from_array TIME_INCREMENTS)
+		local distance_increment=$(sample_from_array DISTANCE_INCREMENTS)
+		local time_resolution_hours=$(sample_from_array TIME_RESOLUTION_HOURS_VALUES)
+		local time_end=$(sample_from_array TIME_ENDS)
 
-		echo "./run_experiment.py" \
-			"--redis-host ${REDIS_HOST}" \
-			"--redis-port ${REDIS_PORT}" \
-			"--redis-password '${REDIS_PASSWORD}'" \
-			"--lon-wp ${lon_start} --lon-wp ${lon_end}" \
-			"--lat-wp ${lat_start} --lat-wp ${lat_end}" \
-			"--journey-name ${journey_name}" \
-			"--time-start ${time_start}" \
-			"--speed-knots ${speed_knots}" \
+		echo "timeout ${MAX_RUNTIME_PER_COMMAND} ./run_experiment.py" \
+			"--data-dir ${data_dir}" \
 			"--random-seed ${rand_seed}" \
 			"--population-size ${pop_size}" \
+			"--selection-acceptance-rate-warmup ${sel_accept_warmup}" \
 			"--mutation-width-fraction-warmup ${mut_width_warmup}" \
 			"--mutation-displacement-fraction-warmup ${mut_disp_warmup}" \
 			"--generations ${gen}" \
 			"--offspring-size ${pop_size}" \
-			"--crossover-rounds ${cross_rounds}" \
-			"--mutation-iterations ${mut_iter}" \
-			"--gd-iterations ${gd_iter}" \
-			"--crossover-strategy ${cross_strat}" \
 			"--selection-quantile ${sel_quant}" \
-			"--selection-acceptance-rate ${sel_accept}"
+			"--selection-acceptance-rate ${sel_accept}" \
+			"--mutation-width-fraction ${mut_width}" \
+			"--mutation-displacement-fraction ${mut_disp}" \
+			"--mutation-iterations ${mut_iter}" \
+			"--crossover-strategy ${cross_strat}" \
+			"--crossover-rounds ${cross_rounds}" \
+			"--ignore-hazards ${ignore_hazards}" \
+			"--num-elites ${num_elites}" \
+			"--gd-iterations ${gd_iterations}" \
+			"--learning-rate-time ${learning_rate_time}" \
+			"--learning-rate-space ${learning_rate_space}" \
+			"--time-increment ${time_increment}" \
+			"--distance-increment ${distance_increment}" \
+			"--executor-type ${EXECUTOR_TYPE}" \
+			"--num-workers ${NUM_WORKERS}" \
+			"--log-dir ${log_dir}" \
+			"--redis-host ${REDIS_HOST}" \
+			"--redis-port ${REDIS_PORT}" \
+			"--redis-password '${REDIS_PASSWORD}'" \
+			"--journey-name ${journey_name}" \
+			"--lon-wp ${lon_start} --lon-wp ${lon_end}" \
+			"--lat-wp ${lat_start} --lat-wp ${lat_end}" \
+			"--time-start ${time_start}" \
+			"--speed-knots ${speed_knots}" \
+			"--time-resolution-hours ${time_resolution_hours}" \
+			# "--time-end ${time_end}"
 	done
 }
 
 # forward route
-generate_commands -80.5 -11.0 30.0 50.0 "2021-01-01T00:00" 10.0 ${NRUNS} "Forward-Route" | run_batched
+generate_commands "${LON_START}" "${LON_END}" "${LAT_START}" "${LAT_END}" \
+	"${TIME_START}" "${SPEED_KNOTS}" "${NRUNS}" "${JOURNEY_NAME_FORWARD}" | run_batched
 
 # backward route (reversed waypoints)
-generate_commands -11.0 -80.5 50.0 30.0 "2021-01-01T00:00" 10.0 ${NRUNS} "Backward-Route" | run_batched
+generate_commands "${LON_END}" "${LON_START}" "${LAT_END}" "${LAT_START}" \
+	"${TIME_START}" "${SPEED_KNOTS}" "${NRUNS}" "${JOURNEY_NAME_BACKWARD}" | run_batched
 
 # Extract results from Redis
 # Wait for jobs to finish and extract results

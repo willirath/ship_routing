@@ -166,6 +166,7 @@ class RoutingResult:
 
     def plot_routes(self, ax=None):
         """Plot seed and elite routes."""
+        plt_add_kwargs = {}
         if ax is None:
             _lonlat = self.seed_member.route.data_frame[["lon", "lat"]]
             central_lon, central_lat = _lonlat.mean()
@@ -184,9 +185,8 @@ class RoutingResult:
                     )
                 },
             )
-            plt_add_kwargs = {"transform": cartopy.crs.PlateCarree()}
-        else:
-            plt_add_kwargs = {}
+        if isinstance(ax, cartopy.mpl.geoaxes.GeoAxes):
+            plt_add_kwargs.update({"transform": cartopy.crs.PlateCarree()})
 
         seed_member = self.seed_member
         elite_members = self.elite_population.members
@@ -743,7 +743,7 @@ class RoutingApp:
             # Select parent indices for all offspring in this round
             parent_indices_list = []
             for _ in range(params.offspring_size):
-                indices = rng.choice(len(current_source), size=2, replace=False)
+                indices = rng.choice(len(current_source), size=2, replace=True)
                 parent_indices_list.append(tuple(indices))
 
             # Prepare arguments for workers (bug fix: moved outside offspring loop)

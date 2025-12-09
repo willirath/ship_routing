@@ -4,9 +4,8 @@
 doc/examples/data_large
 .pixi/
 *.tex
-tuning/runs/*json
-tuning/results/*json
+tuning/results
 tuning/data_large
-
-# Data directories
-data/large/
+data/large
+tuning/.redis_host_*
+tuning/slurm_*.*
