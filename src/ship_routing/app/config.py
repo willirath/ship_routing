@@ -98,6 +98,14 @@ class HyperParams:
     time_increment: float = 1_200.0  # delta t
     distance_increment: float = 10_000.0  # delta d
 
+    # Stage 5: Parameter adaptation
+    enable_adaptation: bool = False  # Enable W, D, q adaptation
+    target_relative_improvement: float = 0.01  # Target relative cost improvement (1%)
+    W_min: float = 0.1  # Minimum mutation width fraction
+    W_max: float = 1.0  # Maximum mutation width fraction
+    D_min: float = 0.01  # Minimum mutation displacement fraction
+    D_max: float = 0.5  # Maximum mutation displacement fraction
+
     # Parallelization
     num_workers: int = (
         2  # Number of worker processes/threads (ignored if executor_type="sequential")

@@ -50,6 +50,36 @@ except NameError:
 
 
 @dataclass
+class CostImprovementStats:
+    """Track cost improvement statistics for a generation."""
+
+    cost_before: float
+    cost_after: float
+
+    @property
+    def absolute_improvement(self) -> float:
+        """Absolute cost reduction (positive = improvement)."""
+        return self.cost_before - self.cost_after
+
+    @property
+    def relative_improvement(self) -> float:
+        """Relative cost reduction as fraction of original cost."""
+        return (
+            (self.cost_before - self.cost_after) / self.cost_before
+            if self.cost_before > 0
+            else 0.0
+        )
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "cost_before": self.cost_before,
+            "cost_after": self.cost_after,
+            "absolute_improvement": self.absolute_improvement,
+            "relative_improvement": self.relative_improvement,
+        }
+
+
+@dataclass
 class RoutingResult:
     """Container returned by RoutingApp.run."""
 
@@ -384,15 +414,22 @@ class RoutingApp:
         q = self.config.hyper.selection_quantile
 
         # Genetic algorithm generation loop
-        for _ in range(self.config.hyper.generations):
-            population = self._stage_ga_mutation(
+        for gen_idx in range(self.config.hyper.generations):
+            # Mutation stage now returns cost improvement statistics
+            population, cost_improvement_stats = self._stage_ga_mutation(
                 population, seed_member, forcing, W, D, q, executor
             )
+            # Crossover (unchanged)
             population = self._stage_ga_crossover(
                 population, seed_member, forcing, executor
             )
+            # Selection (unchanged)
             population = self._stage_ga_selection(population, seed_member, q)
-            W, D, q = self._stage_ga_adaptation(W, D, q)
+            # Adaptation: pass cost improvement stats and population stats
+            pop_stats = self._population_stats(population.members)
+            W, D, q = self._stage_ga_adaptation(
+                W, D, q, cost_improvement_stats, pop_stats
+            )
 
         elite_population = self._stage_post_processing(population, forcing, executor)
 
@@ -640,11 +677,16 @@ class RoutingApp:
         D: float,
         q: float,
         executor: ProcessPoolExecutor | None = None,
-    ) -> Population:
+    ) -> tuple[Population, CostImprovementStats]:
         """GA sub-stage 1: Directed mutation of population members."""
         params = self.config.hyper
         rng = self._ensure_rng()
         members = population.members
+
+        # Track elite cost before mutation (q/2 quantile)
+        elite_quantile = max(1, int(np.ceil(q / 2 * len(members))))
+        costs_before = sorted([m.cost for m in members])
+        elite_cost_before = costs_before[elite_quantile - 1]  # 0-indexed
 
         # Directed mutation
         members_to_process = members[:-1]
@@ -659,12 +701,24 @@ class RoutingApp:
         # New population incl. seed member again
         population = Population.from_members(mutated_members).add_member(seed_member)
 
+        # Track elite cost after mutation (q/2 quantile)
+        costs_after = sorted([m.cost for m in population.members])
+        elite_cost_after = costs_after[elite_quantile - 1]
+
+        # Compute improvement statistics
+        stats = CostImprovementStats(
+            cost_before=elite_cost_before,
+            cost_after=elite_cost_after,
+        )
+
         self._log_stage_metrics(
             "ga_mutation",
             **self._population_stats(population.members),
+            **stats.to_dict(),
+            elite_quantile=elite_quantile,
         )
 
-        return population
+        return population, stats
 
     @staticmethod
     def _task_crossover(
@@ -811,16 +865,97 @@ class RoutingApp:
         W: float,
         D: float,
         q: float,
+        cost_improvement_stats: CostImprovementStats,
+        population_stats: dict[str, Any],
     ) -> tuple[float, float, float]:
-        """GA sub-stage 4: Adapt mutation and selection parameters."""
-        # TODO: Implement adaptive W, D, q
-        W_new, D_new, q_new = W, D, q
+        """GA sub-stage 4: Adapt mutation and selection parameters.
 
+        Parameters
+        ----------
+        W : float
+            Current mutation width fraction
+        D : float
+            Current mutation displacement fraction
+        q : float
+            Current selection quantile
+        cost_improvement_stats : CostImprovementStats
+            Cost improvement statistics from the mutation stage
+        population_stats : dict
+            Population statistics (including cost_std, cost_mean)
+
+        Returns
+        -------
+        tuple[float, float, float]
+            Updated (W_new, D_new, q_new)
+        """
+        params = self.config.hyper
+
+        if not params.enable_adaptation:
+            # Adaptation disabled, log and return unchanged
+            self._log_stage_metrics(
+                "ga_adaptation",
+                W=W,
+                D=D,
+                q=q,
+                adaptation_enabled=False,
+            )
+            return W, D, q
+
+        # Adapt W and D based on cost improvement
+        improvement = cost_improvement_stats.relative_improvement
+        target = params.target_relative_improvement
+
+        if improvement < target * 0.3:  # Very small improvement (<0.3%)
+            W_new = W * 0.8
+            D_new = D * 0.8
+            signal = "decrease_strong"
+        elif improvement < target * 0.6:  # Small improvement (<0.6%)
+            W_new = W * 0.9
+            D_new = D * 0.9
+            signal = "decrease_gentle"
+        elif improvement >= target:  # Good improvement (>1%)
+            W_new = W
+            D_new = D
+            signal = "stable"
+        else:  # Moderate improvement (0.6-1%)
+            W_new = W * 0.95
+            D_new = D * 0.95
+            signal = "decrease_mild"
+
+        # Enforce bounds
+        W_new = np.clip(W_new, params.W_min, params.W_max)
+        D_new = np.clip(D_new, params.D_min, params.D_max)
+
+        # Adapt q based on population diversity
+        cost_std = population_stats.get("cost_std", 0.0)
+        cost_mean = population_stats.get("cost_mean", 1.0)
+        relative_std = cost_std / cost_mean if cost_mean > 0 else 0.0
+
+        if relative_std < 0.01:  # Low diversity - increase selection pressure
+            q_new = min(q * 1.2, 0.5)
+            q_signal = "increase"
+        elif relative_std > 0.10:  # High diversity - decrease selection pressure
+            q_new = max(q * 0.8, 0.05)
+            q_signal = "decrease"
+        else:
+            q_new = q
+            q_signal = "stable"
+
+        # Log adaptation decisions
         self._log_stage_metrics(
             "ga_adaptation",
             W=W_new,
             D=D_new,
             q=q_new,
+            W_delta=W_new - W,
+            D_delta=D_new - D,
+            q_delta=q_new - q,
+            relative_improvement=improvement,
+            target_relative_improvement=target,
+            adaptation_signal=signal,
+            q_signal=q_signal,
+            relative_cost_std=relative_std,
+            adaptation_enabled=True,
         )
 
         return W_new, D_new, q_new
