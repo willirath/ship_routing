@@ -16,6 +16,18 @@ pixi run jupyterlab # (optional) start the notebook environment
 If you need additional tools, add them to [pixi.toml](pixi.toml) so every contributor
 inherits the same setup.
 
+## HPC Setup
+
+On HPC systems with limited HOME quota, use the provided script to redirect Pixi's cache directories to scratch storage:
+
+```bash
+source setup_pixi_hpc.sh <scratch_directory>  # e.g., $SCRATCH, $WORK, (defaults to $PWD)
+```
+
+This configures `PIXI_CACHE_DIR`, `PIXI_HOME`, `RATTLER_CACHE_DIR`, and `CONDA_PKGS_DIRS` to use the specified directory. If no directory is provided, the current working directory is used by default.
+
+See [setup_pixi_hpc.sh](setup_pixi_hpc.sh) for details.
+
 ## Data Setup
 
 - [data/test/](data/test/): Included, ~10 MB
