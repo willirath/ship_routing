@@ -105,6 +105,8 @@ class HyperParams:
     W_max: float = 1.0  # Maximum mutation width fraction
     D_min: float = 0.01  # Minimum mutation displacement fraction
     D_max: float = 0.5  # Maximum mutation displacement fraction
+    q_min: float = 0.01  # Minimum selection quantile
+    q_max: float = 1.0  # Maximum selection quantile
 
     # Parallelization
     num_workers: int = (

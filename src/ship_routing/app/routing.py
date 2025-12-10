@@ -905,41 +905,19 @@ class RoutingApp:
         improvement = cost_improvement_stats.relative_improvement
         target = params.target_relative_improvement
 
-        if improvement < target * 0.3:  # Very small improvement (<0.3%)
+        if improvement < target:
             W_new = W * 0.8
-            D_new = D * 0.8
-            signal = "decrease_strong"
-        elif improvement < target * 0.6:  # Small improvement (<0.6%)
-            W_new = W * 0.9
-            D_new = D * 0.9
-            signal = "decrease_gentle"
-        elif improvement >= target:  # Good improvement (>1%)
+            D_new = D * 0.8**0.5
+            q_new = q * 0.8
+        else:
             W_new = W
             D_new = D
-            signal = "stable"
-        else:  # Moderate improvement (0.6-1%)
-            W_new = W * 0.95
-            D_new = D * 0.95
-            signal = "decrease_mild"
+            q_new = q
 
         # Enforce bounds
         W_new = np.clip(W_new, params.W_min, params.W_max)
         D_new = np.clip(D_new, params.D_min, params.D_max)
-
-        # Adapt q based on population diversity
-        cost_std = population_stats.get("cost_std", 0.0)
-        cost_mean = population_stats.get("cost_mean", 1.0)
-        relative_std = cost_std / cost_mean if cost_mean > 0 else 0.0
-
-        if relative_std < 0.01:  # Low diversity - increase selection pressure
-            q_new = min(q * 1.2, 0.5)
-            q_signal = "increase"
-        elif relative_std > 0.10:  # High diversity - decrease selection pressure
-            q_new = max(q * 0.8, 0.05)
-            q_signal = "decrease"
-        else:
-            q_new = q
-            q_signal = "stable"
+        q_new = np.clip(q_new, params.q_min, params.q_max)
 
         # Log adaptation decisions
         self._log_stage_metrics(
@@ -947,13 +925,11 @@ class RoutingApp:
             W=W_new,
             D=D_new,
             q=q_new,
-            W_delta=W_new - W,
-            D_delta=D_new - D,
-            q_delta=q_new - q,
+            W_delta=W_new / W,
+            D_delta=D_new / D,
+            q_delta=q_new / q,
             relative_improvement=improvement,
             target_relative_improvement=target,
-            adaptation_signal=signal,
-            q_signal=q_signal,
             relative_cost_std=relative_std,
             adaptation_enabled=True,
         )
