@@ -52,7 +52,9 @@ def test_route_cost_respects_hazards_flag_enabled():
     cost_baseline = app_baseline._route_cost(route=_simple_route(), forcing=forcing)
 
     # Check hazardous cost is penalized correctly
-    assert cost > cost_baseline * 50  # Should be at least 50x baseline (with default multiplier 100)
+    assert (
+        cost > cost_baseline * 50
+    )  # Should be at least 50x baseline (with default multiplier 100)
     assert np.isfinite(cost)  # But still finite
 
 
@@ -66,8 +68,6 @@ def test_route_cost_respects_hazards_flag_disabled():
 
 def test_hazard_penalty_is_multiplicative():
     """Verify that hazard penalty scales with base cost."""
-    from ship_routing.core.config import Physics
-
     # Get baseline cost first (no hazards)
     config_baseline = RoutingConfig(hyper=HyperParams(ignore_hazards=True))
     app_baseline = RoutingApp(config=config_baseline)
@@ -77,8 +77,9 @@ def test_hazard_penalty_is_multiplicative():
     # Test with different penalty multipliers
     for multiplier in [10.0, 100.0, 1000.0]:
         config = RoutingConfig(
-            hyper=HyperParams(ignore_hazards=False),
-            physics=Physics(hazard_penalty_multiplier=multiplier)
+            hyper=HyperParams(
+                ignore_hazards=False, hazard_penalty_multiplier=multiplier
+            )
         )
         app = RoutingApp(config=config)
 

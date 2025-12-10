@@ -88,7 +88,10 @@ class HyperParams:
     mutation_displacement_fraction: float = 0.1  # D
     mutation_iterations: int = 2  # N_mut (max; actual sampled uniformly from 1..N_mut)
     crossover_strategy: Literal["minimal_cost", "random"] = "minimal_cost"  # C_e or C_r
-    ignore_hazards: bool = False  # TODO: Remove this flag and put hazard_penalty_multiplier here
+    ignore_hazards: bool = (
+        False  # TODO: Remove this flag once hazard_penalty_multiplier > 0 logic is implemented
+    )
+    hazard_penalty_multiplier: float = 100.0  # Penalty multiplier for hazardous routes
 
     # Stage 4: Post-processing (Gradient descent)
     num_elites: int = 2  # k

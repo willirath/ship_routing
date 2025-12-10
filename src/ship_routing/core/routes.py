@@ -313,6 +313,7 @@ class Leg:
         ship: Ship = SHIP_DEFAULT,
         physics: Physics = PHYSICS_DEFAULT,
         ignore_hazards: bool = False,
+        hazard_penalty_multiplier: float = 100.0,
     ):
         u_ship_og, v_ship_og = self.uv_over_ground_ms
         if current_data_set is not None:
@@ -385,7 +386,8 @@ class Leg:
                 physics=physics,
             )
             if np.any(hazard):
-                return base_cost * (1 + physics.hazard_penalty_multiplier)
+                # TODO: Check if hazard_penalty_multiplier > 0 here and remove the ignore_hazards flag
+                return base_cost * (1 + hazard_penalty_multiplier)
 
         return base_cost
 
@@ -763,6 +765,7 @@ class Route:
         ship: Ship = SHIP_DEFAULT,
         physics: Physics = PHYSICS_DEFAULT,
         ignore_hazards: bool = False,
+        hazard_penalty_multiplier: float = 100.0,
     ):
         """Cost along whole route."""
         return sum(
@@ -773,6 +776,7 @@ class Route:
                 ship=ship,
                 physics=physics,
                 ignore_hazards=ignore_hazards,
+                hazard_penalty_multiplier=hazard_penalty_multiplier,
             )
         )
 
@@ -786,6 +790,7 @@ class Route:
         ship: Ship = SHIP_DEFAULT,
         physics: Physics = PHYSICS_DEFAULT,
         ignore_hazards: bool = False,
+        hazard_penalty_multiplier: float = 100.0,
     ):
         """Cost along each leg."""
         return tuple(
@@ -797,6 +802,7 @@ class Route:
                     ship=ship,
                     physics=physics,
                     ignore_hazards=ignore_hazards,
+                    hazard_penalty_multiplier=hazard_penalty_multiplier,
                 )
                 for l in self.legs
             )
