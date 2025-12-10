@@ -99,14 +99,14 @@ class HyperParams:
     distance_increment: float = 10_000.0  # delta d
 
     # Stage 5: Parameter adaptation
-    enable_adaptation: bool = False  # Enable W, D, q adaptation
+    enable_adaptation: bool = False  # Enable W, D adaptation
     target_relative_improvement: float = 0.01  # Target relative cost improvement (1%)
+    adaptation_scale_W: float = 0.8  # Scale factor for W when improvement < target
+    adaptation_scale_D: float = 0.894427191  # Scale factor for D (0.8**0.5)
     W_min: float = 0.1  # Minimum mutation width fraction
     W_max: float = 1.0  # Maximum mutation width fraction
     D_min: float = 0.01  # Minimum mutation displacement fraction
     D_max: float = 0.5  # Maximum mutation displacement fraction
-    q_min: float = 0.01  # Minimum selection quantile
-    q_max: float = 1.0  # Maximum selection quantile
 
     # Parallelization
     num_workers: int = (

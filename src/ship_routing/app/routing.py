@@ -906,18 +906,18 @@ class RoutingApp:
         target = params.target_relative_improvement
 
         if improvement < target:
-            W_new = W * 0.8
-            D_new = D * 0.8**0.5
-            q_new = q * 0.8
+            W_new = W * params.adaptation_scale_W
+            D_new = D * params.adaptation_scale_D
         else:
             W_new = W
             D_new = D
-            q_new = q
 
-        # Enforce bounds
+        # q remains unchanged
+        q_new = q
+
+        # Enforce bounds on W and D only
         W_new = np.clip(W_new, params.W_min, params.W_max)
         D_new = np.clip(D_new, params.D_min, params.D_max)
-        q_new = np.clip(q_new, params.q_min, params.q_max)
 
         # Log adaptation decisions
         self._log_stage_metrics(
@@ -927,10 +927,8 @@ class RoutingApp:
             q=q_new,
             W_delta=W_new / W,
             D_delta=D_new / D,
-            q_delta=q_new / q,
             relative_improvement=improvement,
             target_relative_improvement=target,
-            relative_cost_std=relative_std,
             adaptation_enabled=True,
         )
 
