@@ -567,7 +567,7 @@ class RoutingApp:
 
         mutated_route = stochastic_mutation(
             route=member.route,
-            number_of_iterations=state.params.mutation_iterations,
+            max_iterations=state.params.mutation_iterations,
             mod_width=state.params.mutation_width_fraction_warmup * length,
             max_move_meters=state.params.mutation_displacement_fraction_warmup * length,
             rng=state.rng,
@@ -646,7 +646,7 @@ class RoutingApp:
 
         mutated_route = stochastic_mutation(
             route=member.route,
-            number_of_iterations=state.params.mutation_iterations,
+            max_iterations=state.params.mutation_iterations,
             mod_width=W * length,
             max_move_meters=D * length,
             rng=state.rng,
