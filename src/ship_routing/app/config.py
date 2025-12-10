@@ -86,7 +86,7 @@ class HyperParams:
     selection_acceptance_rate: float = 0.0  # p
     mutation_width_fraction: float = 0.9  # W
     mutation_displacement_fraction: float = 0.1  # D
-    mutation_iterations: int = 2  # N_mut
+    mutation_iterations: int = 2  # N_mut (max; actual sampled uniformly from 1..N_mut)
     crossover_strategy: Literal["minimal_cost", "random"] = "minimal_cost"  # C_e or C_r
     ignore_hazards: bool = False
 

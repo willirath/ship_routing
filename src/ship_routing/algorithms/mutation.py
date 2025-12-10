@@ -7,22 +7,24 @@ from ..core.routes import Route
 
 def stochastic_mutation(
     route: Route = None,
-    number_of_iterations: int = 1,
+    max_iterations: int = 1,
     mod_width: float | None = None,
     max_move_meters: float | None = None,
     rng=None,
 ) -> Route:
-    """Apply non-local mutations..
+    """Apply non-local mutations.
 
     Performs stochastic mutations by moving waypoints perpendicular to the route
-    within a specified width and maximum displacement.
+    within a specified width and maximum displacement. The actual number of
+    iterations is sampled uniformly from [1, max_iterations].
 
     Parameters
     ----------
     route : Route
         Route to mutate
-    number_of_iterations : int, default=1
-        Number of mutation iterations to apply
+    max_iterations : int, default=1
+        Maximum number of mutation iterations. Actual iterations will be
+        sampled uniformly from {1, 2, ..., max_iterations}.
     mod_width : float, optional
         Width of the modification window in meters
     max_move_meters : float, optional
@@ -44,8 +46,12 @@ def stochastic_mutation(
         raise ValueError("mod_width and max_move_meters must be provided")
 
     rng = rng or np.random
+
+    # Sample actual number of iterations uniformly from [1, max_iterations]
+    num_iterations = rng.integers(1, max_iterations + 1)
+
     mutated = route
-    for _ in range(number_of_iterations):
+    for _ in range(num_iterations):
         mutated = mutated.move_waypoints_left_nonlocal(
             center_distance_meters=rng.uniform(
                 max(0.0, mod_width / 2.0),
