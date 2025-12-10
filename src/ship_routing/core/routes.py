@@ -354,20 +354,7 @@ class Leg:
             w_wave_height = ds_wave.wh
         else:
             w_wave_height = 0
-        if not ignore_hazards:
-            hazard = hazard_conditions_wave_height(
-                u_current_ms=u_current,
-                v_current_ms=v_current,
-                u_wind_ms=u_wind,
-                v_wind_ms=v_wind,
-                w_wave_height=w_wave_height,
-                u_ship_og_ms=u_ship_og,
-                v_ship_og_ms=v_ship_og,
-                ship=ship,
-                physics=physics,
-            )
-            if np.any(hazard):
-                return np.inf
+        # Compute base cost first
         pwr = power_maintain_speed(
             u_current_ms=u_current,
             v_current_ms=v_current,
@@ -381,8 +368,26 @@ class Leg:
         )
         if pwr.isnull().sum() > 0:
             return np.nan
-        else:
-            return pwr.mean().data[()] * self.duration_seconds
+        base_cost = pwr.mean().data[()] * self.duration_seconds
+
+        # Apply hazard penalty if needed
+        # TODO: Check if hazard_penalty_multiplier > 0 here and remove the ignore_hazards flag
+        if not ignore_hazards:
+            hazard = hazard_conditions_wave_height(
+                u_current_ms=u_current,
+                v_current_ms=v_current,
+                u_wind_ms=u_wind,
+                v_wind_ms=v_wind,
+                w_wave_height=w_wave_height,
+                u_ship_og_ms=u_ship_og,
+                v_ship_og_ms=v_ship_og,
+                ship=ship,
+                physics=physics,
+            )
+            if np.any(hazard):
+                return base_cost * (1 + physics.hazard_penalty_multiplier)
+
+        return base_cost
 
     @profile
     def hazard_through(

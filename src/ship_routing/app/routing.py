@@ -1030,6 +1030,8 @@ class RoutingApp:
             current_data_set=forcing.currents,
             wave_data_set=forcing.waves,
             wind_data_set=forcing.winds,
+            ship=self.config.ship,
+            physics=self.config.physics,
             ignore_hazards=params.ignore_hazards,
         )
 

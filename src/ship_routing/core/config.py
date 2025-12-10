@@ -12,6 +12,8 @@ class Physics:
     gravity_acceleration_ms2: float = 9.80665
     sea_water_density_kgm3: float = 1029.0
     air_density_kgm3: float = 1.225
+    # TODO: Move hazard_penalty_multiplier to HyperParams
+    hazard_penalty_multiplier: float = 100.0
 
 
 @dataclass(frozen=True)
