@@ -751,8 +751,40 @@ class RoutingApp:
                 )
             else:  # "random"
                 child_route = crossover_routes_random(parent_a.route, parent_b.route)
-        except Exception:
-            logging.warning("crossover failed; using parent_a")
+        except Exception as e:
+            # DEBUG: Dump failing routes to disk for inspection
+            import traceback
+            from pathlib import Path
+            from datetime import datetime
+
+            debug_dir = Path("debug/failed_crossovers")
+            debug_dir.mkdir(parents=True, exist_ok=True)
+
+            timestamp = datetime.now().isoformat().replace(":", "-")
+
+            # Save parent routes as CSV
+            parent_a_file = debug_dir / f"parent_a_{timestamp}.csv"
+            parent_b_file = debug_dir / f"parent_b_{timestamp}.csv"
+            error_file = debug_dir / f"error_{timestamp}.txt"
+
+            parent_a.route.data_frame.to_csv(parent_a_file, index=False)
+            parent_b.route.data_frame.to_csv(parent_b_file, index=False)
+
+            # Save error details
+            with open(error_file, "w") as f:
+                f.write(f"Exception type: {type(e).__name__}\n")
+                f.write(f"Exception message: {str(e)}\n\n")
+                f.write("Traceback:\n")
+                f.write(traceback.format_exc())
+
+            logging.warning(
+                f"crossover failed: {type(e).__name__}: {str(e)}; using parent_a. "
+                f"Routes saved to {debug_dir}"
+            )
+
+            # BREAKPOINT: Set debugger breakpoint here (line 754 in original)
+            breakpoint()
+
             child_route = parent_a.route
 
         child_cost = child_route.cost_through(
