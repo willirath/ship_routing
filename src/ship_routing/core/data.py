@@ -1,3 +1,4 @@
+import warnings
 import xarray as xr
 import pandas as pd
 import numpy as np
@@ -8,6 +9,13 @@ from typing import Callable
 from functools import lru_cache
 from .config import MAX_CACHE_SIZE
 from .hashable_dataset import HashableDataset, make_hashable
+
+# Suppress xarray chunking warnings - we're aware chunks may not align with storage
+warnings.filterwarnings(
+    "ignore",
+    message=".*chunks.*separate.*stored chunks.*",
+    category=UserWarning,
+)
 
 # Fallback for @profile decorator when not using line_profiler
 try:
