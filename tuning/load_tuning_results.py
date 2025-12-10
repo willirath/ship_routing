@@ -44,7 +44,9 @@ def load_results_raw(msgpack_file_list: Union[List[Path], List[str]]) -> dict:
     return raw_results
 
 
-def load_result_for_key(key: str, msgpack_file_list: Union[List[Path], List[str]]) -> RoutingResult:
+def load_result_for_key(
+    key: str, msgpack_file_list: Union[List[Path], List[str]]
+) -> RoutingResult:
     """Load a single RoutingResult by key from msgpack file list.
 
     Parameters
@@ -62,7 +64,9 @@ def load_result_for_key(key: str, msgpack_file_list: Union[List[Path], List[str]
     return RoutingResult.from_msgpack(load_results_raw(msgpack_file_list)[key])
 
 
-def load_results(msgpack_file_list: Union[List[Path], List[str]]) -> dict[str, RoutingResult]:
+def load_results(
+    msgpack_file_list: Union[List[Path], List[str]]
+) -> dict[str, RoutingResult]:
     """Load all results from msgpack file list with progress bar.
 
     This function loads raw msgpack data from multiple files and deserializes
@@ -95,7 +99,9 @@ def load_results(msgpack_file_list: Union[List[Path], List[str]]) -> dict[str, R
 # =============================================================================
 
 
-def get_journey_params_df(routing_results_dict: dict[str, RoutingResult]) -> pd.DataFrame:
+def get_journey_params_df(
+    routing_results_dict: dict[str, RoutingResult]
+) -> pd.DataFrame:
     """Extract journey configuration parameters as DataFrame.
 
     Extracts journey configuration from each result's log and converts
@@ -119,6 +125,7 @@ def get_journey_params_df(routing_results_dict: dict[str, RoutingResult]) -> pd.
         - journey_speed_knots (category)
         - journey_time_resolution_hours
     """
+
     def _fix_waypoints(dct):
         """Convert waypoint lists to strings for categorical comparison."""
         dct["lon_waypoints"] = str(dct["lon_waypoints"])
@@ -256,7 +263,9 @@ def get_elite_df(routing_results_dict: dict[str, RoutingResult]) -> pd.DataFrame
     return pd.DataFrame.from_records(_records).set_index("filename")
 
 
-def get_seed_routes_gdf(routing_results_dict: dict[str, RoutingResult]) -> gpd.GeoDataFrame:
+def get_seed_routes_gdf(
+    routing_results_dict: dict[str, RoutingResult]
+) -> gpd.GeoDataFrame:
     """Extract seed routes with geometry for all results.
 
     Creates one row per routing result with the seed (initial great-circle) route
@@ -293,7 +302,9 @@ def get_seed_routes_gdf(routing_results_dict: dict[str, RoutingResult]) -> gpd.G
     return gpd.GeoDataFrame.from_records(_records).set_index("filename")
 
 
-def get_forcing_paths_df(routing_results_dict: dict[str, RoutingResult]) -> pd.DataFrame:
+def get_forcing_paths_df(
+    routing_results_dict: dict[str, RoutingResult]
+) -> pd.DataFrame:
     """Extract forcing data file paths for all results.
 
     Extracts the file paths to ocean currents, waves, and winds data from
@@ -437,5 +448,3 @@ def filter_suspicious_routes(df: pd.DataFrame) -> pd.DataFrame:
     suspicious = identify_suspicious_routes(df)
     print(f"{suspicious.mean() * 100:.2f}% suspicious routes")
     return df.where(~suspicious).dropna()
-
-

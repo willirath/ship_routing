@@ -41,13 +41,13 @@ def _simple_route():
 
 
 def test_route_cost_respects_hazards_flag_enabled():
-    config = RoutingConfig(hyper=HyperParams(ignore_hazards=False))
+    config = RoutingConfig(hyper=HyperParams())
     app = RoutingApp(config=config)
     forcing = _hazard_forcing()
     cost = app._route_cost(route=_simple_route(), forcing=forcing)
 
     # Get baseline cost with hazards ignored
-    config_baseline = RoutingConfig(hyper=HyperParams(ignore_hazards=True))
+    config_baseline = RoutingConfig(hyper=HyperParams(hazard_penalty_multiplier=0))
     app_baseline = RoutingApp(config=config_baseline)
     cost_baseline = app_baseline._route_cost(route=_simple_route(), forcing=forcing)
 
@@ -59,7 +59,7 @@ def test_route_cost_respects_hazards_flag_enabled():
 
 
 def test_route_cost_respects_hazards_flag_disabled():
-    config = RoutingConfig(hyper=HyperParams(ignore_hazards=True))
+    config = RoutingConfig(hyper=HyperParams(hazard_penalty_multiplier=0))
     app = RoutingApp(config=config)
     forcing = _hazard_forcing()
     cost = app._route_cost(route=_simple_route(), forcing=forcing)
@@ -69,18 +69,14 @@ def test_route_cost_respects_hazards_flag_disabled():
 def test_hazard_penalty_is_multiplicative():
     """Verify that hazard penalty scales with base cost."""
     # Get baseline cost first (no hazards)
-    config_baseline = RoutingConfig(hyper=HyperParams(ignore_hazards=True))
+    config_baseline = RoutingConfig(hyper=HyperParams(hazard_penalty_multiplier=0))
     app_baseline = RoutingApp(config=config_baseline)
     forcing = _hazard_forcing()
     cost_baseline = app_baseline._route_cost(route=_simple_route(), forcing=forcing)
 
     # Test with different penalty multipliers
     for multiplier in [10.0, 100.0, 1000.0]:
-        config = RoutingConfig(
-            hyper=HyperParams(
-                ignore_hazards=False, hazard_penalty_multiplier=multiplier
-            )
-        )
+        config = RoutingConfig(hyper=HyperParams(hazard_penalty_multiplier=multiplier))
         app = RoutingApp(config=config)
 
         cost_hazard = app._route_cost(route=_simple_route(), forcing=forcing)

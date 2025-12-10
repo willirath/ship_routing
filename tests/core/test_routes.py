@@ -1349,7 +1349,7 @@ def test_route_cost_infinite_when_hazardous():
         current_data_set=make_hashable(current_data_set),
         wind_data_set=make_hashable(wind_data_set),
         wave_data_set=make_hashable(wave_data_set),
-        ignore_hazards=True,
+        hazard_penalty_multiplier=0,
     )
 
     # Check that hazardous cost is finite but much larger than baseline
@@ -1384,7 +1384,7 @@ def test_route_cost_finite_when_hazard_ignored():
         current_data_set=make_hashable(current_data_set),
         wind_data_set=make_hashable(wind_data_set),
         wave_data_set=make_hashable(wave_data_set),
-        ignore_hazards=True,
+        hazard_penalty_multiplier=0,
     )
 
     assert np.isfinite(cost)
