@@ -38,7 +38,7 @@ flowchart LR
             GACrossover --> AddSeed[Add seed to offspring<br/>P_all <- P_all U r_seed]
             AddSeed --> GASelection[Selection: S_M,q,M-1<br/>select M-1 best]
             GASelection --> PreserveSeed3[Preserve seed<br/>P <- P U r_seed]
-            PreserveSeed3 --> GAAdaptation[Adapt parameters<br/>W, D, q]
+            PreserveSeed3 --> GAAdaptation[Adapt parameters<br/>W, D]
         end
 
         GAAdaptation --> GALoop_Decision
@@ -132,7 +132,7 @@ sequenceDiagram
 
     Note over Main: Stage 4: Selection & Adaptation (sequential)
     Main->>Main: select_from_population()
-    Main->>Main: adapt parameters (W, D, q)
+    Main->>Main: adapt parameters (W, D)
 
     Note over Main: ... more generations ...
 
@@ -334,6 +334,14 @@ classDiagram
         -learning_rate_space: float
         -time_increment: float
         -distance_increment: float
+        -enable_adaptation: bool
+        -target_relative_improvement: float
+        -adaptation_scale_W: float
+        -adaptation_scale_D: float
+        -W_min: float
+        -W_max: float
+        -D_min: float
+        -D_max: float
         -num_workers: int
         -executor_type: Literal
     }
@@ -521,7 +529,7 @@ classDiagram
 - `_stage_ga_mutation()` - Apply directed mutations
 - `_stage_ga_crossover()` - Generate offspring via crossover
 - `_stage_ga_selection()` - Select best routes
-- `_stage_ga_adaptation()` - Update hyperparameters W, D, q
+- `_stage_ga_adaptation()` - Update hyperparameters W, D
 - `_stage_post_processing()` - Apply gradient descent to elites
 
 **Worker Management (Internal):**
