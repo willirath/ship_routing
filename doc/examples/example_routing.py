@@ -88,7 +88,7 @@ def run_example() -> RoutingResult:
             mutation_displacement_fraction=0.1,
             mutation_iterations=1,
             crossover_strategy="minimal_cost",
-            ignore_hazards=False,
+            hazard_penalty_multiplier=100.0,
             # Stage 4: Post-processing (Gradient descent)
             num_elites=2,
             gd_iterations=1,

@@ -57,7 +57,7 @@ TIME_RESOLUTION_HOURS_VALUES=(6.0)
 TIME_ENDS=("")
 
 # Random sampling arrays
-IGNORE_HAZARDS_VALUES=("true" "false")
+HAZARD_PENALTY_MULTIPLIER_VALUES=(0 100.0)
 SELECTION_QUANTILES=(0.1 0.25)
 SELECTION_ACCEPTANCE_RATES=(0.0 0.25)
 POPULATION_SIZES=(32 128)
@@ -142,7 +142,7 @@ generate_commands() {
 		# Sample from each parameter array (length determines if random or fixed)
 		local data_dir=$(sample_from_array DATA_DIRS)
 		local log_dir=$(sample_from_array LOG_DIRS)
-		local ignore_hazards=$(sample_from_array IGNORE_HAZARDS_VALUES)
+		local hazard_penalty_multiplier=$(sample_from_array HAZARD_PENALTY_MULTIPLIER_VALUES)
 		local sel_quant=$(sample_from_array SELECTION_QUANTILES)
 		local sel_accept=$(sample_from_array SELECTION_ACCEPTANCE_RATES)
 		local sel_accept_warmup=$(sample_from_array SELECTION_ACCEPTANCE_RATES_WARMUP)
@@ -182,7 +182,7 @@ generate_commands() {
 			"--mutation-iterations ${mut_iter}" \
 			"--crossover-strategy ${cross_strat}" \
 			"--crossover-rounds ${cross_rounds}" \
-			"--ignore-hazards ${ignore_hazards}" \
+			"--hazard-penalty-multiplier ${hazard_penalty_multiplier}" \
 			"--num-elites ${num_elites}" \
 			"--gd-iterations ${gd_iterations}" \
 			"--learning-rate-time ${learning_rate_time}" \

@@ -576,7 +576,6 @@ class RoutingApp:
             current_data_set=state.forcing.currents,
             wave_data_set=state.forcing.waves,
             wind_data_set=state.forcing.winds,
-            ignore_hazards=state.params.ignore_hazards,
         )
 
         selected_route, selected_cost = select_from_pair(
@@ -655,7 +654,6 @@ class RoutingApp:
             current_data_set=state.forcing.currents,
             wave_data_set=state.forcing.waves,
             wind_data_set=state.forcing.winds,
-            ignore_hazards=state.params.ignore_hazards,
         )
         selected_route, selected_cost = select_from_pair(
             p=state.params.selection_acceptance_rate,
@@ -761,7 +759,7 @@ class RoutingApp:
             current_data_set=state.forcing.currents,
             wave_data_set=state.forcing.waves,
             wind_data_set=state.forcing.winds,
-            ignore_hazards=state.params.ignore_hazards,
+            hazard_penalty_multiplier=state.params.hazard_penalty_multiplier,
         )
         return PopulationMember(route=child_route, cost=child_cost)
 
@@ -961,13 +959,12 @@ class RoutingApp:
             current_data_set=state.forcing.currents,
             wave_data_set=state.forcing.waves,
             wind_data_set=state.forcing.winds,
-            ignore_hazards=state.params.ignore_hazards,
         )
         cost = route.cost_through(
             current_data_set=state.forcing.currents,
             wave_data_set=state.forcing.waves,
             wind_data_set=state.forcing.winds,
-            ignore_hazards=state.params.ignore_hazards,
+            hazard_penalty_multiplier=state.params.hazard_penalty_multiplier,
         )
         return PopulationMember(route=route, cost=cost)
 
@@ -1030,7 +1027,9 @@ class RoutingApp:
             current_data_set=forcing.currents,
             wave_data_set=forcing.waves,
             wind_data_set=forcing.winds,
-            ignore_hazards=params.ignore_hazards,
+            ship=self.config.ship,
+            physics=self.config.physics,
+            hazard_penalty_multiplier=params.hazard_penalty_multiplier,
         )
 
     def _population_stats(

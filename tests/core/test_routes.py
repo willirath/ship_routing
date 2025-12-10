@@ -1315,6 +1315,7 @@ def test_route_hazard_through_zero_waves():
 
 
 def test_route_cost_infinite_when_hazardous():
+    """Test that hazardous routes get finite but large penalty cost."""
     route = Route(
         way_points=(
             WayPoint(lon=0, lat=-1 / 60.0, time=np.datetime64("2001-01-01T00:00:00")),
@@ -1337,13 +1338,23 @@ def test_route_cost_infinite_when_hazardous():
     # Make all waves hazardous
     wave_data_set["wh"] = 50.0 + 0.0 * wave_data_set["wh"].fillna(0.0)
 
-    cost = route.cost_through(
+    cost_hazard = route.cost_through(
         current_data_set=make_hashable(current_data_set),
         wind_data_set=make_hashable(wind_data_set),
         wave_data_set=make_hashable(wave_data_set),
     )
 
-    assert np.isinf(cost)
+    # Get baseline cost with hazards ignored
+    cost_baseline = route.cost_through(
+        current_data_set=make_hashable(current_data_set),
+        wind_data_set=make_hashable(wind_data_set),
+        wave_data_set=make_hashable(wave_data_set),
+        hazard_penalty_multiplier=0,
+    )
+
+    # Check that hazardous cost is finite but much larger than baseline
+    assert np.isfinite(cost_hazard)
+    assert cost_hazard > cost_baseline * 50  # Should be at least 50x baseline
 
 
 def test_route_cost_finite_when_hazard_ignored():
@@ -1373,7 +1384,7 @@ def test_route_cost_finite_when_hazard_ignored():
         current_data_set=make_hashable(current_data_set),
         wind_data_set=make_hashable(wind_data_set),
         wave_data_set=make_hashable(wave_data_set),
-        ignore_hazards=True,
+        hazard_penalty_multiplier=0,
     )
 
     assert np.isfinite(cost)
