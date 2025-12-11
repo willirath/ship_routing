@@ -20,3 +20,6 @@ classifiers = [
 [project.urls]
 Homepage = "https://github.com/willirath/ship_routing"
 Issues = "https://github.com/willirath/ship_routing/issues"
+
+[project.scripts]
+ship-routing = "ship_routing.app.cli:main"

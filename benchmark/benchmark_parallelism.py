@@ -17,13 +17,7 @@ import subprocess
 import pandas as pd
 from pathlib import Path
 
-from ship_routing.app.routing import RoutingApp
-from ship_routing.app.config import (
-    RoutingConfig,
-    HyperParams,
-    JourneyConfig,
-    ForcingConfig,
-)
+from ship_routing.app import RoutingApp, build_config
 
 # Benchmark configuration
 # Test configurations: (num_workers, executor_type)
@@ -94,13 +88,13 @@ def benchmark_single_run(num_workers: int, executor_type: str) -> float:
     float
         Elapsed time in seconds
     """
-    # Create configuration
-    config = RoutingConfig(
-        journey=JourneyConfig(**JOURNEY_CONFIG),
-        forcing=ForcingConfig(**FORCING_CONFIG),
-        hyper=HyperParams(
-            num_workers=num_workers, executor_type=executor_type, **BENCHMARK_CONFIG
-        ),
+    # Create configuration using build_config
+    config = build_config(
+        **JOURNEY_CONFIG,
+        **FORCING_CONFIG,
+        num_workers=num_workers,
+        executor_type=executor_type,
+        **BENCHMARK_CONFIG,
     )
 
     # Run routing and time it

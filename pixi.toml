@@ -44,6 +44,7 @@ geopandas = ">=1.1.1,<2"
 cmocean = ">=4.0.3,<5"
 tabulate = ">=0.9.0,<0.10"
 copernicusmarine = ">=2.2.5,<3"
+click = ">=8.0,<9"
 
 [tasks]
 tests = "pytest -q"
@@ -66,6 +67,7 @@ print("Large data: " + ("OK" if large_ok else "MISSING (run pixi run download-da
 sys.exit(0 if test_ok else 1)
 '
 """, description = "Check if data directories are properly set up" }
+routing = "python -m ship_routing.app.cli"  # TODO: Use the entrypoint created via the pyproject.toml?
 
 [pypi-dependencies]
 "ship_routing" = { path = ".", editable = true }

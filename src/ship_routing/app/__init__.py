@@ -14,6 +14,7 @@ from .config import (
     ForcingData,
     RoutingConfig,
 )
+from .cli import build_config
 
 __all__ = [
     "RoutingResult",
@@ -26,4 +27,5 @@ __all__ = [
     "ForcingConfig",
     "ForcingData",
     "RoutingConfig",
+    "build_config",
 ]
