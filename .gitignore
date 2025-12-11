@@ -10,3 +10,4 @@ data/large
 tuning/.redis_host_*
 tuning/slurm_*.*
 *.backup
+runs

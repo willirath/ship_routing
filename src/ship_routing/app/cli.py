@@ -22,6 +22,14 @@ from .config import (
 from .routing import RoutingApp, RoutingResult
 from ..core.config import Physics, Ship
 
+# Calculate default data directory relative to this file's location
+# cli.py is at: ship_routing/src/ship_routing/app/cli.py
+# Data is at: ship_routing/data/test/
+# From cli.py, go up 4 levels to reach ship_routing/, then add data/test/
+_CLI_FILE = Path(__file__).resolve()
+_SHIP_ROUTING_DIR = _CLI_FILE.parent.parent.parent.parent
+_DEFAULT_DATA_DIR = _SHIP_ROUTING_DIR / "data" / "test"
+
 
 def build_config(
     # Journey parameters
@@ -68,7 +76,7 @@ def build_config(
     time_increment: float = 1_200.0,
     distance_increment: float = 10_000.0,
     # Adaptation parameters
-    enable_adaptation: bool = False,
+    enable_adaptation: bool = True,
     target_relative_improvement: float = 0.01,
     adaptation_scale_W: float = 0.8,
     adaptation_scale_D: float = 0.894427191,
@@ -342,7 +350,7 @@ def build_config(
 @click.option(
     "--data-dir",
     type=click.Path(exists=True),
-    default="data/test",  # TODO: Let this point to a path relative to the cli.py file?
+    default=str(_DEFAULT_DATA_DIR),
     help="Base directory containing forcing data.",
 )
 @click.option(
@@ -415,7 +423,7 @@ def build_config(
     help="Max displacement fraction for warmup (D_w).",
 )
 # Genetic algorithm parameters
-@click.option("--generations", type=int, default=5, help="Number of generations (N_G).")
+@click.option("--generations", type=int, default=2, help="Number of generations (N_G).")
 @click.option(
     "--offspring-size", type=int, default=4, help="Offspring size (M_offspring)."
 )
@@ -499,7 +507,7 @@ def build_config(
 # Adaptation parameters
 @click.option(
     "--enable-adaptation/--no-adaptation",
-    default=False,
+    default=True,
     help="Enable W, D adaptation.",
 )
 @click.option(
@@ -606,23 +614,25 @@ def main(
 
     # NOTE: Defaults use data/test files for easy testing without large downloads.
     # For production runs with large data, use --data-dir option or specify paths explicitly.
-    # Construct paths if data-dir is provided
-    # TODO: Set paths explicitly. Just hoping for glob to return in the right order is not acceptable.
+    # Use explicit test file names for deterministic behavior
     if not currents_path:
-        currents_dir = Path(data_dir) / "currents"
-        currents_files = list(currents_dir.glob("*.nc"))
-        if currents_files:
-            currents_path = str(currents_files[0])
+        currents_path = str(
+            Path(data_dir)
+            / "currents"
+            / "cmems_mod_glo_phy-cur_anfc_0.083deg_P1D-m_2024-01_100W-020E_10N-65N.nc"
+        )
     if not waves_path:
-        waves_dir = Path(data_dir) / "waves"
-        waves_files = list(waves_dir.glob("*.nc"))
-        if waves_files:
-            waves_path = str(waves_files[0])
+        waves_path = str(
+            Path(data_dir)
+            / "waves"
+            / "cmems_mod_glo_wav_my_0.2deg_PT3H-i_VHM0_2024-01_1d-max_100W-020E_10N-65N.nc"
+        )
     if not winds_path:
-        winds_dir = Path(data_dir) / "winds"
-        winds_files = list(winds_dir.glob("*.nc"))
-        if winds_files:
-            winds_path = str(winds_files[0])
+        winds_path = str(
+            Path(data_dir)
+            / "winds"
+            / "cmems_obs-wind_glo_phy_my_l4_0.125deg_PT1H_2024-01_6hours_0.5deg_100W-020E_10N-65N.nc"
+        )
 
     config = build_config(
         # Journey
