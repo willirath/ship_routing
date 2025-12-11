@@ -257,7 +257,7 @@ def test_leg_speed_through_water_zero_currents():
     # load currents and make zero
     currents = load_currents(
         data_file=TEST_DATA_DIR
-        / "currents/cmems_mod_glo_phy-cur_anfc_0.083deg_P1D-m_2021-01_100W-020E_10N-65N.nc"
+        / "currents/cmems_mod_glo_phy-cur_anfc_0.083deg_P1D-m_2024-01_100W-020E_10N-65N.nc"
     )
     currents = (0.0 * currents).fillna(0.0)
     leg = Leg(
@@ -275,7 +275,7 @@ def test_leg_speed_through_water_nearly_zero_speed_over_ground():
     # load currents and make zero
     currents = load_currents(
         data_file=TEST_DATA_DIR
-        / "currents/cmems_mod_glo_phy-cur_anfc_0.083deg_P1D-m_2021-01_100W-020E_10N-65N.nc"
+        / "currents/cmems_mod_glo_phy-cur_anfc_0.083deg_P1D-m_2024-01_100W-020E_10N-65N.nc"
     )
     currents = (0.0 * currents).fillna(0.0)
     currents["uo"] += 1.0  # eastward current 1m/s
@@ -294,7 +294,7 @@ def test_leg_speed_through_water_no_displacement():
     # load currents and make zero
     currents = load_currents(
         data_file=TEST_DATA_DIR
-        / "currents/cmems_mod_glo_phy-cur_anfc_0.083deg_P1D-m_2021-01_100W-020E_10N-65N.nc"
+        / "currents/cmems_mod_glo_phy-cur_anfc_0.083deg_P1D-m_2024-01_100W-020E_10N-65N.nc"
     )
     # no displacement
     leg = Leg(
@@ -389,7 +389,7 @@ def test_leg_cost_through_zero_currents_winds_waves_scaling():
     # load currents and make zero
     current_data_set = load_currents(
         data_file=TEST_DATA_DIR
-        / "currents/cmems_mod_glo_phy-cur_anfc_0.083deg_P1D-m_2021-01_1deg_5day.nc"
+        / "currents/cmems_mod_glo_phy-cur_anfc_0.083deg_P1D-m_2024-01_1deg_5day.nc"
     )
     current_data_set["uo"] = (current_data_set["uo"] * 0.0).fillna(0.0)
     current_data_set["vo"] = (current_data_set["vo"] * 0.0).fillna(0.0)
@@ -408,21 +408,23 @@ def test_leg_cost_through_zero_currents_winds_waves_scaling():
 def test_leg_cost_through_nonzero_currents_winds_waves():
     leg = Leg(
         way_point_start=WayPoint(
-            lon=0, lat=-1, time=np.datetime64("2001-01-01T00:00:00")
+            lon=-50, lat=30.0, time=np.datetime64("2024-01-10T00:00:00")
         ),
-        way_point_end=WayPoint(lon=0, lat=1, time=np.datetime64("2001-01-02T00:00:00")),
+        way_point_end=WayPoint(
+            lon=-50, lat=32.0, time=np.datetime64("2024-01-11T00:00:00")
+        ),
     )
     current_data_set = load_currents(
         data_file=TEST_DATA_DIR
-        / "currents/cmems_mod_glo_phy-cur_anfc_0.083deg_P1D-m_2021-01_1deg_5day.nc"
+        / "currents/cmems_mod_glo_phy-cur_anfc_0.083deg_P1D-m_2024-01_1deg_5day.nc"
     )
     wind_data_set = load_winds(
         data_file=TEST_DATA_DIR
-        / "winds/cmems_obs-wind_glo_phy_my_l4_0.125deg_PT1H_2021-01_6hours_0.5deg_100W-020E_10N-65N.nc"
+        / "winds/cmems_obs-wind_glo_phy_my_l4_0.125deg_PT1H_2024-01_6hours_0.5deg_100W-020E_10N-65N.nc"
     )
     wave_data_set = load_waves(
         data_file=TEST_DATA_DIR
-        / "waves/cmems_mod_glo_wav_my_0.2deg_PT3H-i_VHM0_2021-01_1d-max_100W-020E_10N-65N.nc"
+        / "waves/cmems_mod_glo_wav_my_0.2deg_PT3H-i_VHM0_2024-01_1d-max_100W-020E_10N-65N.nc"
     )
     cost = leg.cost_through(
         current_data_set=make_hashable(current_data_set),
@@ -441,15 +443,15 @@ def test_leg_hazard_throug_extreme_waves():
     )
     current_data_set = load_currents(
         data_file=TEST_DATA_DIR
-        / "currents/cmems_mod_glo_phy-cur_anfc_0.083deg_P1D-m_2021-01_1deg_5day.nc"
+        / "currents/cmems_mod_glo_phy-cur_anfc_0.083deg_P1D-m_2024-01_1deg_5day.nc"
     )
     wind_data_set = load_winds(
         data_file=TEST_DATA_DIR
-        / "winds/cmems_obs-wind_glo_phy_my_l4_0.125deg_PT1H_2021-01_6hours_0.5deg_100W-020E_10N-65N.nc"
+        / "winds/cmems_obs-wind_glo_phy_my_l4_0.125deg_PT1H_2024-01_6hours_0.5deg_100W-020E_10N-65N.nc"
     )
     wave_data_set = load_waves(
         data_file=TEST_DATA_DIR
-        / "waves/cmems_mod_glo_wav_my_0.2deg_PT3H-i_VHM0_2021-01_1d-max_100W-020E_10N-65N.nc"
+        / "waves/cmems_mod_glo_wav_my_0.2deg_PT3H-i_VHM0_2024-01_1d-max_100W-020E_10N-65N.nc"
     )
     wave_data_set["wh"] = 50.0 + 0.0 * wave_data_set["wh"].fillna(0.0)
     hazard = leg.hazard_through(
@@ -469,15 +471,15 @@ def test_leg_hazard_through_zero_waves():
     )
     current_data_set = load_currents(
         data_file=TEST_DATA_DIR
-        / "currents/cmems_mod_glo_phy-cur_anfc_0.083deg_P1D-m_2021-01_1deg_5day.nc"
+        / "currents/cmems_mod_glo_phy-cur_anfc_0.083deg_P1D-m_2024-01_1deg_5day.nc"
     )
     wind_data_set = load_winds(
         data_file=TEST_DATA_DIR
-        / "winds/cmems_obs-wind_glo_phy_my_l4_0.125deg_PT1H_2021-01_6hours_0.5deg_100W-020E_10N-65N.nc"
+        / "winds/cmems_obs-wind_glo_phy_my_l4_0.125deg_PT1H_2024-01_6hours_0.5deg_100W-020E_10N-65N.nc"
     )
     wave_data_set = load_waves(
         data_file=TEST_DATA_DIR
-        / "waves/cmems_mod_glo_wav_my_0.2deg_PT3H-i_VHM0_2021-01_1d-max_100W-020E_10N-65N.nc"
+        / "waves/cmems_mod_glo_wav_my_0.2deg_PT3H-i_VHM0_2024-01_1d-max_100W-020E_10N-65N.nc"
     )
     wave_data_set["wh"] = 0.0 * wave_data_set["wh"].fillna(0.0)
     hazard = leg.hazard_through(
@@ -491,7 +493,7 @@ def test_leg_hazard_through_zero_waves():
 def test_leg_cost_over_land_is_nan():
     current_data_set = load_currents(
         data_file=TEST_DATA_DIR
-        / "currents/cmems_mod_glo_phy-cur_anfc_0.083deg_P1D-m_2021-01_1deg_5day.nc"
+        / "currents/cmems_mod_glo_phy-cur_anfc_0.083deg_P1D-m_2024-01_1deg_5day.nc"
     )
     leg = Leg(
         way_point_start=WayPoint(lon=-180, lat=0, time=np.datetime64("2001-01-01")),
@@ -1216,7 +1218,7 @@ def test_route_cost_through_zero_currents_winds_waves_scaling():
         0.0
         * load_currents(
             data_file=TEST_DATA_DIR
-            / "currents/cmems_mod_glo_phy-cur_anfc_0.083deg_P1D-m_2021-01_1deg_5day.nc"
+            / "currents/cmems_mod_glo_phy-cur_anfc_0.083deg_P1D-m_2024-01_1deg_5day.nc"
         )
     ).fillna(0.0)
     cost_slow = route_slow.cost_through(
@@ -1231,22 +1233,22 @@ def test_route_cost_through_zero_currents_winds_waves_scaling():
 def test_route_cost_through_nonzero_currents_winds_waves():
     route = Route(
         way_points=(
-            WayPoint(lon=0, lat=-1 / 60.0, time=np.datetime64("2001-01-01T00:00:00")),
-            WayPoint(lon=0, lat=0.0, time=np.datetime64("2001-01-01T06:00:00")),
-            WayPoint(lon=0, lat=1 / 60.0, time=np.datetime64("2001-01-01T12:00:00")),
+            WayPoint(lon=-50, lat=30.0, time=np.datetime64("2024-01-10T00:00:00")),
+            WayPoint(lon=-50, lat=30.5, time=np.datetime64("2024-01-10T06:00:00")),
+            WayPoint(lon=-50, lat=31.0, time=np.datetime64("2024-01-10T12:00:00")),
         )
     )
     current_data_set = load_currents(
         data_file=TEST_DATA_DIR
-        / "currents/cmems_mod_glo_phy-cur_anfc_0.083deg_P1D-m_2021-01_1deg_5day.nc"
+        / "currents/cmems_mod_glo_phy-cur_anfc_0.083deg_P1D-m_2024-01_1deg_5day.nc"
     )
     wind_data_set = load_winds(
         data_file=TEST_DATA_DIR
-        / "winds/cmems_obs-wind_glo_phy_my_l4_0.125deg_PT1H_2021-01_6hours_0.5deg_100W-020E_10N-65N.nc"
+        / "winds/cmems_obs-wind_glo_phy_my_l4_0.125deg_PT1H_2024-01_6hours_0.5deg_100W-020E_10N-65N.nc"
     )
     wave_data_set = load_waves(
         data_file=TEST_DATA_DIR
-        / "waves/cmems_mod_glo_wav_my_0.2deg_PT3H-i_VHM0_2021-01_1d-max_100W-020E_10N-65N.nc"
+        / "waves/cmems_mod_glo_wav_my_0.2deg_PT3H-i_VHM0_2024-01_1d-max_100W-020E_10N-65N.nc"
     )
     cost = route.cost_through(
         current_data_set=make_hashable(current_data_set),
@@ -1266,15 +1268,15 @@ def test_route_hazard_through_extreme_waves():
     )
     current_data_set = load_currents(
         data_file=TEST_DATA_DIR
-        / "currents/cmems_mod_glo_phy-cur_anfc_0.083deg_P1D-m_2021-01_1deg_5day.nc"
+        / "currents/cmems_mod_glo_phy-cur_anfc_0.083deg_P1D-m_2024-01_1deg_5day.nc"
     )
     wind_data_set = load_winds(
         data_file=TEST_DATA_DIR
-        / "winds/cmems_obs-wind_glo_phy_my_l4_0.125deg_PT1H_2021-01_6hours_0.5deg_100W-020E_10N-65N.nc"
+        / "winds/cmems_obs-wind_glo_phy_my_l4_0.125deg_PT1H_2024-01_6hours_0.5deg_100W-020E_10N-65N.nc"
     )
     wave_data_set = load_waves(
         data_file=TEST_DATA_DIR
-        / "waves/cmems_mod_glo_wav_my_0.2deg_PT3H-i_VHM0_2021-01_1d-max_100W-020E_10N-65N.nc"
+        / "waves/cmems_mod_glo_wav_my_0.2deg_PT3H-i_VHM0_2024-01_1d-max_100W-020E_10N-65N.nc"
     )
     wave_data_set["wh"] = 50.0 + 0.0 * wave_data_set["wh"].fillna(0.0)
     hazard = route.hazard_through(
@@ -1295,15 +1297,15 @@ def test_route_hazard_through_zero_waves():
     )
     current_data_set = load_currents(
         data_file=TEST_DATA_DIR
-        / "currents/cmems_mod_glo_phy-cur_anfc_0.083deg_P1D-m_2021-01_1deg_5day.nc"
+        / "currents/cmems_mod_glo_phy-cur_anfc_0.083deg_P1D-m_2024-01_1deg_5day.nc"
     )
     wind_data_set = load_winds(
         data_file=TEST_DATA_DIR
-        / "winds/cmems_obs-wind_glo_phy_my_l4_0.125deg_PT1H_2021-01_6hours_0.5deg_100W-020E_10N-65N.nc"
+        / "winds/cmems_obs-wind_glo_phy_my_l4_0.125deg_PT1H_2024-01_6hours_0.5deg_100W-020E_10N-65N.nc"
     )
     wave_data_set = load_waves(
         data_file=TEST_DATA_DIR
-        / "waves/cmems_mod_glo_wav_my_0.2deg_PT3H-i_VHM0_2021-01_1d-max_100W-020E_10N-65N.nc"
+        / "waves/cmems_mod_glo_wav_my_0.2deg_PT3H-i_VHM0_2024-01_1d-max_100W-020E_10N-65N.nc"
     )
     wave_data_set["wh"] = 0.0 * wave_data_set["wh"].fillna(0.0)
     hazard = route.hazard_through(
@@ -1325,15 +1327,15 @@ def test_route_cost_infinite_when_hazardous():
     )
     current_data_set = load_currents(
         data_file=TEST_DATA_DIR
-        / "currents/cmems_mod_glo_phy-cur_anfc_0.083deg_P1D-m_2021-01_1deg_5day.nc"
+        / "currents/cmems_mod_glo_phy-cur_anfc_0.083deg_P1D-m_2024-01_1deg_5day.nc"
     )
     wind_data_set = load_winds(
         data_file=TEST_DATA_DIR
-        / "winds/cmems_obs-wind_glo_phy_my_l4_0.125deg_PT1H_2021-01_6hours_0.5deg_100W-020E_10N-65N.nc"
+        / "winds/cmems_obs-wind_glo_phy_my_l4_0.125deg_PT1H_2024-01_6hours_0.5deg_100W-020E_10N-65N.nc"
     )
     wave_data_set = load_waves(
         data_file=TEST_DATA_DIR
-        / "waves/cmems_mod_glo_wav_my_0.2deg_PT3H-i_VHM0_2021-01_1d-max_100W-020E_10N-65N.nc"
+        / "waves/cmems_mod_glo_wav_my_0.2deg_PT3H-i_VHM0_2024-01_1d-max_100W-020E_10N-65N.nc"
     )
     # Make all waves hazardous
     wave_data_set["wh"] = 50.0 + 0.0 * wave_data_set["wh"].fillna(0.0)
@@ -1367,15 +1369,15 @@ def test_route_cost_finite_when_hazard_ignored():
     )
     current_data_set = load_currents(
         data_file=TEST_DATA_DIR
-        / "currents/cmems_mod_glo_phy-cur_anfc_0.083deg_P1D-m_2021-01_1deg_5day.nc"
+        / "currents/cmems_mod_glo_phy-cur_anfc_0.083deg_P1D-m_2024-01_1deg_5day.nc"
     )
     wind_data_set = load_winds(
         data_file=TEST_DATA_DIR
-        / "winds/cmems_obs-wind_glo_phy_my_l4_0.125deg_PT1H_2021-01_6hours_0.5deg_100W-020E_10N-65N.nc"
+        / "winds/cmems_obs-wind_glo_phy_my_l4_0.125deg_PT1H_2024-01_6hours_0.5deg_100W-020E_10N-65N.nc"
     )
     wave_data_set = load_waves(
         data_file=TEST_DATA_DIR
-        / "waves/cmems_mod_glo_wav_my_0.2deg_PT3H-i_VHM0_2021-01_1d-max_100W-020E_10N-65N.nc"
+        / "waves/cmems_mod_glo_wav_my_0.2deg_PT3H-i_VHM0_2024-01_1d-max_100W-020E_10N-65N.nc"
     )
     # Make all waves hazardous
     wave_data_set["wh"] = 50.0 + 0.0 * wave_data_set["wh"].fillna(0.0)
@@ -1661,7 +1663,7 @@ def test_route_calc_gradient_across_track_left_zero_currents_at_optimum():
     # load currents and make zero
     currents = load_currents(
         data_file=TEST_DATA_DIR
-        / "currents/cmems_mod_glo_phy-cur_anfc_0.083deg_P1D-m_2021-01_100W-020E_10N-65N.nc"
+        / "currents/cmems_mod_glo_phy-cur_anfc_0.083deg_P1D-m_2024-01_100W-020E_10N-65N.nc"
     )
     currents = (0.0 * currents).fillna(0.0)
     # With zero currents, a straight line has minimal cost already.
@@ -1684,7 +1686,7 @@ def test_route_calc_gradient_along_track_zero_currents_at_optimum():
     # load currents and make zero
     currents = load_currents(
         data_file=TEST_DATA_DIR
-        / "currents/cmems_mod_glo_phy-cur_anfc_0.083deg_P1D-m_2021-01_100W-020E_10N-65N.nc"
+        / "currents/cmems_mod_glo_phy-cur_anfc_0.083deg_P1D-m_2024-01_100W-020E_10N-65N.nc"
     )
     currents = (0.0 * currents).fillna(0.0)
     # With zero currents, a straight line has minimal cost already.
@@ -1707,7 +1709,7 @@ def test_route_calc_gradient_time_shift_zero_currents_at_optimum():
     # load currents and make zero
     currents = load_currents(
         data_file=TEST_DATA_DIR
-        / "currents/cmems_mod_glo_phy-cur_anfc_0.083deg_P1D-m_2021-01_100W-020E_10N-65N.nc"
+        / "currents/cmems_mod_glo_phy-cur_anfc_0.083deg_P1D-m_2024-01_100W-020E_10N-65N.nc"
     )
     currents = (0.0 * currents).fillna(0.0)
     # With zero currents, a straight line has minimal cost already.
@@ -1730,7 +1732,7 @@ def test_route_calc_gradient_time_shift_zero_currents_sign():
     # load currents and make zero
     currents = load_currents(
         data_file=TEST_DATA_DIR
-        / "currents/cmems_mod_glo_phy-cur_anfc_0.083deg_P1D-m_2021-01_100W-020E_10N-65N.nc"
+        / "currents/cmems_mod_glo_phy-cur_anfc_0.083deg_P1D-m_2024-01_100W-020E_10N-65N.nc"
     )
     currents = (0.0 * currents).fillna(0.0)
     # With zero currents, cost is solely determined by speed over ground.
@@ -1756,7 +1758,7 @@ def test_route_calc_gradient_along_track_zero_currents_sign():
     # load currents and make zero
     currents = load_currents(
         data_file=TEST_DATA_DIR
-        / "currents/cmems_mod_glo_phy-cur_anfc_0.083deg_P1D-m_2021-01_100W-020E_10N-65N.nc"
+        / "currents/cmems_mod_glo_phy-cur_anfc_0.083deg_P1D-m_2024-01_100W-020E_10N-65N.nc"
     )
     currents = (0.0 * currents).fillna(0.0)
     # With zero currents, cost is solely determined by speed over ground.
@@ -1783,7 +1785,7 @@ def test_route_calc_gradient_along_track_zero_currents_sign():
     # load currents and make zero
     currents = load_currents(
         data_file=TEST_DATA_DIR
-        / "currents/cmems_mod_glo_phy-cur_anfc_0.083deg_P1D-m_2021-01_100W-020E_10N-65N.nc"
+        / "currents/cmems_mod_glo_phy-cur_anfc_0.083deg_P1D-m_2024-01_100W-020E_10N-65N.nc"
     )
     currents = (0.0 * currents).fillna(0.0)
     # With zero currents, cost is solely determined by speed over ground.

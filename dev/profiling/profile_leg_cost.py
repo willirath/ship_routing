@@ -5,7 +5,7 @@ import numpy as np
 import tqdm
 
 currents = load_currents(
-    data_file="data/currents/cmems_mod_glo_phy-cur_anfc_0.083deg_P1D-m_2021-01_100W-020E_10N-65N.nc"
+    data_file="data/currents/cmems_mod_glo_phy-cur_anfc_0.083deg_P1D-m_2024-01_100W-020E_10N-65N.nc"
 ).compute()
 
 route_ref = Route(
