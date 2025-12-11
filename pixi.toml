@@ -51,7 +51,7 @@ tests = "pytest -q"
 lint = "black --check src tests"
 format = "black src tests"
 jupyterlab = "jupyter lab"
-coverage = "coverage erase && coverage run --source=src/ship_routing -m pytest && coverage report --show-missing"
+coverage = "coverage erase && coverage run --source=src/ship_routing -m pytest && coverage run -a --source=src/ship_routing -m ship_routing.app.cli && coverage report --show-missing"
 download-data = { cmd = "bash scripts/download_data.sh", description = "Download large data files from Git LFS repository" }
 check-data = { cmd = """
     python -c '
