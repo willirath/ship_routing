@@ -262,7 +262,14 @@ def _filter_times(
         return ds
 
     # Calculate maximum time step for buffer
-    time_buffer = ds.time.diff("time").max().load().data[()]
+    # Handle case where there's only one timestep (e.g., test data)
+    time_diffs = ds.time.diff("time")
+    if len(time_diffs) > 0:
+        time_buffer = time_diffs.max().load().data[()]
+    else:
+        # No time differences available (single timestep); use no buffer
+        time_buffer = np.timedelta64(0, "ns")
+
     if time_start is not None:
         time_sel_start = time_start - time_buffer
     if time_end is not None:

@@ -165,7 +165,7 @@ generate_commands() {
 		local time_resolution_hours=$(sample_from_array TIME_RESOLUTION_HOURS_VALUES)
 		local time_end=$(sample_from_array TIME_ENDS)
 
-		echo "timeout ${MAX_RUNTIME_PER_COMMAND} ./run_experiment.py" \
+		echo "timeout ${MAX_RUNTIME_PER_COMMAND} ship-routing" \
 			"--data-dir ${data_dir}" \
 			"--random-seed ${rand_seed}" \
 			"--population-size ${pop_size}" \

@@ -44,6 +44,7 @@ geopandas = ">=1.1.1,<2"
 cmocean = ">=4.0.3,<5"
 tabulate = ">=0.9.0,<0.10"
 copernicusmarine = ">=2.2.5,<3"
+click = ">=8.0,<9"
 
 [tasks]
 tests = "pytest -q"

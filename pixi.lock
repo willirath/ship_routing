@@ -10832,7 +10832,7 @@ packages:
 - pypi: ./
   name: ship-routing
   version: 2024.4.10.1
-  sha256: 27c6271e96df4e92a0a1769c0b920bca9f07070284db7ee437594c16bea301a1
+  sha256: ac71b818f385e1b6669a42d373034cb4a73c7366f38eb9101ce831f83c64e800
   requires_python: '>=3.10'
   editable: true
 - conda: https://conda.anaconda.org/conda-forge/noarch/six-1.17.0-pyhe01879c_1.conda
