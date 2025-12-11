@@ -317,8 +317,8 @@ def build_config(
 @click.option(
     "--time-start",
     type=str,
-    default="2021-01-01T00:00",
-    help="Start time in ISO format (e.g., 2021-01-01T00:00).",
+    default="2024-01-01T00:00",
+    help="Start time in ISO format (e.g., 2024-01-01T00:00).",
 )
 @click.option(
     "--time-end",
@@ -342,7 +342,7 @@ def build_config(
 @click.option(
     "--data-dir",
     type=click.Path(exists=True),
-    default=".",
+    default="data/test",  # TODO: Let this point to a path relative to the cli.py file?
     help="Base directory containing forcing data.",
 )
 @click.option(
@@ -366,8 +366,8 @@ def build_config(
 @click.option(
     "--engine",
     type=str,
-    default="zarr",
-    help="Data engine (zarr, netcdf, etc.).",
+    default="netcdf4",
+    help="Data engine (netcdf4, zarr, etc.).",
 )
 @click.option(
     "--chunks",
@@ -604,27 +604,25 @@ def main(
     """Configure and run a routing experiment."""
     logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 
-    # TODO: Don't have default paths from the large data. Use the data/test files.
-    # Note that this results in a bunch of adaptations above (e.g. time and engine).
+    # NOTE: Defaults use data/test files for easy testing without large downloads.
+    # For production runs with large data, use --data-dir option or specify paths explicitly.
     # Construct paths if data-dir is provided
+    # TODO: Set paths explicitly. Just hoping for glob to return in the right order is not acceptable.
     if not currents_path:
-        currents_path = str(
-            Path(data_dir)
-            / "data_large"
-            / "cmems_mod_glo_phy_my_0.083deg_P1D-m_time_2021_lat_+10_+65_lon_-100_+010_uo-vo.zarr"
-        )
+        currents_dir = Path(data_dir) / "currents"
+        currents_files = list(currents_dir.glob("*.nc"))
+        if currents_files:
+            currents_path = str(currents_files[0])
     if not waves_path:
-        waves_path = str(
-            Path(data_dir)
-            / "data_large"
-            / "cmems_mod_glo_wav_my_0.2deg_PT3H-i_time_2021_lat_+10_+65_lon_-100_+010_VHM0-VMDR.zarr"
-        )
+        waves_dir = Path(data_dir) / "waves"
+        waves_files = list(waves_dir.glob("*.nc"))
+        if waves_files:
+            waves_path = str(waves_files[0])
     if not winds_path:
-        winds_path = str(
-            Path(data_dir)
-            / "data_large"
-            / "cmems_obs-wind_glo_phy_my_l4_0.125deg_PT1H_time_2021_lat_+10_+65_lon_-100_+010_eastward_wind-northward_wind.zarr"
-        )
+        winds_dir = Path(data_dir) / "winds"
+        winds_files = list(winds_dir.glob("*.nc"))
+        if winds_files:
+            winds_path = str(winds_files[0])
 
     config = build_config(
         # Journey
