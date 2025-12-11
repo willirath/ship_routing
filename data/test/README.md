@@ -12,4 +12,5 @@ Small datasets for test suite and small demos.
 ## Provenance
 
 Derived from CMEMS with downsampling to ~1-4 MB per file.
-See subdirectory READMEs for processing scripts.
+
+Download scripts are in [scripts/](scripts/).

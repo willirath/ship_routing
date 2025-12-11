@@ -14,7 +14,7 @@ class JourneyConfig:
     name: str = "Journey"
     lon_waypoints: Tuple[float, ...] = (-80.5, -75.5)
     lat_waypoints: Tuple[float, ...] = (30.0, 30.0)
-    time_start: str = "2021-01-01T00:00"
+    time_start: str = "2024-01-01T00:00"
     time_end: str | None = None
     speed_knots: float | None = 10.0
     time_resolution_hours: float = 12.0

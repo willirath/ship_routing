@@ -34,7 +34,7 @@ def test_gradient_descent_across_track_left_zero_gradients_error():
         0.0
         * load_currents(
             data_file=TEST_DATA_DIR
-            / "currents/cmems_mod_glo_phy-cur_anfc_0.083deg_P1D-m_2021-01_100W-020E_10N-65N.nc"
+            / "currents/cmems_mod_glo_phy-cur_anfc_0.083deg_P1D-m_2024-01_100W-020E_10N-65N.nc"
         )
     ).fillna(0.0)
     with pytest.raises(ZeroGradientsError):
@@ -58,7 +58,7 @@ def test_gradient_descent_along_track_zero_gradients_error():
         0.0
         * load_currents(
             data_file=TEST_DATA_DIR
-            / "currents/cmems_mod_glo_phy-cur_anfc_0.083deg_P1D-m_2021-01_100W-020E_10N-65N.nc"
+            / "currents/cmems_mod_glo_phy-cur_anfc_0.083deg_P1D-m_2024-01_100W-020E_10N-65N.nc"
         )
     ).fillna(0.0)
     with pytest.raises(ZeroGradientsError):
@@ -82,7 +82,7 @@ def test_gradient_descent_time_shift_zero_gradients_error():
         0.0
         * load_currents(
             data_file=TEST_DATA_DIR
-            / "currents/cmems_mod_glo_phy-cur_anfc_0.083deg_P1D-m_2021-01_100W-020E_10N-65N.nc"
+            / "currents/cmems_mod_glo_phy-cur_anfc_0.083deg_P1D-m_2024-01_100W-020E_10N-65N.nc"
         )
     ).fillna(0.0)
     with pytest.raises(ZeroGradientsError):
@@ -106,7 +106,7 @@ def test_gradient_descent_across_track_left_large_increment_error():
         0.0
         * load_currents(
             data_file=TEST_DATA_DIR
-            / "currents/cmems_mod_glo_phy-cur_anfc_0.083deg_P1D-m_2021-01_100W-020E_10N-65N.nc"
+            / "currents/cmems_mod_glo_phy-cur_anfc_0.083deg_P1D-m_2024-01_100W-020E_10N-65N.nc"
         )
     ).fillna(0.0)
     with pytest.raises(LargeIncrementError):
@@ -130,7 +130,7 @@ def test_gradient_descent_along_track_large_increment_error():
         0.0
         * load_currents(
             data_file=TEST_DATA_DIR
-            / "currents/cmems_mod_glo_phy-cur_anfc_0.083deg_P1D-m_2021-01_100W-020E_10N-65N.nc"
+            / "currents/cmems_mod_glo_phy-cur_anfc_0.083deg_P1D-m_2024-01_100W-020E_10N-65N.nc"
         )
     ).fillna(0.0)
     with pytest.raises(LargeIncrementError):
@@ -154,7 +154,7 @@ def test_gradient_descent_time_shift_large_increment_error():
         0.0
         * load_currents(
             data_file=TEST_DATA_DIR
-            / "currents/cmems_mod_glo_phy-cur_anfc_0.083deg_P1D-m_2021-01_100W-020E_10N-65N.nc"
+            / "currents/cmems_mod_glo_phy-cur_anfc_0.083deg_P1D-m_2024-01_100W-020E_10N-65N.nc"
         )
     ).fillna(0.0)
     with pytest.raises(LargeIncrementError):
@@ -178,7 +178,7 @@ def test_gradient_descent_across_track_left_invalid_gradient_error():
         0.0
         * load_currents(
             data_file=TEST_DATA_DIR
-            / "currents/cmems_mod_glo_phy-cur_anfc_0.083deg_P1D-m_2021-01_100W-020E_10N-65N.nc"
+            / "currents/cmems_mod_glo_phy-cur_anfc_0.083deg_P1D-m_2024-01_100W-020E_10N-65N.nc"
         )
     ).fillna(0.0)
     zero_currents_with_invalid_region = zero_currents.where(zero_currents.lat <= 1.0)
@@ -203,7 +203,7 @@ def test_gradient_descent_along_track_invalid_gradient_error():
         0.0
         * load_currents(
             data_file=TEST_DATA_DIR
-            / "currents/cmems_mod_glo_phy-cur_anfc_0.083deg_P1D-m_2021-01_100W-020E_10N-65N.nc"
+            / "currents/cmems_mod_glo_phy-cur_anfc_0.083deg_P1D-m_2024-01_100W-020E_10N-65N.nc"
         )
     ).fillna(0.0)
     lon = zero_currents.lon
@@ -232,15 +232,15 @@ def test_gradient_descent_across_track_left_nonopt():
     # load currents, winds, waves
     currents = load_currents(
         data_file=TEST_DATA_DIR
-        / "currents/cmems_mod_glo_phy-cur_anfc_0.083deg_P1D-m_2021-01_100W-020E_10N-65N.nc"
+        / "currents/cmems_mod_glo_phy-cur_anfc_0.083deg_P1D-m_2024-01_100W-020E_10N-65N.nc"
     )
     waves = load_waves(
         data_file=TEST_DATA_DIR
-        / "waves/cmems_mod_glo_wav_my_0.2deg_PT3H-i_VHM0_2021-01_1d-max_100W-020E_10N-65N.nc"
+        / "waves/cmems_mod_glo_wav_my_0.2deg_PT3H-i_VHM0_2024-01_1d-max_100W-020E_10N-65N.nc"
     )
     winds = load_winds(
         data_file=TEST_DATA_DIR
-        / "winds/cmems_obs-wind_glo_phy_my_l4_0.125deg_PT1H_2021-01_6hours_0.5deg_100W-020E_10N-65N.nc"
+        / "winds/cmems_obs-wind_glo_phy_my_l4_0.125deg_PT1H_2024-01_6hours_0.5deg_100W-020E_10N-65N.nc"
     )
 
     # update route
@@ -276,15 +276,15 @@ def test_gradient_descent_along_track_nonopt():
     # load currents, winds, waves
     currents = load_currents(
         data_file=TEST_DATA_DIR
-        / "currents/cmems_mod_glo_phy-cur_anfc_0.083deg_P1D-m_2021-01_100W-020E_10N-65N.nc"
+        / "currents/cmems_mod_glo_phy-cur_anfc_0.083deg_P1D-m_2024-01_100W-020E_10N-65N.nc"
     )
     waves = load_waves(
         data_file=TEST_DATA_DIR
-        / "waves/cmems_mod_glo_wav_my_0.2deg_PT3H-i_VHM0_2021-01_1d-max_100W-020E_10N-65N.nc"
+        / "waves/cmems_mod_glo_wav_my_0.2deg_PT3H-i_VHM0_2024-01_1d-max_100W-020E_10N-65N.nc"
     )
     winds = load_winds(
         data_file=TEST_DATA_DIR
-        / "winds/cmems_obs-wind_glo_phy_my_l4_0.125deg_PT1H_2021-01_6hours_0.5deg_100W-020E_10N-65N.nc"
+        / "winds/cmems_obs-wind_glo_phy_my_l4_0.125deg_PT1H_2024-01_6hours_0.5deg_100W-020E_10N-65N.nc"
     )
 
     # update route
@@ -320,15 +320,15 @@ def test_gradient_descent_time_shift_nonopt():
     # load currents, winds, waves
     currents = load_currents(
         data_file=TEST_DATA_DIR
-        / "currents/cmems_mod_glo_phy-cur_anfc_0.083deg_P1D-m_2021-01_100W-020E_10N-65N.nc"
+        / "currents/cmems_mod_glo_phy-cur_anfc_0.083deg_P1D-m_2024-01_100W-020E_10N-65N.nc"
     )
     waves = load_waves(
         data_file=TEST_DATA_DIR
-        / "waves/cmems_mod_glo_wav_my_0.2deg_PT3H-i_VHM0_2021-01_1d-max_100W-020E_10N-65N.nc"
+        / "waves/cmems_mod_glo_wav_my_0.2deg_PT3H-i_VHM0_2024-01_1d-max_100W-020E_10N-65N.nc"
     )
     winds = load_winds(
         data_file=TEST_DATA_DIR
-        / "winds/cmems_obs-wind_glo_phy_my_l4_0.125deg_PT1H_2021-01_6hours_0.5deg_100W-020E_10N-65N.nc"
+        / "winds/cmems_obs-wind_glo_phy_my_l4_0.125deg_PT1H_2024-01_6hours_0.5deg_100W-020E_10N-65N.nc"
     )
 
     # update route

@@ -12,15 +12,15 @@ from conftest import TEST_DATA_DIR
 def _hazard_forcing():
     currents = load_currents(
         data_file=TEST_DATA_DIR
-        / "currents/cmems_mod_glo_phy-cur_anfc_0.083deg_P1D-m_2021-01_1deg_5day.nc"
+        / "currents/cmems_mod_glo_phy-cur_anfc_0.083deg_P1D-m_2024-01_1deg_5day.nc"
     )
     winds = load_winds(
         data_file=TEST_DATA_DIR
-        / "winds/cmems_obs-wind_glo_phy_my_l4_0.125deg_PT1H_2021-01_6hours_0.5deg_100W-020E_10N-65N.nc"
+        / "winds/cmems_obs-wind_glo_phy_my_l4_0.125deg_PT1H_2024-01_6hours_0.5deg_100W-020E_10N-65N.nc"
     )
     waves = load_waves(
         data_file=TEST_DATA_DIR
-        / "waves/cmems_mod_glo_wav_my_0.2deg_PT3H-i_VHM0_2021-01_1d-max_100W-020E_10N-65N.nc"
+        / "waves/cmems_mod_glo_wav_my_0.2deg_PT3H-i_VHM0_2024-01_1d-max_100W-020E_10N-65N.nc"
     )
     waves["wh"] = 50.0 + 0.0 * waves["wh"].fillna(0.0)
     return ForcingData(
