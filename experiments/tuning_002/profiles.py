@@ -66,8 +66,9 @@ class TuningProfile:
     adaptation_scale_D_options: tuple[float, ...] = (0.707, 0.894)
 
     # Parallelization within each experiment (passed to RoutingApp)
-    executor_type: Literal["process", "thread", "sequential"] = "process"
-    num_workers: int = 8
+    # Use sequential execution - Parsl handles parallelism across experiments
+    executor_type: Literal["process", "thread", "sequential"] = "sequential"
+    num_workers: int = 1
 
     # SLURM configuration
     nodes_per_block: int = 10
