@@ -27,6 +27,7 @@ class SlurmExecutionConfig:
     qos: str
     task_timeout: int
     worker_init: str
+    mem_per_node: str = "40GB"  # Total memory per node
 
 
 @dataclass(frozen=True)

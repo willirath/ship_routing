@@ -37,7 +37,7 @@ squeue -u $USER  # See orchestrator + Parsl worker jobs
 
 ### Watch orchestrator progress
 ```bash
-tail -f logs/orchestrator_*.out
+tail -f slurm_logs/orchestrator_*.out
 ```
 
 ### View results
