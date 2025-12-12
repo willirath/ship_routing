@@ -26,8 +26,8 @@ class SlurmExecutionConfig:
     partition: str
     qos: str
     task_timeout: int
-    worker_init: str
     mem_per_node_gb: int  # Memory per node in GB (Parsl appends 'g' suffix; guideline: 5GB per worker)
+    worker_init: str = ""  # Worker initialization commands (empty = no init)
     exclusive: bool = True  # Request exclusive node allocation (False for shared nodes)
     account: str | None = None  # SLURM account (None = no account required)
 
