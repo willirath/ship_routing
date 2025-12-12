@@ -168,9 +168,9 @@ generate_commands() {
 		local time_end=$(sample_from_array TIME_ENDS)
 
 		echo "timeout ${MAX_RUNTIME_PER_COMMAND} ship-routing" \
-	                "--currents-path ${currents_path}" \
-		        "--waves-path ${waves_path}" \
-		        "--winds-path ${winds_path}" \
+			"--currents-path ${currents_path}" \
+			"--waves-path ${waves_path}" \
+			"--winds-path ${winds_path}" \
 			"--engine 'zarr'" \
 			"--random-seed ${rand_seed}" \
 			"--population-size ${pop_size}" \
@@ -204,8 +204,7 @@ generate_commands() {
 			"--lat-wp ${lat_start} --lat-wp ${lat_end}" \
 			"--time-start ${time_start}" \
 			"--speed-knots ${speed_knots}" \
-			"--time-resolution-hours ${time_resolution_hours}" \
-			# "--time-end ${time_end}"
+			"--time-resolution-hours ${time_resolution_hours}"
 	done
 }
 

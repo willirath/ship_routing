@@ -4,7 +4,7 @@
 #SBATCH --ntasks=101
 #SBATCH --cpus-per-task=8
 #SBATCH --mem-per-cpu=5G
-#SBATCH --time=12:00:00
+#SBATCH --time=04:00:00
 #SBATCH --qos=express  # larger cpu count possible
 #SBATCH --partition=base
 #SBATCH --output=slurm_%j.out
@@ -27,6 +27,10 @@ EXECUTOR_TYPE="process"
 NUM_WORKERS=8
 MAX_RUNTIME_PER_COMMAND="1000"  # seconds
 
+currents_path="data/cmems_mod_glo_phy_my_0.083deg_P1D-m_time_2021_lat_+10_+65_lon_-100_+010_uo-vo.zarr"
+waves_path="data/cmems_mod_glo_wav_my_0.2deg_PT3H-i_time_2021_lat_+10_+65_lon_-100_+010_VHM0-VMDR.zarr"
+winds_path="data/cmems_obs-wind_glo_phy_my_l4_0.125deg_PT1H_time_2021_lat_+10_+65_lon_-100_+010_eastward_wind-northward_wind.zarr"
+
 # Route parameters
 LON_START=${LON_START:--80.5}
 LON_END=${LON_END:--11.0}
@@ -40,7 +44,6 @@ JOURNEY_NAME_BACKWARD="${JOURNEY_NAME}_backward"
 
 # All parameters as arrays (single-element = non-random, multi-element = random)
 # Constants
-DATA_DIRS=(".")
 LOG_DIRS=("runs")
 SELECTION_ACCEPTANCE_RATES_WARMUP=(0.3)
 MUTATION_WIDTH_FRACTIONS_WARMUP_SINGLE=(0.9)
@@ -140,7 +143,6 @@ generate_commands() {
 	# Generate N random samples
 	for ((i=0; i<num_samples; i++)); do
 		# Sample from each parameter array (length determines if random or fixed)
-		local data_dir=$(sample_from_array DATA_DIRS)
 		local log_dir=$(sample_from_array LOG_DIRS)
 		local hazard_penalty_multiplier=$(sample_from_array HAZARD_PENALTY_MULTIPLIER_VALUES)
 		local sel_quant=$(sample_from_array SELECTION_QUANTILES)
@@ -167,7 +169,10 @@ generate_commands() {
 		local time_end=$(sample_from_array TIME_ENDS)
 
 		echo "timeout ${MAX_RUNTIME_PER_COMMAND} ship-routing" \
-			"--data-dir ${data_dir}" \
+			"--currents-path ${currents_path}" \
+			"--waves-path ${waves_path}" \
+			"--winds-path ${winds_path}" \
+			"--engine 'zarr'" \
 			"--random-seed ${rand_seed}" \
 			"--population-size ${pop_size}" \
 			"--selection-acceptance-rate-warmup ${sel_accept_warmup}" \
@@ -200,8 +205,7 @@ generate_commands() {
 			"--lat-wp ${lat_start} --lat-wp ${lat_end}" \
 			"--time-start ${time_start}" \
 			"--speed-knots ${speed_knots}" \
-			"--time-resolution-hours ${time_resolution_hours}" \
-			# "--time-end ${time_end}"
+			"--time-resolution-hours ${time_resolution_hours}"
 	done
 }
 
@@ -229,4 +233,3 @@ redis-cli -h "${REDIS_HOST}" -p "${REDIS_PORT}" \
 
 # Print job resource summary
 jobinfo
-
