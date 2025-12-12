@@ -93,14 +93,16 @@ eval "$(pixi shell-hook)"
 
 # Start Redis server on dedicated node
 # Configure Redis parameters and launch server in background
-REDIS_PORT=6379
 REDIS_DIR="/tmp/redis_data_${SLURM_JOB_ID}"
 REDIS_PASSWORD=$(openssl rand -base64 32)
 mkdir -p "$REDIS_DIR"
 
 srun --ntasks=1 --exclusive --export=ALL -c "${SLURM_CPUS_PER_TASK}" --job-name=redis_server bash -c "
+    # Find a free port on THIS node (not the head node)
+    REDIS_PORT=\$(python -c 'import socket; s=socket.socket(); s.bind((\"\", 0)); print(s.getsockname()[1]); s.close()')
     echo \$(hostname) > .redis_host_${SLURM_JOB_ID}
-    redis-server --port ${REDIS_PORT} \
+    echo \${REDIS_PORT} > .redis_port_${SLURM_JOB_ID}
+    redis-server --port \${REDIS_PORT} \
                  --protected-mode no \
                  --bind 0.0.0.0 \
                  --requirepass '${REDIS_PASSWORD}' \
@@ -110,9 +112,10 @@ srun --ntasks=1 --exclusive --export=ALL -c "${SLURM_CPUS_PER_TASK}" --job-name=
                  --dir ${REDIS_DIR}
 " &
 
-# Get Redis host from the file written by the Redis task
+# Get Redis host and port from files written by the Redis task
 sleep 5
 REDIS_HOST=$(cat .redis_host_"${SLURM_JOB_ID}")
+REDIS_PORT=$(cat .redis_port_"${SLURM_JOB_ID}")
 echo "Redis running on ${REDIS_HOST}:${REDIS_PORT} (password protected)"
 
 # Function to batch commands for parallel execution
