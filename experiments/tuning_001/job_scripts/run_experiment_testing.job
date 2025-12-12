@@ -72,7 +72,7 @@ MUTATION_WIDTH_FRACTIONS_WARMUP=(0.5 0.9)
 MUTATION_DISPLACEMENT_FRACTIONS_WARMUP=(0.1 0.25)
 
 # Adaptation parameters
-ENABLE_ADAPTATION=(true false)
+ENABLE_ADAPTATION=("--enable-adaptation" "--no-adaptation")
 ADAPTATION_SCALE_W_VALUES=(0.5 0.8)
 ADAPTATION_SCALE_D_VALUES=(0.707 0.894)
 
@@ -213,7 +213,7 @@ generate_commands() {
 			"--time-start ${time_start}" \
 			"--speed-knots ${speed_knots}" \
 			"--time-resolution-hours ${time_resolution_hours}" \
-			"--enable-adaptation=${enable_adaptation}" \
+			"${enable_adaptation}" \
 			"--adaptation-scale-W ${adaptation_scale_W}" \
 			"--adaptation-scale-D ${adaptation_scale_D}"
 	done
