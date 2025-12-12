@@ -17,7 +17,7 @@ class TuningProfile:
     # Experiment scale
     n_runs: int  # Number of experiments per route direction
     n_realisations: int = 1  # Repetitions of the full sweep
-    months: tuple[int, ...] = (1,)  # Which months to test
+    start_times: tuple[str, ...] = ("2021-01-01T00:00:00",)  # Journey start times
     speeds_knots: tuple[float, ...] = (10.0,)  # Ship speeds to test
 
     # Route definition (defaults: Atlantic crossing)
@@ -97,7 +97,7 @@ PROFILES: dict[str, TuningProfile] = {
     "test": TuningProfile(
         n_runs=20,
         n_realisations=1,
-        months=(1,),
+        start_times=("2021-01-01T00:00:00",),
         speeds_knots=(10.0,),
         # Smaller parameter space for testing
         population_sizes=(4, 8),
@@ -117,7 +117,20 @@ PROFILES: dict[str, TuningProfile] = {
     "production": TuningProfile(
         n_runs=1000,
         n_realisations=10,
-        months=tuple(range(1, 13)),  # All 12 months
+        start_times=(
+            "2021-01-01T00:00:00",
+            "2021-02-01T00:00:00",
+            "2021-03-01T00:00:00",
+            "2021-04-01T00:00:00",
+            "2021-05-01T00:00:00",
+            "2021-06-01T00:00:00",
+            "2021-07-01T00:00:00",
+            "2021-08-01T00:00:00",
+            "2021-09-01T00:00:00",
+            "2021-10-01T00:00:00",
+            "2021-11-01T00:00:00",
+            "2021-12-01T00:00:00",
+        ),
         speeds_knots=(8.0, 10.0, 12.0),
         # Full parameter space (defaults from dataclass)
         nodes_per_block=10,
@@ -130,7 +143,7 @@ PROFILES: dict[str, TuningProfile] = {
     "quick": TuningProfile(
         n_runs=5,
         n_realisations=1,
-        months=(1,),
+        start_times=("2021-01-01T00:00:00",),
         speeds_knots=(10.0,),
         population_sizes=(4,),
         generations=(1,),

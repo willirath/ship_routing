@@ -91,12 +91,10 @@ def generate_experiment_configs(
 
     configs = []
 
-    # Outer loops: realisations x months x speeds
+    # Outer loops: realisations x start_times x speeds
     for realisation in range(profile.n_realisations):
-        for month in profile.months:
+        for time_start in profile.start_times:
             for speed in profile.speeds_knots:
-                time_start = f"2021-{month:02d}-01T00:00:00"
-
                 # Generate n_runs experiments for forward and backward routes
                 for direction in ["forward", "backward"]:
                     if direction == "forward":
@@ -181,7 +179,7 @@ def generate_experiment_configs(
 
                         metadata = {
                             "realisation": realisation,
-                            "month": month,
+                            "time_start": time_start,
                             "speed_knots": speed,
                             "direction": direction,
                             "run_idx": run_idx,
@@ -204,10 +202,13 @@ def make_result_key(exp_config: ExperimentConfig) -> str:
     journey = exp_config.config.journey
     hyper = exp_config.config.hyper
 
+    # Extract month from time_start (format: "YYYY-MM-DDThh:mm:ss")
+    month = int(meta["time_start"][5:7])
+
     return (
         f"result:{journey.name}"
         f":r{meta['realisation']}"
-        f":m{meta['month']:02d}"
+        f":m{month:02d}"
         f":s{meta['speed_knots']}"
         f":run{meta['run_idx']}"
         f":seed{hyper.random_seed}"
@@ -270,17 +271,11 @@ def main(
     """Run hyperparameter tuning experiments."""
     # Load profile
     prof = PROFILES[profile]
-    logger.info(f"Using profile: {profile}")
-    logger.info(f"Executor: {executor}")
 
     # Generate experiment configurations
-    logger.info("Generating experiment configurations...")
     configs = generate_experiment_configs(prof, seed=seed)
-    logger.info(f"Generated {len(configs)} experiment configurations")
 
     if dry_run:
-        logger.info("Dry run - not submitting experiments")
-        logger.info(f"First config: {configs[0]}")
         return
 
     # Configure output path
@@ -293,13 +288,11 @@ def main(
         )
 
     # Configure and load Parsl
-    logger.info("Configuring Parsl...")
     parsl_config = get_parsl_config(prof, executor=executor)
     parsl.load(parsl_config)
 
     try:
         # Submit all tasks
-        logger.info("Submitting experiments...")
         futures: list[tuple[str, DataFuture]] = []
         for exp_config in tqdm(configs, desc="Submitting"):
             key = make_result_key(exp_config)
@@ -307,7 +300,6 @@ def main(
             futures.append((key, future))
 
         # Collect results and serialize to msgpack
-        logger.info("Collecting results...")
         results: dict[str, bytes] = {}
         failed = 0
         for key, future in tqdm(futures, desc="Collecting"):
@@ -316,10 +308,7 @@ def main(
                 # Serialize to msgpack for disk storage (notebook compatibility)
                 results[key] = result.to_msgpack()
             except Exception as e:
-                logger.warning(f"Task {key} failed: {e}")
                 failed += 1
-
-        logger.info(f"Completed: {len(results)} successful, {failed} failed")
 
         # Save results
         save_results(results, output_path)
