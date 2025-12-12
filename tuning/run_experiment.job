@@ -63,14 +63,19 @@ TIME_ENDS=("")
 HAZARD_PENALTY_MULTIPLIER_VALUES=(0 100.0)
 SELECTION_QUANTILES=(0.1 0.25)
 SELECTION_ACCEPTANCE_RATES=(0.0 0.25)
-POPULATION_SIZES=(32 128)
+POPULATION_SIZES=(128 256)
 GENERATIONS=(1 2 4)
-MUTATION_ITERATIONS=(1 2 3)
-GD_ITERATIONS_ARRAY=(0 1 2)
+MUTATION_ITERATIONS=(1 3)
+GD_ITERATIONS_ARRAY=(1 2)
 CROSSOVER_STRATEGIES=("minimal_cost" "random")
 CROSSOVER_ROUNDS=(0 1 2)
-MUTATION_WIDTH_FRACTIONS_WARMUP=(0.5 0.9)
+MUTATION_WIDTH_FRACTIONS_WARMUP=(0.99)
 MUTATION_DISPLACEMENT_FRACTIONS_WARMUP=(0.1 0.25)
+
+# Adaptation parameters
+ENABLE_ADAPTATION=(true false)
+ADAPTATION_SCALE_W_VALUES=(0.5 0.8)
+ADAPTATION_SCALE_D_VALUES=(0.707 0.894)
 
 # Load compiler environment
 module load gcc12-env
@@ -167,6 +172,9 @@ generate_commands() {
 		local distance_increment=$(sample_from_array DISTANCE_INCREMENTS)
 		local time_resolution_hours=$(sample_from_array TIME_RESOLUTION_HOURS_VALUES)
 		local time_end=$(sample_from_array TIME_ENDS)
+		local enable_adaptation=$(sample_from_array ENABLE_ADAPTATION)
+		local adaptation_scale_W=$(sample_from_array ADAPTATION_SCALE_W_VALUES)
+		local adaptation_scale_D=$(sample_from_array ADAPTATION_SCALE_D_VALUES)
 
 		echo "timeout ${MAX_RUNTIME_PER_COMMAND} ship-routing" \
 			"--currents-path ${currents_path}" \
@@ -205,7 +213,10 @@ generate_commands() {
 			"--lat-wp ${lat_start} --lat-wp ${lat_end}" \
 			"--time-start ${time_start}" \
 			"--speed-knots ${speed_knots}" \
-			"--time-resolution-hours ${time_resolution_hours}"
+			"--time-resolution-hours ${time_resolution_hours}" \
+			"--enable-adaptation=${enable_adaptation}" \
+			"--adaptation-scale-W ${adaptation_scale_W}" \
+			"--adaptation-scale-D ${adaptation_scale_D}"
 	done
 }
 

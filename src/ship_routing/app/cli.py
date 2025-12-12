@@ -516,6 +516,42 @@ def build_config(
     default=0.01,
     help="Target relative cost improvement (1%).",
 )
+@click.option(
+    "--adaptation-scale-W",
+    type=float,
+    default=0.8,
+    help="Adaptation scaling factor for W (mutation width fraction). Default: 0.8",
+)
+@click.option(
+    "--adaptation-scale-D",
+    type=float,
+    default=0.8**0.5,
+    help="Adaptation scaling factor for D (mutation displacement fraction). Default: sqrt(0.8)",
+)
+@click.option(
+    "--W-min",
+    type=float,
+    default=0.1,
+    help="Minimum allowed value for W (mutation width fraction). Default: 0.1",
+)
+@click.option(
+    "--W-max",
+    type=float,
+    default=1.0,
+    help="Maximum allowed value for W (mutation width fraction). Default: 1.0",
+)
+@click.option(
+    "--D-min",
+    type=float,
+    default=0.01,
+    help="Minimum allowed value for D (mutation displacement fraction). Default: 0.01",
+)
+@click.option(
+    "--D-max",
+    type=float,
+    default=0.5,
+    help="Maximum allowed value for D (mutation displacement fraction). Default: 0.5",
+)
 # Parallelization parameters
 @click.option(
     "--executor-type",
@@ -600,6 +636,12 @@ def main(
     # Adaptation
     enable_adaptation,
     target_relative_improvement,
+    adaptation_scale_w,
+    adaptation_scale_d,
+    w_min,
+    w_max,
+    d_min,
+    d_max,
     # Parallelization
     executor_type,
     num_workers,
@@ -679,6 +721,12 @@ def main(
         # Adaptation
         enable_adaptation=enable_adaptation,
         target_relative_improvement=target_relative_improvement,
+        adaptation_scale_W=adaptation_scale_w,
+        adaptation_scale_D=adaptation_scale_d,
+        W_min=w_min,
+        W_max=w_max,
+        D_min=d_min,
+        D_max=d_max,
         # Parallelization
         executor_type=executor_type,
         num_workers=num_workers,
