@@ -5,8 +5,6 @@ Provides configurations for:
 - SLURM HPC clusters (production)
 """
 
-import os
-
 from parsl.config import Config
 from parsl.executors import HighThroughputExecutor, ThreadPoolExecutor
 from parsl.providers import LocalProvider, SlurmProvider
@@ -63,29 +61,35 @@ def get_slurm_config(execution: SlurmExecutionConfig) -> Config:
     Config
         Parsl configuration for SLURM execution
     """
+    # Build SlurmProvider kwargs conditionally
+    provider_kwargs = {
+        "partition": execution.partition,
+        "nodes_per_block": execution.nodes_per_block,
+        "min_blocks": 1,
+        "max_blocks": execution.max_blocks,
+        "walltime": execution.walltime,
+        "mem_per_node": execution.mem_per_node_gb,
+        "exclusive": execution.exclusive,
+        "scheduler_options": f"#SBATCH --qos={execution.qos}",
+        "worker_init": execution.worker_init or "",
+        "launcher": SrunLauncher(),
+    }
+
+    # Only add account if specified
+    if execution.account is not None:
+        provider_kwargs["account"] = execution.account
+
     return Config(
         executors=[
             HighThroughputExecutor(
                 label="slurm",
                 address=address_by_hostname(),
                 max_workers_per_node=execution.max_workers,
-                provider=SlurmProvider(
-                    partition=execution.partition,
-                    account=os.environ.get("SLURM_ACCOUNT", ""),
-                    nodes_per_block=execution.nodes_per_block,
-                    min_blocks=1,
-                    max_blocks=execution.max_blocks,
-                    walltime=execution.walltime,
-                    mem_per_node=execution.mem_per_node_gb,
-                    exclusive=execution.exclusive,
-                    scheduler_options=f"#SBATCH --qos={execution.qos}",
-                    worker_init=execution.worker_init or "",
-                    launcher=SrunLauncher(),
-                ),
+                provider=SlurmProvider(**provider_kwargs),
             )
         ],
         strategy="htex_auto_scale",  # Auto-scale based on task queue
-        max_idletime=120,  # Shutdown idle workers after 2 minutes
+        max_idletime=600,  # Shutdown idle workers after 10 minutes (prevent churning)
     )
 
 

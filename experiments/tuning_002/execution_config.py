@@ -29,6 +29,7 @@ class SlurmExecutionConfig:
     worker_init: str
     mem_per_node_gb: int = 40  # Memory per node in GB (Parsl appends 'g' suffix)
     exclusive: bool = True  # Request exclusive node allocation (False for shared nodes)
+    account: str | None = None  # SLURM account (None = no account required)
 
 
 @dataclass(frozen=True)
@@ -63,7 +64,7 @@ EXECUTION_CONFIGS = {
     "nesh-test": NeshExecutionConfig(
         max_workers=2,
         nodes_per_block=1,
-        max_blocks=5,
+        max_blocks=3,  # Reduced from 5 - enough for 40 tasks with 2 workers each
         walltime="01:00:00",
         partition="base",
         qos="express",
