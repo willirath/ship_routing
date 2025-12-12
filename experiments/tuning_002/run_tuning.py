@@ -28,7 +28,6 @@ from typing import Any
 import click
 import msgpack
 import parsl
-from parsl import python_app
 from parsl.app.futures import DataFuture
 from tqdm import tqdm
 
@@ -37,56 +36,13 @@ sys.path.insert(0, str(Path(__file__).parent))
 
 from parsl_config import get_parsl_config
 from profiles import PROFILES, TuningProfile
+from ship_routing.app.parsl import run_single_experiment
 
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
 )
 logger = logging.getLogger(__name__)
-
-
-# Parsl app - runs in worker process
-# Note: imports inside function to ensure they're available in worker
-@python_app
-def run_single_experiment(
-    journey_config: dict[str, Any],
-    forcing_config: dict[str, Any],
-    hyper_params: dict[str, Any],
-) -> bytes:
-    """Run one routing optimization, return msgpack bytes.
-
-    This function executes in a Parsl worker process. All imports must be
-    inside the function body to ensure they're available in the worker.
-
-    Parameters
-    ----------
-    journey_config : dict
-        Journey configuration (waypoints, times, speed)
-    forcing_config : dict
-        Forcing data configuration (paths, engine)
-    hyper_params : dict
-        Hyperparameters for the optimization
-
-    Returns
-    -------
-    bytes
-        Msgpack-serialized RoutingResult
-    """
-    from ship_routing.app.config import (
-        ForcingConfig,
-        HyperParams,
-        JourneyConfig,
-        RoutingConfig,
-    )
-    from ship_routing.app.routing import RoutingApp
-
-    config = RoutingConfig(
-        journey=JourneyConfig(**journey_config),
-        forcing=ForcingConfig(**forcing_config),
-        hyper=HyperParams(**hyper_params),
-    )
-    result = RoutingApp(config).run()
-    return result.to_msgpack()
 
 
 def sample_value(options: tuple | list) -> Any:
@@ -161,29 +117,57 @@ def generate_experiment_configs(
                             },
                             "hyper_params": {
                                 "random_seed": experiment_seed,
-                                "population_size": sample_value(profile.population_sizes),
+                                "population_size": sample_value(
+                                    profile.population_sizes
+                                ),
                                 "generations": sample_value(profile.generations),
-                                "offspring_size": sample_value(profile.population_sizes),
-                                "selection_quantile": sample_value(profile.selection_quantiles),
-                                "selection_acceptance_rate": sample_value(profile.selection_acceptance_rates),
+                                "offspring_size": sample_value(
+                                    profile.population_sizes
+                                ),
+                                "selection_quantile": sample_value(
+                                    profile.selection_quantiles
+                                ),
+                                "selection_acceptance_rate": sample_value(
+                                    profile.selection_acceptance_rates
+                                ),
                                 "selection_acceptance_rate_warmup": profile.selection_acceptance_rate_warmup,
                                 "mutation_width_fraction": profile.mutation_width_fraction,
                                 "mutation_displacement_fraction": profile.mutation_displacement_fraction,
-                                "mutation_width_fraction_warmup": sample_value(profile.mutation_width_fractions_warmup),
-                                "mutation_displacement_fraction_warmup": sample_value(profile.mutation_displacement_fractions_warmup),
-                                "mutation_iterations": sample_value(profile.mutation_iterations),
-                                "crossover_strategy": sample_value(profile.crossover_strategies),
-                                "crossover_rounds": sample_value(profile.crossover_rounds),
-                                "hazard_penalty_multiplier": sample_value(profile.hazard_penalty_multipliers),
+                                "mutation_width_fraction_warmup": sample_value(
+                                    profile.mutation_width_fractions_warmup
+                                ),
+                                "mutation_displacement_fraction_warmup": sample_value(
+                                    profile.mutation_displacement_fractions_warmup
+                                ),
+                                "mutation_iterations": sample_value(
+                                    profile.mutation_iterations
+                                ),
+                                "crossover_strategy": sample_value(
+                                    profile.crossover_strategies
+                                ),
+                                "crossover_rounds": sample_value(
+                                    profile.crossover_rounds
+                                ),
+                                "hazard_penalty_multiplier": sample_value(
+                                    profile.hazard_penalty_multipliers
+                                ),
                                 "num_elites": profile.num_elites,
-                                "gd_iterations": sample_value(profile.gd_iterations_options),
+                                "gd_iterations": sample_value(
+                                    profile.gd_iterations_options
+                                ),
                                 "learning_rate_time": profile.learning_rate_time,
                                 "learning_rate_space": profile.learning_rate_space,
                                 "time_increment": profile.time_increment,
                                 "distance_increment": profile.distance_increment,
-                                "enable_adaptation": sample_value(profile.enable_adaptation_options),
-                                "adaptation_scale_W": sample_value(profile.adaptation_scale_W_options),
-                                "adaptation_scale_D": sample_value(profile.adaptation_scale_D_options),
+                                "enable_adaptation": sample_value(
+                                    profile.enable_adaptation_options
+                                ),
+                                "adaptation_scale_W": sample_value(
+                                    profile.adaptation_scale_W_options
+                                ),
+                                "adaptation_scale_D": sample_value(
+                                    profile.adaptation_scale_D_options
+                                ),
                                 "executor_type": profile.executor_type,
                                 "num_workers": profile.num_workers,
                             },
@@ -295,7 +279,9 @@ def main(
     if output:
         output_path = Path(output)
     else:
-        output_path = Path(prof.output_dir) / f"{prof.output_prefix}_{timestamp}.msgpack"
+        output_path = (
+            Path(prof.output_dir) / f"{prof.output_prefix}_{timestamp}.msgpack"
+        )
 
     # Configure and load Parsl
     logger.info("Configuring Parsl...")
@@ -309,6 +295,7 @@ def main(
         for config in tqdm(configs, desc="Submitting"):
             key = make_result_key(config)
             future = run_single_experiment(
+                # TODO: Would it make sense to use Config objects rather than dicts here?
                 journey_config=config["journey_config"],
                 forcing_config=config["forcing_config"],
                 hyper_params=config["hyper_params"],
