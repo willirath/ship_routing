@@ -88,7 +88,7 @@ def get_slurm_config(execution: SlurmExecutionConfig) -> Config:
                 provider=SlurmProvider(**provider_kwargs),
             )
         ],
-        strategy="htex_auto_scale",  # Auto-scale based on task queue
+        strategy="simple",  # Simple scaling (less aggressive than htex_auto_scale)
         max_idletime=600,  # Shutdown idle workers after 10 minutes (prevent churning)
     )
 
