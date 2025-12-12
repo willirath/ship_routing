@@ -45,6 +45,7 @@ cmocean = ">=4.0.3,<5"
 tabulate = ">=0.9.0,<0.10"
 copernicusmarine = ">=2.2.5,<3"
 click = ">=8.0,<9"
+parsl = ">=2024.9.30"
 
 [tasks]
 tests = "pytest -q"
