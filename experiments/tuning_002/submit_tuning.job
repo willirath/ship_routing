@@ -24,4 +24,4 @@ eval "$(pixi shell-hook)"
 
 
 # Run tuning (edit this line to change experiment/execution/seed)
-python run_tuning.py --experiment "test" --execution nesh-test
+python run_tuning.py --experiment "production" --execution "nesh-prod"

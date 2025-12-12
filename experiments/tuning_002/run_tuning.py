@@ -168,6 +168,7 @@ def main(
         )
 
     # Configure and load Parsl
+    execution_config = EXECUTION_CONFIGS[execution]
     parsl_config = get_parsl_config(execution)
     parsl.load(parsl_config)
 
@@ -182,17 +183,29 @@ def main(
         # Collect results and serialize to msgpack
         results: dict[str, bytes] = {}
         failed = 0
+        timeouts = 0
         for key, future in tqdm(futures, desc="Collecting"):
             try:
-                result: RoutingResult = future.result()
+                result: RoutingResult = future.result(
+                    timeout=execution_config.task_timeout
+                )
                 # Serialize to msgpack for disk storage (notebook compatibility)
                 results[key] = result.to_msgpack()
+            except TimeoutError:
+                logger.error(
+                    f"Timeout {key}: exceeded {execution_config.task_timeout}s"
+                )
+                timeouts += 1
+                failed += 1
             except Exception as e:
                 logger.error(f"Failed {key}: {e}")
                 failed += 1
 
         # Save results
-        logger.info(f"Completed: {len(results)} successful, {failed} failed")
+        logger.info(
+            f"Completed: {len(results)} successful, {failed} failed "
+            f"({timeouts} timeouts)"
+        )
         save_results(results, output_path)
 
     finally:
