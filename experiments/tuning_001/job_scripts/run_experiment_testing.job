@@ -6,8 +6,8 @@
 #SBATCH --mem-per-cpu=4G
 #SBATCH --time=01:00:00
 #SBATCH --partition=base
-#SBATCH --output=slurm_%j.out
-#SBATCH --error=slurm_%j.err
+#SBATCH --output=slurm_logs/slurm_%j.out
+#SBATCH --error=slurm_logs/slurm_%j.err
 #
 # Usage: sbatch --export=LON_START=-75.0,LON_END=-12.0,LAT_START=25.0,JOURNEY_NAME="Atlantic_testing" run_experiment_testing.job
 
