@@ -27,7 +27,7 @@ class SlurmExecutionConfig:
     qos: str
     task_timeout: int
     worker_init: str
-    mem_per_node: int = 40960  # Total memory per node in MB (40GB)
+    mem_per_node_gb: int = 40  # Memory per node in GB (Parsl appends 'g' suffix)
 
 
 @dataclass(frozen=True)

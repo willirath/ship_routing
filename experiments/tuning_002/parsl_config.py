@@ -76,7 +76,7 @@ def get_slurm_config(execution: SlurmExecutionConfig) -> Config:
                     min_blocks=1,
                     max_blocks=execution.max_blocks,
                     walltime=execution.walltime,
-                    mem_per_node=execution.mem_per_node,
+                    mem_per_node=execution.mem_per_node_gb,
                     scheduler_options=f"#SBATCH --qos={execution.qos}",
                     worker_init=execution.worker_init or "",
                     launcher=SrunLauncher(),
