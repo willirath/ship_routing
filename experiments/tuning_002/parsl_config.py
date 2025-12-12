@@ -79,8 +79,6 @@ def get_slurm_config(execution: SlurmExecutionConfig) -> Config:
                     scheduler_options=f"#SBATCH --qos={execution.qos}",
                     worker_init=execution.worker_init or "",
                     launcher=SrunLauncher(),
-                    # Move to compute partition for workers
-                    move_files=False,
                 ),
             )
         ],
