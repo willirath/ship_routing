@@ -4,10 +4,9 @@
 doc/examples/data_large
 .pixi/
 *.tex
-tuning/results
-tuning/data_large
 data/large
-tuning/.redis_host_*
-tuning/slurm_*.*
 *.backup
 runs
+*.geoparquet
+*.msgpack
+*.pq
