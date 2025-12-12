@@ -28,6 +28,7 @@ class SlurmExecutionConfig:
     task_timeout: int
     worker_init: str
     mem_per_node_gb: int = 40  # Memory per node in GB (Parsl appends 'g' suffix)
+    exclusive: bool = True  # Request exclusive node allocation (False for shared nodes)
 
 
 @dataclass(frozen=True)
@@ -60,13 +61,15 @@ EXECUTION_CONFIGS = {
         task_timeout=600,
     ),
     "nesh-test": NeshExecutionConfig(
-        max_workers=4,
-        nodes_per_block=2,
+        max_workers=2,
+        nodes_per_block=1,
         max_blocks=5,
         walltime="01:00:00",
         partition="base",
         qos="express",
         task_timeout=300,
+        mem_per_node_gb=10,  # 2 workers × 5GB each
+        exclusive=False,  # Shared nodes
     ),
     "nesh-prod": NeshExecutionConfig(
         max_workers=8,
