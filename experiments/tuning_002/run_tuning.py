@@ -22,12 +22,9 @@ Usage:
 from __future__ import annotations
 
 import logging
-import random
 import sys
-from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Any
 
 import click
 import msgpack
@@ -39,14 +36,10 @@ from tqdm import tqdm
 sys.path.insert(0, str(Path(__file__).parent))
 
 from parsl_config import get_parsl_config
-from experiment_params import EXPERIMENT_PARAMS, ExperimentParams
+from experiment_params import EXPERIMENTS
 from execution_config import EXECUTION_CONFIGS
-from ship_routing.app.config import (
-    ForcingConfig,
-    HyperParams,
-    JourneyConfig,
-    RoutingConfig,
-)
+from ship_routing.app.config import RoutingConfig
+from ship_routing.app.config_factory import sample_routing_configs
 from ship_routing.app.parsl import run_single_experiment
 from ship_routing.app.routing import RoutingResult
 
@@ -57,162 +50,48 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-@dataclass
-class ExperimentConfig:
-    """Container for experiment configuration and metadata."""
-
-    config: RoutingConfig
-    metadata: dict[str, Any]
-
-
-def sample_value(options: tuple | list) -> Any:
-    """Sample a value from options (returns single value if only one option)."""
-    if len(options) == 1:
-        return options[0]
-    return random.choice(options)
-
-
-def generate_experiment_configs(
-    params: ExperimentParams,
+def generate_routing_configs(
+    experiment_name: str,
     seed: int | None = None,
-) -> list[ExperimentConfig]:
-    """Generate all experiment configurations for a tuning run.
+) -> list[RoutingConfig]:
+    """Generate routing configurations using the factory.
 
     Parameters
     ----------
-    params : ExperimentParams
-        Experiment parameters defining parameter space and experiment scale
+    experiment_name : str
+        Name of experiment (e.g., 'test', 'production', 'quick')
     seed : int, optional
         Random seed for reproducibility
 
     Returns
     -------
-    list[ExperimentConfig]
-        List of experiment configurations with RoutingConfig and metadata.
+    list[RoutingConfig]
+        Randomly sampled routing configurations
     """
-    if seed is not None:
-        random.seed(seed)
-
-    configs = []
-
-    # Outer loops: realisations x start_times x speeds
-    for realisation in range(params.n_realisations):
-        for time_start in params.start_times:
-            for speed in params.speeds_knots:
-                # Generate n_runs experiments for forward and backward routes
-                for direction in ["forward", "backward"]:
-                    if direction == "forward":
-                        lon_wp = (params.lon_start, params.lon_end)
-                        lat_wp = (params.lat_start, params.lat_end)
-                    else:
-                        lon_wp = (params.lon_end, params.lon_start)
-                        lat_wp = (params.lat_end, params.lat_start)
-
-                    journey_name = f"{params.journey_name}_{direction}"
-
-                    for run_idx in range(params.n_runs):
-                        # Sample random hyperparameters
-                        experiment_seed = random.randint(0, 2**31 - 1)
-
-                        routing_config = RoutingConfig(
-                            journey=JourneyConfig(
-                                name=journey_name,
-                                lon_waypoints=lon_wp,
-                                lat_waypoints=lat_wp,
-                                time_start=time_start,
-                                speed_knots=speed,
-                                time_resolution_hours=params.time_resolution_hours,
-                            ),
-                            forcing=ForcingConfig(
-                                currents_path=params.currents_path,
-                                waves_path=params.waves_path,
-                                winds_path=params.winds_path,
-                                engine=params.engine,
-                            ),
-                            hyper=HyperParams(
-                                random_seed=experiment_seed,
-                                population_size=sample_value(params.population_sizes),
-                                generations=sample_value(params.generations),
-                                offspring_size=sample_value(params.population_sizes),
-                                selection_quantile=sample_value(
-                                    params.selection_quantiles
-                                ),
-                                selection_acceptance_rate=sample_value(
-                                    params.selection_acceptance_rates
-                                ),
-                                selection_acceptance_rate_warmup=params.selection_acceptance_rate_warmup,
-                                mutation_width_fraction=params.mutation_width_fraction,
-                                mutation_displacement_fraction=params.mutation_displacement_fraction,
-                                mutation_width_fraction_warmup=sample_value(
-                                    params.mutation_width_fractions_warmup
-                                ),
-                                mutation_displacement_fraction_warmup=sample_value(
-                                    params.mutation_displacement_fractions_warmup
-                                ),
-                                mutation_iterations=sample_value(
-                                    params.mutation_iterations
-                                ),
-                                crossover_strategy=sample_value(
-                                    params.crossover_strategies
-                                ),
-                                crossover_rounds=sample_value(params.crossover_rounds),
-                                hazard_penalty_multiplier=sample_value(
-                                    params.hazard_penalty_multipliers
-                                ),
-                                num_elites=params.num_elites,
-                                gd_iterations=sample_value(
-                                    params.gd_iterations_options
-                                ),
-                                learning_rate_time=params.learning_rate_time,
-                                learning_rate_space=params.learning_rate_space,
-                                time_increment=params.time_increment,
-                                distance_increment=params.distance_increment,
-                                enable_adaptation=sample_value(
-                                    params.enable_adaptation_options
-                                ),
-                                adaptation_scale_W=sample_value(
-                                    params.adaptation_scale_W_options
-                                ),
-                                adaptation_scale_D=sample_value(
-                                    params.adaptation_scale_D_options
-                                ),
-                                executor_type=params.executor_type,
-                                num_workers=params.num_workers,
-                            ),
-                        )
-
-                        metadata = {
-                            "realisation": realisation,
-                            "time_start": time_start,
-                            "speed_knots": speed,
-                            "direction": direction,
-                            "run_idx": run_idx,
-                        }
-
-                        configs.append(
-                            ExperimentConfig(config=routing_config, metadata=metadata)
-                        )
-
-    return configs
+    exp_config = EXPERIMENTS[experiment_name]
+    return sample_routing_configs(
+        param_space=exp_config["param_space"],
+        n_samples=exp_config["n_samples"],
+        seed=seed,
+    )
 
 
-def make_result_key(exp_config: ExperimentConfig) -> str:
+def make_result_key(config_idx: int, config: RoutingConfig) -> str:
     """Generate a unique key for a result.
 
-    New format with explicit time and clearer labels for better readability.
-    """
-    meta = exp_config.metadata
-    journey = exp_config.config.journey
-    hyper = exp_config.config.hyper
+    Parameters
+    ----------
+    config_idx : int
+        Sequential index of this config
+    config : RoutingConfig
+        The routing configuration
 
-    return (
-        f"result:{journey.name}"
-        f":{meta['time_start']}"
-        f":spd{meta['speed_knots']}"
-        f":run{meta['run_idx']}"
-        f":real{meta['realisation']}"
-        f":seed{hyper.random_seed}"
-    )
+    Returns
+    -------
+    str
+        Unique result key
+    """
+    return f"result:{config_idx:04d}:seed{config.hyper.random_seed}"
 
 
 def save_results(results: dict[str, bytes], output_path: Path) -> None:
@@ -234,7 +113,7 @@ def save_results(results: dict[str, bytes], output_path: Path) -> None:
 @click.command()
 @click.option(
     "--experiment",
-    type=click.Choice(list(EXPERIMENT_PARAMS.keys())),
+    type=click.Choice(list(EXPERIMENTS.keys())),
     default="test",
     help="Experiment configuration to use",
 )
@@ -269,13 +148,14 @@ def main(
     output: str | None,
 ) -> None:
     """Run hyperparameter tuning experiments."""
-    # Load experiment and execution configs
-    exp_params = EXPERIMENT_PARAMS[experiment]
+    # Load experiment config
+    exp_config = EXPERIMENTS[experiment]
 
-    # Generate experiment configurations
-    configs = generate_experiment_configs(exp_params, seed=seed)
+    # Generate routing configurations
+    configs = generate_routing_configs(experiment, seed=seed)
 
     if dry_run:
+        logger.info(f"Would generate {len(configs)} configs")
         return
 
     # Configure output path
@@ -284,8 +164,7 @@ def main(
         output_path = Path(output)
     else:
         output_path = (
-            Path(exp_params.output_dir)
-            / f"{exp_params.output_prefix}_{timestamp}.msgpack"
+            Path("results") / f"{exp_config['output_prefix']}_{timestamp}.msgpack"
         )
 
     # Configure and load Parsl
@@ -295,9 +174,9 @@ def main(
     try:
         # Submit all tasks
         futures: list[tuple[str, DataFuture]] = []
-        for exp_config in tqdm(configs, desc="Submitting"):
-            key = make_result_key(exp_config)
-            future = run_single_experiment(config=exp_config.config)
+        for i, config in enumerate(tqdm(configs, desc="Submitting")):
+            key = make_result_key(i, config)
+            future = run_single_experiment(config=config)
             futures.append((key, future))
 
         # Collect results and serialize to msgpack
@@ -309,9 +188,11 @@ def main(
                 # Serialize to msgpack for disk storage (notebook compatibility)
                 results[key] = result.to_msgpack()
             except Exception as e:
+                logger.error(f"Failed {key}: {e}")
                 failed += 1
 
         # Save results
+        logger.info(f"Completed: {len(results)} successful, {failed} failed")
         save_results(results, output_path)
 
     finally:
