@@ -6,7 +6,6 @@ Provides configurations for:
 """
 
 import os
-from typing import Literal
 
 from parsl.config import Config
 from parsl.executors import HighThroughputExecutor, ThreadPoolExecutor
@@ -14,10 +13,10 @@ from parsl.providers import LocalProvider, SlurmProvider
 from parsl.launchers import SrunLauncher
 from parsl.addresses import address_by_hostname
 
-from profiles import TuningProfile
+from execution_config import ExecutionConfig, EXECUTION_CONFIGS
 
 
-def get_local_config(profile: TuningProfile) -> Config:
+def get_local_config(execution: ExecutionConfig) -> Config:
     """Get Parsl config for local execution (testing).
 
     Uses ThreadPoolExecutor for parallel execution on the local machine.
@@ -25,8 +24,8 @@ def get_local_config(profile: TuningProfile) -> Config:
 
     Parameters
     ----------
-    profile : TuningProfile
-        Profile containing worker configuration
+    execution : ExecutionConfig
+        Execution configuration containing worker settings
 
     Returns
     -------
@@ -37,14 +36,14 @@ def get_local_config(profile: TuningProfile) -> Config:
         executors=[
             ThreadPoolExecutor(
                 label="local",
-                max_threads=profile.workers_per_node,
+                max_threads=execution.max_workers,
             )
         ],
         strategy="none",  # No scaling for local
     )
 
 
-def get_slurm_config(profile: TuningProfile) -> Config:
+def get_slurm_config(execution: ExecutionConfig) -> Config:
     """Get Parsl config for DKRZ Levante cluster.
 
     Uses HighThroughputExecutor with SlurmProvider for scalable
@@ -52,47 +51,29 @@ def get_slurm_config(profile: TuningProfile) -> Config:
 
     Parameters
     ----------
-    profile : TuningProfile
-        Profile containing SLURM and worker configuration
+    execution : ExecutionConfig
+        Execution configuration containing SLURM and worker settings
 
     Returns
     -------
     Config
         Parsl configuration for SLURM execution
     """
-    # Worker initialization script
-    # Loads modules, sets proxies, activates pixi environment
-    worker_init = """
-# Load compiler environment
-module load gcc12-env
-
-# Configure HTTP proxy for package downloads
-export http_proxy=http://10.0.7.235:3128
-export https_proxy=http://10.0.7.235:3128
-export ftp_proxy=http://10.0.7.235:3128
-export HTTP_PROXY=http://10.0.7.235:3128
-export HTTPS_PROXY=http://10.0.7.235:3128
-export FTP_PROXY=http://10.0.7.235:3128
-
-# Initialize Pixi environment for Python dependencies
-eval "$(pixi shell-hook)"
-"""
-
     return Config(
         executors=[
             HighThroughputExecutor(
-                label="levante",
+                label="levante",  # TODO: "nesh"
                 address=address_by_hostname(),
-                max_workers_per_node=profile.workers_per_node,
+                max_workers_per_node=execution.max_workers,
                 provider=SlurmProvider(
-                    partition=profile.partition,
+                    partition=execution.partition,
                     account=os.environ.get("SLURM_ACCOUNT", ""),
-                    nodes_per_block=profile.nodes_per_block,
+                    nodes_per_block=execution.nodes_per_block,
                     min_blocks=1,
-                    max_blocks=profile.max_blocks,
-                    walltime=profile.walltime,
-                    scheduler_options=f"#SBATCH --qos={profile.qos}",
-                    worker_init=worker_init,
+                    max_blocks=execution.max_blocks,
+                    walltime=execution.walltime,
+                    scheduler_options=f"#SBATCH --qos={execution.qos}",
+                    worker_init=execution.worker_init or "",
                     launcher=SrunLauncher(),
                     # Move to compute partition for workers
                     move_files=False,
@@ -104,27 +85,39 @@ eval "$(pixi shell-hook)"
     )
 
 
-def get_parsl_config(
-    profile: TuningProfile,
-    executor: Literal["local", "slurm"] = "local",
-) -> Config:
-    """Get Parsl configuration for the specified executor.
+def get_parsl_config(execution_name: str) -> Config:
+    """Get Parsl configuration for the specified execution environment.
 
     Parameters
     ----------
-    profile : TuningProfile
-        Profile containing execution parameters
-    executor : {"local", "slurm"}, default="local"
-        Which executor to use
+    execution_name : str
+        Name of the execution config (e.g., "local-small", "slurm-prod")
 
     Returns
     -------
     Config
         Parsl configuration
+
+    Raises
+    ------
+    ValueError
+        If execution_name is not found in EXECUTION_CONFIGS
     """
-    if executor == "local":
-        return get_local_config(profile)
-    elif executor == "slurm":
-        return get_slurm_config(profile)
+    if execution_name not in EXECUTION_CONFIGS:
+        raise ValueError(
+            f"Unknown execution config: {execution_name}. "
+            f"Available: {list(EXECUTION_CONFIGS.keys())}"
+        )
+
+    execution = EXECUTION_CONFIGS[execution_name]
+
+    # Determine executor type from config name
+    if execution_name.startswith("local"):
+        return get_local_config(execution)
+    elif execution_name.startswith("slurm"):
+        return get_slurm_config(execution)
     else:
-        raise ValueError(f"Unknown executor: {executor}")
+        raise ValueError(
+            f"Cannot determine executor type from name: {execution_name}. "
+            "Must start with 'local' or 'slurm'."
+        )

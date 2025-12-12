@@ -6,14 +6,17 @@ Parsl for task distribution. It replaces the previous bash-based job scripts
 with a cleaner Python-based approach.
 
 Usage:
-    # Local testing
-    python run_tuning.py --profile test --executor local
+    # Local testing with small resources
+    python run_tuning.py --experiment test --execution local-small
 
     # Production on SLURM
-    python run_tuning.py --profile production --executor slurm
+    python run_tuning.py --experiment production --execution slurm-prod
 
     # Quick smoke test
-    python run_tuning.py --profile quick --executor local
+    python run_tuning.py --experiment quick --execution local-small
+
+    # Dry run to see experiment count
+    python run_tuning.py --experiment test --execution local-small --dry-run
 """
 
 from __future__ import annotations
@@ -36,7 +39,8 @@ from tqdm import tqdm
 sys.path.insert(0, str(Path(__file__).parent))
 
 from parsl_config import get_parsl_config
-from profiles import PROFILES, TuningProfile
+from experiment_params import EXPERIMENT_PARAMS, ExperimentParams
+from execution_config import EXECUTION_CONFIGS
 from ship_routing.app.config import (
     ForcingConfig,
     HyperParams,
@@ -69,15 +73,15 @@ def sample_value(options: tuple | list) -> Any:
 
 
 def generate_experiment_configs(
-    profile: TuningProfile,
+    params: ExperimentParams,
     seed: int | None = None,
 ) -> list[ExperimentConfig]:
     """Generate all experiment configurations for a tuning run.
 
     Parameters
     ----------
-    profile : TuningProfile
-        Profile defining parameter space and experiment scale
+    params : ExperimentParams
+        Experiment parameters defining parameter space and experiment scale
     seed : int, optional
         Random seed for reproducibility
 
@@ -92,21 +96,21 @@ def generate_experiment_configs(
     configs = []
 
     # Outer loops: realisations x start_times x speeds
-    for realisation in range(profile.n_realisations):
-        for time_start in profile.start_times:
-            for speed in profile.speeds_knots:
+    for realisation in range(params.n_realisations):
+        for time_start in params.start_times:
+            for speed in params.speeds_knots:
                 # Generate n_runs experiments for forward and backward routes
                 for direction in ["forward", "backward"]:
                     if direction == "forward":
-                        lon_wp = (profile.lon_start, profile.lon_end)
-                        lat_wp = (profile.lat_start, profile.lat_end)
+                        lon_wp = (params.lon_start, params.lon_end)
+                        lat_wp = (params.lat_start, params.lat_end)
                     else:
-                        lon_wp = (profile.lon_end, profile.lon_start)
-                        lat_wp = (profile.lat_end, profile.lat_start)
+                        lon_wp = (params.lon_end, params.lon_start)
+                        lat_wp = (params.lat_end, params.lat_start)
 
-                    journey_name = f"{profile.journey_name}_{direction}"
+                    journey_name = f"{params.journey_name}_{direction}"
 
-                    for run_idx in range(profile.n_runs):
+                    for run_idx in range(params.n_runs):
                         # Sample random hyperparameters
                         experiment_seed = random.randint(0, 2**31 - 1)
 
@@ -117,63 +121,63 @@ def generate_experiment_configs(
                                 lat_waypoints=lat_wp,
                                 time_start=time_start,
                                 speed_knots=speed,
-                                time_resolution_hours=profile.time_resolution_hours,
+                                time_resolution_hours=params.time_resolution_hours,
                             ),
                             forcing=ForcingConfig(
-                                currents_path=profile.currents_path,
-                                waves_path=profile.waves_path,
-                                winds_path=profile.winds_path,
-                                engine=profile.engine,
+                                currents_path=params.currents_path,
+                                waves_path=params.waves_path,
+                                winds_path=params.winds_path,
+                                engine=params.engine,
                             ),
                             hyper=HyperParams(
                                 random_seed=experiment_seed,
-                                population_size=sample_value(profile.population_sizes),
-                                generations=sample_value(profile.generations),
-                                offspring_size=sample_value(profile.population_sizes),
+                                population_size=sample_value(params.population_sizes),
+                                generations=sample_value(params.generations),
+                                offspring_size=sample_value(params.population_sizes),
                                 selection_quantile=sample_value(
-                                    profile.selection_quantiles
+                                    params.selection_quantiles
                                 ),
                                 selection_acceptance_rate=sample_value(
-                                    profile.selection_acceptance_rates
+                                    params.selection_acceptance_rates
                                 ),
-                                selection_acceptance_rate_warmup=profile.selection_acceptance_rate_warmup,
-                                mutation_width_fraction=profile.mutation_width_fraction,
-                                mutation_displacement_fraction=profile.mutation_displacement_fraction,
+                                selection_acceptance_rate_warmup=params.selection_acceptance_rate_warmup,
+                                mutation_width_fraction=params.mutation_width_fraction,
+                                mutation_displacement_fraction=params.mutation_displacement_fraction,
                                 mutation_width_fraction_warmup=sample_value(
-                                    profile.mutation_width_fractions_warmup
+                                    params.mutation_width_fractions_warmup
                                 ),
                                 mutation_displacement_fraction_warmup=sample_value(
-                                    profile.mutation_displacement_fractions_warmup
+                                    params.mutation_displacement_fractions_warmup
                                 ),
                                 mutation_iterations=sample_value(
-                                    profile.mutation_iterations
+                                    params.mutation_iterations
                                 ),
                                 crossover_strategy=sample_value(
-                                    profile.crossover_strategies
+                                    params.crossover_strategies
                                 ),
-                                crossover_rounds=sample_value(profile.crossover_rounds),
+                                crossover_rounds=sample_value(params.crossover_rounds),
                                 hazard_penalty_multiplier=sample_value(
-                                    profile.hazard_penalty_multipliers
+                                    params.hazard_penalty_multipliers
                                 ),
-                                num_elites=profile.num_elites,
+                                num_elites=params.num_elites,
                                 gd_iterations=sample_value(
-                                    profile.gd_iterations_options
+                                    params.gd_iterations_options
                                 ),
-                                learning_rate_time=profile.learning_rate_time,
-                                learning_rate_space=profile.learning_rate_space,
-                                time_increment=profile.time_increment,
-                                distance_increment=profile.distance_increment,
+                                learning_rate_time=params.learning_rate_time,
+                                learning_rate_space=params.learning_rate_space,
+                                time_increment=params.time_increment,
+                                distance_increment=params.distance_increment,
                                 enable_adaptation=sample_value(
-                                    profile.enable_adaptation_options
+                                    params.enable_adaptation_options
                                 ),
                                 adaptation_scale_W=sample_value(
-                                    profile.adaptation_scale_W_options
+                                    params.adaptation_scale_W_options
                                 ),
                                 adaptation_scale_D=sample_value(
-                                    profile.adaptation_scale_D_options
+                                    params.adaptation_scale_D_options
                                 ),
-                                executor_type=profile.executor_type,
-                                num_workers=profile.num_workers,
+                                executor_type=params.executor_type,
+                                num_workers=params.num_workers,
                             ),
                         )
 
@@ -195,22 +199,18 @@ def generate_experiment_configs(
 def make_result_key(exp_config: ExperimentConfig) -> str:
     """Generate a unique key for a result.
 
-    Format matches the previous Redis-based approach for compatibility
-    with existing analysis scripts.
+    New format with explicit time and clearer labels for better readability.
     """
     meta = exp_config.metadata
     journey = exp_config.config.journey
     hyper = exp_config.config.hyper
 
-    # Extract month from time_start (format: "YYYY-MM-DDThh:mm:ss")
-    month = int(meta["time_start"][5:7])
-
     return (
         f"result:{journey.name}"
-        f":r{meta['realisation']}"
-        f":m{month:02d}"
-        f":s{meta['speed_knots']}"
+        f":{meta['time_start']}"
+        f":spd{meta['speed_knots']}"
         f":run{meta['run_idx']}"
+        f":real{meta['realisation']}"
         f":seed{hyper.random_seed}"
     )
 
@@ -233,16 +233,16 @@ def save_results(results: dict[str, bytes], output_path: Path) -> None:
 
 @click.command()
 @click.option(
-    "--profile",
-    type=click.Choice(list(PROFILES.keys())),
+    "--experiment",
+    type=click.Choice(list(EXPERIMENT_PARAMS.keys())),
     default="test",
-    help="Profile to use for the tuning run",
+    help="Experiment configuration to use",
 )
 @click.option(
-    "--executor",
-    type=click.Choice(["local", "slurm"]),
-    default="local",
-    help="Executor to use (local for testing, slurm for production)",
+    "--execution",
+    type=click.Choice(list(EXECUTION_CONFIGS.keys())),
+    default="local-small",
+    help="Execution environment (local-small, local-large, slurm-test, slurm-prod)",
 )
 @click.option(
     "--seed",
@@ -262,18 +262,18 @@ def save_results(results: dict[str, bytes], output_path: Path) -> None:
     help="Override output file path",
 )
 def main(
-    profile: str,
-    executor: str,
+    experiment: str,
+    execution: str,
     seed: int | None,
     dry_run: bool,
     output: str | None,
 ) -> None:
     """Run hyperparameter tuning experiments."""
-    # Load profile
-    prof = PROFILES[profile]
+    # Load experiment and execution configs
+    exp_params = EXPERIMENT_PARAMS[experiment]
 
     # Generate experiment configurations
-    configs = generate_experiment_configs(prof, seed=seed)
+    configs = generate_experiment_configs(exp_params, seed=seed)
 
     if dry_run:
         return
@@ -284,11 +284,12 @@ def main(
         output_path = Path(output)
     else:
         output_path = (
-            Path(prof.output_dir) / f"{prof.output_prefix}_{timestamp}.msgpack"
+            Path(exp_params.output_dir)
+            / f"{exp_params.output_prefix}_{timestamp}.msgpack"
         )
 
     # Configure and load Parsl
-    parsl_config = get_parsl_config(prof, executor=executor)
+    parsl_config = get_parsl_config(execution)
     parsl.load(parsl_config)
 
     try:
