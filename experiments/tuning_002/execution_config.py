@@ -27,7 +27,7 @@ class SlurmExecutionConfig:
     qos: str
     task_timeout: int
     worker_init: str
-    mem_per_node_gb: int = 40  # Memory per node in GB (Parsl appends 'g' suffix)
+    mem_per_node_gb: int  # Memory per node in GB (Parsl appends 'g' suffix; guideline: 5GB per worker)
     exclusive: bool = True  # Request exclusive node allocation (False for shared nodes)
     account: str | None = None  # SLURM account (None = no account required)
 
@@ -74,11 +74,13 @@ EXECUTION_CONFIGS = {
     ),
     "nesh-prod": NeshExecutionConfig(
         max_workers=8,
-        nodes_per_block=10,
+        nodes_per_block=4,
         max_blocks=100,
         walltime="04:00:00",
         partition="base",
         qos="express",
         task_timeout=1000,
+        mem_per_node_gb=40,  # 8 workers × 5GB each
+        exclusive=False,  # Shared nodes (only using ~25% of node resources)
     ),
 }
