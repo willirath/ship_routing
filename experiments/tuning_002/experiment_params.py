@@ -29,7 +29,7 @@ class ExperimentParams:
     journey_name: str = "Atlantic"
 
     # Forcing data paths (relative to experiment dir)
-    # TODOD: Pathlib objects?
+    # TODO: Pathlib objects?
     currents_path: str = (
         "data_large/cmems_mod_glo_phy_my_0.083deg_P1D-m_time_2021_lat_+10_+65_lon_-100_+010_uo-vo.zarr"
     )

@@ -2,7 +2,7 @@
 
 Provides configurations for:
 - Local execution (for testing)
-- DKRZ Levante cluster (production)
+- SLURM HPC clusters (production)
 """
 
 import os
@@ -13,10 +13,14 @@ from parsl.providers import LocalProvider, SlurmProvider
 from parsl.launchers import SrunLauncher
 from parsl.addresses import address_by_hostname
 
-from execution_config import ExecutionConfig, EXECUTION_CONFIGS
+from execution_config import (
+    LocalExecutionConfig,
+    SlurmExecutionConfig,
+    EXECUTION_CONFIGS,
+)
 
 
-def get_local_config(execution: ExecutionConfig) -> Config:
+def get_local_config(execution: LocalExecutionConfig) -> Config:
     """Get Parsl config for local execution (testing).
 
     Uses ThreadPoolExecutor for parallel execution on the local machine.
@@ -43,15 +47,15 @@ def get_local_config(execution: ExecutionConfig) -> Config:
     )
 
 
-def get_slurm_config(execution: ExecutionConfig) -> Config:
-    """Get Parsl config for DKRZ Levante cluster.
+def get_slurm_config(execution: SlurmExecutionConfig) -> Config:
+    """Get Parsl config for SLURM HPC clusters.
 
     Uses HighThroughputExecutor with SlurmProvider for scalable
     execution across multiple SLURM nodes.
 
     Parameters
     ----------
-    execution : ExecutionConfig
+    execution : SlurmExecutionConfig
         Execution configuration containing SLURM and worker settings
 
     Returns
@@ -62,7 +66,7 @@ def get_slurm_config(execution: ExecutionConfig) -> Config:
     return Config(
         executors=[
             HighThroughputExecutor(
-                label="levante",  # TODO: "nesh"
+                label="slurm",
                 address=address_by_hostname(),
                 max_workers_per_node=execution.max_workers,
                 provider=SlurmProvider(
@@ -91,7 +95,7 @@ def get_parsl_config(execution_name: str) -> Config:
     Parameters
     ----------
     execution_name : str
-        Name of the execution config (e.g., "local-small", "slurm-prod")
+        Name of the execution config (e.g., "local-small", "nesh-prod")
 
     Returns
     -------
@@ -111,13 +115,13 @@ def get_parsl_config(execution_name: str) -> Config:
 
     execution = EXECUTION_CONFIGS[execution_name]
 
-    # Determine executor type from config name
-    if execution_name.startswith("local"):
+    # Determine executor type from config class
+    if isinstance(execution, LocalExecutionConfig):
         return get_local_config(execution)
-    elif execution_name.startswith("slurm"):
+    elif isinstance(execution, SlurmExecutionConfig):
         return get_slurm_config(execution)
     else:
         raise ValueError(
-            f"Cannot determine executor type from name: {execution_name}. "
-            "Must start with 'local' or 'slurm'."
+            f"Unknown execution config type: {type(execution).__name__}. "
+            f"Expected LocalExecutionConfig or SlurmExecutionConfig."
         )

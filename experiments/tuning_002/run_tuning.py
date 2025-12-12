@@ -10,7 +10,7 @@ Usage:
     python run_tuning.py --experiment test --execution local-small
 
     # Production on SLURM
-    python run_tuning.py --experiment production --execution slurm-prod
+    python run_tuning.py --experiment production --execution nesh-prod
 
     # Quick smoke test
     python run_tuning.py --experiment quick --execution local-small
@@ -242,7 +242,7 @@ def save_results(results: dict[str, bytes], output_path: Path) -> None:
     "--execution",
     type=click.Choice(list(EXECUTION_CONFIGS.keys())),
     default="local-small",
-    help="Execution environment (local-small, local-large, slurm-test, slurm-prod)",
+    help="Execution environment (local-small, local-large, nesh-test, nesh-prod)",
 )
 @click.option(
     "--seed",

@@ -7,59 +7,58 @@ following standard Parsl idioms.
 from dataclasses import dataclass
 
 
-# Worker initialization script for SLURM environments
-# TODO: This is machine specific (for nesh)  What if we want to be able to run similar experiments on different HPC systems?
-SLURM_WORKER_INIT = """
-# Load compiler environment
-module load gcc12-env
-
-# Configure HTTP proxy for package downloads
-export http_proxy=http://10.0.7.235:3128
-export https_proxy=http://10.0.7.235:3128
-export ftp_proxy=http://10.0.7.235:3128
-export HTTP_PROXY=http://10.0.7.235:3128
-export HTTPS_PROXY=http://10.0.7.235:3128
-export FTP_PROXY=http://10.0.7.235:3128
-
-# Initialize Pixi environment for Python dependencies
-eval "$(pixi shell-hook)"
-"""
-
-
-# TODO: This is machine specific (for nesh)  What if we want to be able to run similar experiments on different HPC systems?
-# I guess we create a NeshExecutionConfig and a LevanteExecutionConfig etc?
 @dataclass(frozen=True)
-class ExecutionConfig:
-    """Configuration for execution environment and resources."""
+class LocalExecutionConfig:
+    """Execution config for local machine."""
 
-    # Resource allocation
-    max_workers: int  # For local: max threads; for SLURM: workers per node
-    nodes_per_block: int = 1  # SLURM only: nodes per job block
-    max_blocks: int = 1  # SLURM only: maximum concurrent blocks
+    max_workers: int
+    task_timeout: int = 300
 
-    # SLURM-specific settings
-    walltime: str = "01:00:00"  # Job time limit
-    partition: str = "base"  # SLURM partition
-    qos: str = "express"  # Quality of service
 
-    # Timeouts
-    task_timeout: int = 300  # Per-task timeout in seconds
+@dataclass(frozen=True)
+class SlurmExecutionConfig:
+    """Generic execution config for SLURM HPC systems."""
 
-    # Environment setup (None for local, script for SLURM)
-    worker_init: str | None = None
+    max_workers: int
+    nodes_per_block: int
+    max_blocks: int
+    walltime: str
+    partition: str
+    qos: str
+    task_timeout: int
+    worker_init: str
+
+
+@dataclass(frozen=True)
+class NeshExecutionConfig(SlurmExecutionConfig):
+    """Execution config for nesh HPC system."""
+
+    worker_init: str = (
+        # load compiler env
+        "module load gcc12-env\n"
+        # ensure internet access
+        "export http_proxy=http://10.0.7.235:3128\n"
+        "export https_proxy=http://10.0.7.235:3128\n"
+        "export ftp_proxy=http://10.0.7.235:3128\n"
+        "export HTTP_PROXY=http://10.0.7.235:3128\n"
+        "export HTTPS_PROXY=http://10.0.7.235:3128\n"
+        "export FTP_PROXY=http://10.0.7.235:3128\n"
+        # init pixi
+        'eval "$(pixi shell-hook)"\n'
+    )
 
 
 # Predefined execution configurations
-EXECUTION_CONFIGS: dict[str, ExecutionConfig] = {
-    "local-small": ExecutionConfig(
+EXECUTION_CONFIGS = {
+    "local-small": LocalExecutionConfig(
         max_workers=2,
         task_timeout=300,
     ),
-    "local-large": ExecutionConfig(
+    "local-large": LocalExecutionConfig(
         max_workers=8,
         task_timeout=600,
     ),
-    "slurm-test": ExecutionConfig(
+    "nesh-test": NeshExecutionConfig(
         max_workers=4,
         nodes_per_block=2,
         max_blocks=5,
@@ -67,9 +66,8 @@ EXECUTION_CONFIGS: dict[str, ExecutionConfig] = {
         partition="base",
         qos="express",
         task_timeout=300,
-        worker_init=SLURM_WORKER_INIT,
     ),
-    "slurm-prod": ExecutionConfig(
+    "nesh-prod": NeshExecutionConfig(
         max_workers=8,
         nodes_per_block=10,
         max_blocks=100,
@@ -77,6 +75,5 @@ EXECUTION_CONFIGS: dict[str, ExecutionConfig] = {
         partition="base",
         qos="express",
         task_timeout=1000,
-        worker_init=SLURM_WORKER_INIT,
     ),
 }
