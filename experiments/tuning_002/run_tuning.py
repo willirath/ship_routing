@@ -196,7 +196,8 @@ def main(
         save_results(results, output_path)
 
     finally:
-        # Clean up Parsl
+        # Clean up Parsl (wait for cleanup to complete)
+        parsl.dfk().cleanup()
         parsl.clear()
 
 
