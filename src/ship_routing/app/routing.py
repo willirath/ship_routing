@@ -734,7 +734,7 @@ class RoutingApp:
         Returns
         -------
         PopulationMember
-            The offspring member after crossover
+            The offspring member after crossover and cost evaluation
         """
         state = _get_state()
         parent_a = population_members[parent_indices[0]]
@@ -742,26 +742,29 @@ class RoutingApp:
 
         try:
             if state.params.crossover_strategy == "minimal_cost":
-                child_route = crossover_routes_minimal_cost(
-                    parent_a.route,
-                    parent_b.route,
+                child_member = crossover_routes_minimal_cost(
+                    parent_a,
+                    parent_b,
                     current_data_set=state.forcing.currents,
                     wind_data_set=state.forcing.winds,
                     wave_data_set=state.forcing.waves,
+                    hazard_penalty_multiplier=state.params.hazard_penalty_multiplier,
                 )
             else:  # "random"
-                child_route = crossover_routes_random(parent_a.route, parent_b.route)
+                child_member = crossover_routes_random(
+                    parent_a,
+                    parent_b,
+                    current_data_set=state.forcing.currents,
+                    wind_data_set=state.forcing.winds,
+                    wave_data_set=state.forcing.waves,
+                    hazard_penalty_multiplier=state.params.hazard_penalty_multiplier,
+                )
         except Exception:
             logging.warning("crossover failed; using parent_a")
-            child_route = parent_a.route
+            return parent_a
 
-        child_cost = child_route.cost_through(
-            current_data_set=state.forcing.currents,
-            wave_data_set=state.forcing.waves,
-            wind_data_set=state.forcing.winds,
-            hazard_penalty_multiplier=state.params.hazard_penalty_multiplier,
-        )
-        return PopulationMember(route=child_route, cost=child_cost)
+        # Cost already computed in crossover function (benefits from caching)
+        return child_member
 
     @profile
     def _stage_ga_crossover(
