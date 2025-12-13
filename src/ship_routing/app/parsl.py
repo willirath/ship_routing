@@ -29,7 +29,7 @@ if TYPE_CHECKING:
 
 
 @python_app
-def run_single_experiment(config: "RoutingConfig") -> "RoutingResult":
+def run_single_experiment(config: "RoutingConfig", walltime=None) -> "RoutingResult":
     """Run one routing optimization.
 
     This function executes in a Parsl worker process. The RoutingConfig
@@ -40,6 +40,8 @@ def run_single_experiment(config: "RoutingConfig") -> "RoutingResult":
     config : RoutingConfig
         Complete routing configuration including journey, forcing data paths,
         and hyperparameters.
+    walltime : int, optional
+        Maximum execution time in seconds. Parsl special keyword argument.
 
     Returns
     -------
