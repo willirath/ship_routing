@@ -406,7 +406,10 @@ class RoutingApp:
 
         # Stage 0 to 4:
         seed_member, population = self._stage_initialization(forcing)
+        assert len(population.members) > 0
+
         population = self._stage_warmup(population, seed_member, forcing, executor)
+        assert len(population.members) > 0
 
         # Initialize adaptive parameters for genetic algorithm
         W = self.config.hyper.mutation_width_fraction
@@ -419,12 +422,15 @@ class RoutingApp:
             population, cost_improvement_stats = self._stage_ga_mutation(
                 population, seed_member, forcing, W, D, q, executor
             )
+            assert len(population.members) > 0
             # Crossover (unchanged)
             population = self._stage_ga_crossover(
                 population, seed_member, forcing, executor
             )
+            assert len(population.members) > 0
             # Selection (unchanged)
             population = self._stage_ga_selection(population, seed_member, q)
+            assert len(population.members) > 0
             # Adaptation: pass cost improvement stats and population stats
             pop_stats = self._population_stats(population.members)
             W, D, q = self._stage_ga_adaptation(
@@ -432,6 +438,7 @@ class RoutingApp:
             )
 
         elite_population = self._stage_post_processing(population, forcing, executor)
+        assert len(population.members) > 0
 
         # Clean up executor (GC would handle this, but be explicit)
         executor.shutdown()
