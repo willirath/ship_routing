@@ -104,7 +104,7 @@ EXPERIMENTS = {
                 "num_workers": 1,
             },
         },
-        "output_prefix": "results",
+        "output_prefix": "results_production",
     },
     "quick": {
         "n_samples": 5,
