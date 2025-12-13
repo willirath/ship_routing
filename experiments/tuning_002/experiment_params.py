@@ -6,11 +6,17 @@ of random samples to generate. Parameter values can be:
 - Tuples/lists (sampled uniformly for each sample)
 """
 
-# Atlantic crossing route (forward and backward)
-ATLANTIC_ROUTE = {
-    "lon_waypoints": [(-80.5, -11.0), (-11.0, -80.5)],
-    "lat_waypoints": [(30.0, 50.0), (50.0, 30.0)],
-    "name": ["Atlantic_forward", "Atlantic_backward"],
+# Atlantic crossing route options (Florida <-> Irish Sea)
+# Key = route name, Value = route waypoints
+ROUTES = {
+    "Atlantic_forward": {
+        "lon_waypoints": (-80.5, -11.0),
+        "lat_waypoints": (30.0, 50.0),
+    },
+    "Atlantic_backward": {
+        "lon_waypoints": (-11.0, -80.5),
+        "lat_waypoints": (50.0, 30.0),
+    },
 }
 
 # Standard forcing data paths for 2021
@@ -33,7 +39,7 @@ EXPERIMENTS = {
         "n_samples": 40,  # 20 runs × 2 directions (was nested loops)
         "param_space": {
             "journey": {
-                **ATLANTIC_ROUTE,
+                "route": ROUTES,
                 "time_start": ("2021-01-01T00:00:00",),
                 "speed_knots": (10.0,),
                 "time_resolution_hours": 6.0,
@@ -67,7 +73,7 @@ EXPERIMENTS = {
         "n_samples": 2000,  # 1000 runs × 2 directions (was nested loops)
         "param_space": {
             "journey": {
-                **ATLANTIC_ROUTE,
+                "route": ROUTES,
                 "time_start": tuple(
                     f"2021-{mm:02d}-01T00:00:00" for mm in range(1, 12 + 1)
                 ),
@@ -110,7 +116,7 @@ EXPERIMENTS = {
         "n_samples": 5,
         "param_space": {
             "journey": {
-                **ATLANTIC_ROUTE,
+                "route": ROUTES,
                 "time_start": ("2021-01-01T00:00:00",),
                 "speed_knots": (10.0,),
                 "time_resolution_hours": 6.0,

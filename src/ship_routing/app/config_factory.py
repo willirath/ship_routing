@@ -151,8 +151,43 @@ def sample_routing_configs(
     return configs
 
 
+def _is_named_options_dict(d: dict) -> bool:
+    """Check if dict is a named options dict (all values are dicts).
+
+    Named options dicts are used for paired parameters, where the key is a name
+    and the value is a dict of related parameters that must be sampled together.
+
+    Parameters
+    ----------
+    d : dict
+        Dictionary to check
+
+    Returns
+    -------
+    bool
+        True if all values are dicts (and dict is non-empty)
+
+    Examples
+    --------
+    >>> _is_named_options_dict({"route1": {"lon": ..., "lat": ...}, "route2": {...}})
+    True
+    >>> _is_named_options_dict({"lon": (1, 2), "lat": (3, 4)})
+    False
+    """
+    if not d:
+        return False
+    return all(isinstance(v, dict) for v in d.values())
+
+
 def _sample_dict(d: dict) -> dict:
     """Recursively sample values from nested dict.
+
+    Special handling for named options dicts:
+    - If a parameter value is a dict where ALL values are also dicts,
+      it's treated as a "named options" dict
+    - One (name, options_dict) pair is sampled from the dict
+    - The options_dict is merged with {"name": name} and returned
+    - This enables atomic sampling of paired parameters
 
     Parameters
     ----------
@@ -163,11 +198,34 @@ def _sample_dict(d: dict) -> dict:
     -------
     dict
         Dictionary with same structure, values sampled
+
+    Examples
+    --------
+    >>> param = {
+    ...     "route": {
+    ...         "forward": {"lon": (1, 2), "lat": (3, 4)},
+    ...         "backward": {"lon": (5, 6), "lat": (7, 8)},
+    ...     },
+    ...     "speed": (10.0, 12.0),
+    ... }
+    >>> result = _sample_dict(param)
+    >>> # result will have lon, lat, name from one route, plus sampled speed
     """
     result = {}
     for key, value in d.items():
         if isinstance(value, dict):
-            result[key] = _sample_dict(value)
+            # Check if this is a named options dict
+            if _is_named_options_dict(value):
+                # Sample one (name, options_dict) pair
+                name, options_dict = random.choice(list(value.items()))
+                # Merge options dict into result directly (no sampling of its values)
+                # Values in options_dict are treated as fixed data, not sampling options
+                result.update(options_dict)
+                # Add the name
+                result["name"] = name
+            else:
+                # Regular nested dict - recurse
+                result[key] = _sample_dict(value)
         else:
             result[key] = sample_value(value)
     return result
