@@ -29,6 +29,7 @@ from pathlib import Path
 import click
 import msgpack
 import parsl
+from parsl.app.errors import AppTimeout
 from parsl.app.futures import DataFuture
 from tqdm import tqdm
 
@@ -177,7 +178,9 @@ def main(
         futures: list[tuple[str, DataFuture]] = []
         for i, config in enumerate(tqdm(configs, desc="Submitting")):
             key = make_result_key(i, config)
-            future = run_single_experiment(config=config)
+            future = run_single_experiment(
+                config=config, walltime=execution_config.task_timeout
+            )
             futures.append((key, future))
 
         # Collect results and serialize to msgpack
@@ -186,14 +189,13 @@ def main(
         timeouts = 0
         for key, future in tqdm(futures, desc="Collecting"):
             try:
-                result: RoutingResult = future.result(
-                    timeout=execution_config.task_timeout
-                )
+                # No client-side timeout needed - walltime handles it
+                result: RoutingResult = future.result()
                 # Serialize to msgpack for disk storage (notebook compatibility)
                 results[key] = result.to_msgpack()
-            except TimeoutError:
+            except AppTimeout as e:
                 logger.error(
-                    f"Timeout {key}: exceeded {execution_config.task_timeout}s"
+                    f"Timeout {key}: exceeded {execution_config.task_timeout}s ({type(e).__name__})"
                 )
                 timeouts += 1
                 failed += 1
