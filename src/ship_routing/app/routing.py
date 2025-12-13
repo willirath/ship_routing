@@ -839,15 +839,14 @@ class RoutingApp:
         params = self.config.hyper
         M = params.population_size
 
-        # Selection from offspring
+        # Selection from offspring: Add seed route, select, add seed route.
+        population_with_seed = population.add_member(seed_member)
         selected_members = select_from_population(
-            members=population.members,
+            members=population_with_seed.members,
             quantile=q,
             target_size=M - 1,
             rng=self._rng,
         )
-
-        # Add back seed route
         population = Population.from_members(selected_members).add_member(seed_member)
 
         self._log_stage_metrics(
