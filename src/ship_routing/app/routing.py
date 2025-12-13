@@ -406,7 +406,13 @@ class RoutingApp:
 
         # Stage 0 to 4:
         seed_member, population = self._stage_initialization(forcing)
-        assert len(population.members) > 0
+        # DEBUG
+        if not seed_member.cost_valid():
+            import sys
+
+            print(f"seed_member failed cost_valid():\n{seed_member!r}", file=sys.stderr)
+            raise AssertionError("seed_member.cost_valid() failed")
+        # /DEBUG
 
         population = self._stage_warmup(population, seed_member, forcing, executor)
         assert len(population.members) > 0
