@@ -84,6 +84,7 @@ def get_slurm_config(execution: SlurmExecutionConfig) -> Config:
             HighThroughputExecutor(
                 label="slurm",
                 address=address_by_hostname(),
+                working_dir="runinfo/worker_files",
                 max_workers_per_node=execution.max_workers,
                 provider=SlurmProvider(**provider_kwargs),
             )
