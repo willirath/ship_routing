@@ -86,6 +86,7 @@ def get_slurm_config(execution: SlurmExecutionConfig) -> Config:
                 address=address_by_hostname(),
                 working_dir="runinfo/worker_files",
                 max_workers_per_node=execution.max_workers,
+                cores_per_worker=1.0,  # Request 1 CPU per worker
                 provider=SlurmProvider(**provider_kwargs),
             )
         ],
