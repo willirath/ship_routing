@@ -70,7 +70,10 @@ def get_slurm_config(execution: SlurmExecutionConfig) -> Config:
         "walltime": execution.walltime,
         "mem_per_node": execution.mem_per_node_gb,
         "exclusive": execution.exclusive,
-        "scheduler_options": f"#SBATCH --qos={execution.qos}",
+        "scheduler_options": (
+            f"#SBATCH --qos={execution.qos}\n"
+            f"#SBATCH --cpus-per-task={execution.max_workers}"
+        ),
         "worker_init": execution.worker_init or "",
         "launcher": SrunLauncher(),
     }
