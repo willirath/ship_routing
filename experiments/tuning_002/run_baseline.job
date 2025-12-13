@@ -1,0 +1,27 @@
+#!/usr/bin/env bash
+#SBATCH --job-name=tuning_orchestrator
+#SBATCH --ntasks=1
+#SBATCH --cpus-per-task=1
+#SBATCH --mem=5G
+#SBATCH --time=24:00:00
+#SBATCH --partition=base
+#SBATCH --output=slurm_logs/orchestrator_%j.out
+#SBATCH --error=slurm_logs/orchestrator_%j.err
+
+# Load compiler environment
+module load gcc12-env
+
+# Configure HTTP proxy
+export http_proxy=http://10.0.7.235:3128
+export https_proxy=http://10.0.7.235:3128
+export ftp_proxy=http://10.0.7.235:3128
+export HTTP_PROXY=http://10.0.7.235:3128
+export HTTPS_PROXY=http://10.0.7.235:3128
+export FTP_PROXY=http://10.0.7.235:3128
+
+# Initialize Pixi environment
+eval "$(pixi shell-hook)"
+
+
+# Run tuning (edit this line to change experiment/execution/seed)
+python run_tuning.py --experiment "ablation_baseline" --execution "nesh-prod-50"
