@@ -410,8 +410,9 @@ class RoutingApp:
         if not seed_member.cost_valid:
             import sys
 
-            print(f"seed_member failed cost_valid():\n{seed_member!r}", file=sys.stderr)
-            raise AssertionError("seed_member.cost_valid() failed")
+            print(f"seed_member with invalid cost:\n{seed_member!r}", file=sys.stderr)
+            print(f"complete routing config:\n{self.config!r}", file=sys.stderr)
+            raise AssertionError("seed_member.cost_valid failed")
         # /DEBUG
 
         population = self._stage_warmup(population, seed_member, forcing, executor)
