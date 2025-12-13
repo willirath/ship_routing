@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
-#SBATCH --job-name=tuning_orchestrator
+#SBATCH --job-name=no_winds
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=1
 #SBATCH --mem=5G
 #SBATCH --time=24:00:00
 #SBATCH --partition=base
-#SBATCH --output=slurm_logs/orchestrator_%j.out
-#SBATCH --error=slurm_logs/orchestrator_%j.err
+#SBATCH --output=slurm_logs/no_winds_%j.out
+#SBATCH --error=slurm_logs/no_winds_%j.err
 
 # Load compiler environment
 module load gcc12-env
@@ -22,6 +22,5 @@ export FTP_PROXY=http://10.0.7.235:3128
 # Initialize Pixi environment
 eval "$(pixi shell-hook)"
 
-
 # Run tuning (edit this line to change experiment/execution/seed)
-python run_tuning.py --experiment "ablation_no_winds" --execution "nesh-prod-50"
+python run_tuning.py --experiment "ablation_no_winds" --execution "nesh-prod-40"

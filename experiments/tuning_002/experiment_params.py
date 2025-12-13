@@ -81,7 +81,7 @@ QUICK_HYPER = {
 
 # Production hyperparameters for ablation studies
 PRODUCTION_HYPER = {
-    "population_size": (128, 256),
+    "population_size": (64, 128, 256),
     "generations": (1, 2, 4),
     "mutation_iterations": (1, 3),
     "gd_iterations": (1, 2),
@@ -125,7 +125,7 @@ EXPERIMENTS = {
         "output_prefix": "results_quick",
     },
     "ablation_baseline": {
-        "n_samples": 2_000,
+        "n_samples": 10_000,
         "param_space": {
             "journey": {
                 "route": ROUTES,
@@ -141,7 +141,7 @@ EXPERIMENTS = {
         "output_prefix": "results_ablation_baseline",
     },
     "ablation_no_currents": {
-        "n_samples": 2_000,
+        "n_samples": 10_000,
         "param_space": {
             "journey": {
                 "route": ROUTES,
@@ -160,7 +160,7 @@ EXPERIMENTS = {
         "output_prefix": "results_ablation_no_currents",
     },
     "ablation_no_winds": {
-        "n_samples": 2_000,
+        "n_samples": 10_000,
         "param_space": {
             "journey": {
                 "route": ROUTES,
@@ -176,7 +176,7 @@ EXPERIMENTS = {
         "output_prefix": "results_ablation_no_winds",
     },
     "ablation_no_waves": {
-        "n_samples": 2_000,
+        "n_samples": 10_000,
         "param_space": {
             "journey": {
                 "route": ROUTES,

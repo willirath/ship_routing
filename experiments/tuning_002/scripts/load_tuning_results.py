@@ -302,9 +302,7 @@ def get_seed_routes_gdf(
     return gpd.GeoDataFrame.from_records(_records).set_index("filename")
 
 
-def get_forcing_paths_df(
-    routing_results_dict: dict[str, RoutingResult]
-) -> pd.DataFrame:
+def get_forcing_df(routing_results_dict: dict[str, RoutingResult]) -> pd.DataFrame:
     """Extract forcing data file paths for all results.
 
     Extracts the file paths to ocean currents, waves, and winds data from
@@ -335,6 +333,7 @@ def get_forcing_paths_df(
         _records.append(
             {
                 "filename": f,
+                "scenario_name": forcing_config.get("scenario_name"),
                 "currents_path": forcing_config.get("currents_path"),
                 "waves_path": forcing_config.get("waves_path"),
                 "winds_path": forcing_config.get("winds_path"),
