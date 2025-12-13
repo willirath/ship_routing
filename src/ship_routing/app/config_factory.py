@@ -9,8 +9,16 @@ can be:
 Example:
     >>> param_space = {
     ...     'journey': {
-    ...         'lon_waypoints': [(-80.5, -11.0), (-11.0, -80.5)],
-    ...         'lat_waypoints': [(30.0, 50.0), (50.0, 30.0)],
+    ...         'route': {
+    ...             'Atlantic_forward': {
+    ...                 'lon_waypoints': (-80.5, -11.0),
+    ...                 'lat_waypoints': (30.0, 50.0),
+    ...             },
+    ...             'Atlantic_backward': {
+    ...                 'lon_waypoints': (-11.0, -80.5),
+    ...                 'lat_waypoints': (50.0, 30.0),
+    ...             },
+    ...         },
     ...         'time_start': ('2021-01-01T00:00:00', '2021-06-01T00:00:00'),
     ...         'speed_knots': (8.0, 10.0, 12.0),
     ...         'time_resolution_hours': 6.0,
