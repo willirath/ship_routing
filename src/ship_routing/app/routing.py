@@ -407,7 +407,7 @@ class RoutingApp:
         # Stage 0 to 4:
         seed_member, population = self._stage_initialization(forcing)
         # DEBUG
-        if not seed_member.cost_valid():
+        if not seed_member.cost_valid:
             import sys
 
             print(f"seed_member failed cost_valid():\n{seed_member!r}", file=sys.stderr)
