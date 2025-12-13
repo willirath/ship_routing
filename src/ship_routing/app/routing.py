@@ -406,17 +406,7 @@ class RoutingApp:
 
         # Stage 0 to 4:
         seed_member, population = self._stage_initialization(forcing)
-        # DEBUG
-        if not seed_member.cost_valid:
-            import sys
-
-            print(f"seed_member with invalid cost:\n{seed_member!r}", file=sys.stderr)
-            print(f"complete routing config:\n{self.config!r}", file=sys.stderr)
-            raise AssertionError("seed_member.cost_valid failed")
-        # /DEBUG
-
         population = self._stage_warmup(population, seed_member, forcing, executor)
-        assert len(population.members) > 0
 
         # Initialize adaptive parameters for genetic algorithm
         W = self.config.hyper.mutation_width_fraction
@@ -425,27 +415,23 @@ class RoutingApp:
 
         # Genetic algorithm generation loop
         for gen_idx in range(self.config.hyper.generations):
-            # Mutation stage now returns cost improvement statistics
+            # Mutation stage also returns cost improvement statistics
             population, cost_improvement_stats = self._stage_ga_mutation(
                 population, seed_member, forcing, W, D, q, executor
             )
-            assert len(population.members) > 0
-            # Crossover (unchanged)
+            # Crossover
             population = self._stage_ga_crossover(
                 population, seed_member, forcing, executor
             )
-            assert len(population.members) > 0
-            # Selection (unchanged)
+            # Selection
             population = self._stage_ga_selection(population, seed_member, q)
-            assert len(population.members) > 0
-            # Adaptation: pass cost improvement stats and population stats
+            # Adaptation: based on cost improvement stats and population stats
             pop_stats = self._population_stats(population.members)
             W, D, q = self._stage_ga_adaptation(
                 W, D, q, cost_improvement_stats, pop_stats
             )
 
         elite_population = self._stage_post_processing(population, forcing, executor)
-        assert len(population.members) > 0
 
         # Clean up executor (GC would handle this, but be explicit)
         executor.shutdown()
