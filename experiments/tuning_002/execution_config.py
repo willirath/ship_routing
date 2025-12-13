@@ -72,11 +72,11 @@ EXECUTION_CONFIGS = {
         mem_per_node_gb=10,  # 2 workers × 5GB each
         exclusive=False,  # Shared nodes
     ),
-    "nesh-prod-40": NeshExecutionConfig(
+    "nesh-prod-50": NeshExecutionConfig(
         max_workers=8,
-        nodes_per_block=8,
-        max_blocks=40,
-        walltime="12:00:00",
+        nodes_per_block=3,
+        max_blocks=50,
+        walltime="04:00:00",
         partition="base",
         qos="express",
         task_timeout=1.5 * 3600,

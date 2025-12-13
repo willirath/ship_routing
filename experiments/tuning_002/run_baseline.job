@@ -23,4 +23,4 @@ export FTP_PROXY=http://10.0.7.235:3128
 eval "$(pixi shell-hook)"
 
 # Run tuning (edit this line to change experiment/execution/seed)
-python run_tuning.py --experiment "ablation_baseline" --execution "nesh-prod-40"
+python run_tuning.py --experiment "ablation_baseline" --execution "nesh-prod-50"

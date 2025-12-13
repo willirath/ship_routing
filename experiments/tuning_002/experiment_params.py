@@ -125,7 +125,7 @@ EXPERIMENTS = {
         "output_prefix": "results_quick",
     },
     "ablation_baseline": {
-        "n_samples": 10_000,
+        "n_samples": 4_000,
         "param_space": {
             "journey": {
                 "route": ROUTES,
@@ -141,7 +141,7 @@ EXPERIMENTS = {
         "output_prefix": "results_ablation_baseline",
     },
     "ablation_no_currents": {
-        "n_samples": 10_000,
+        "n_samples": 4_000,
         "param_space": {
             "journey": {
                 "route": ROUTES,
@@ -160,7 +160,7 @@ EXPERIMENTS = {
         "output_prefix": "results_ablation_no_currents",
     },
     "ablation_no_winds": {
-        "n_samples": 10_000,
+        "n_samples": 4_000,
         "param_space": {
             "journey": {
                 "route": ROUTES,
@@ -176,7 +176,7 @@ EXPERIMENTS = {
         "output_prefix": "results_ablation_no_winds",
     },
     "ablation_no_waves": {
-        "n_samples": 10_000,
+        "n_samples": 4_000,
         "param_space": {
             "journey": {
                 "route": ROUTES,
