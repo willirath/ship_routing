@@ -445,4 +445,4 @@ def filter_suspicious_routes(df: pd.DataFrame) -> pd.DataFrame:
     """
     suspicious = identify_suspicious_routes(df)
     print(f"{suspicious.mean() * 100:.2f}% suspicious routes")
-    return df.where(~suspicious).dropna()
+    return df.where(~suspicious).dropna(how="all")
