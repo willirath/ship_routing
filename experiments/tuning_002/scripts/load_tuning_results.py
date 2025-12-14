@@ -417,8 +417,7 @@ def identify_suspicious_routes(df: pd.DataFrame) -> pd.Series:
         Boolean series with True for suspicious routes.
     """
     return (
-        df.isna().any(axis=1)
-        | np.isinf(df.elite_cost_absolute)
+        np.isinf(df.elite_cost_absolute)
         | np.isinf(df.seed_cost)
         | (df.elite_cost_relative > 1.0)
     )
