@@ -54,6 +54,7 @@ class ForcingConfig:
     enable_spatial_cropping: bool = True
     route_length_multiplier: float = 1.5
     spatial_buffer_degrees: float = 0.5
+    scenario_name: str | None = None
 
 
 @dataclass
