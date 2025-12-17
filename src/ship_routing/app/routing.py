@@ -415,17 +415,17 @@ class RoutingApp:
 
         # Genetic algorithm generation loop
         for gen_idx in range(self.config.hyper.generations):
-            # Mutation stage now returns cost improvement statistics
+            # Mutation stage also returns cost improvement statistics
             population, cost_improvement_stats = self._stage_ga_mutation(
                 population, seed_member, forcing, W, D, q, executor
             )
-            # Crossover (unchanged)
+            # Crossover
             population = self._stage_ga_crossover(
                 population, seed_member, forcing, executor
             )
-            # Selection (unchanged)
+            # Selection
             population = self._stage_ga_selection(population, seed_member, q)
-            # Adaptation: pass cost improvement stats and population stats
+            # Adaptation: based on cost improvement stats and population stats
             pop_stats = self._population_stats(population.members)
             W, D, q = self._stage_ga_adaptation(
                 W, D, q, cost_improvement_stats, pop_stats
@@ -734,7 +734,7 @@ class RoutingApp:
         Returns
         -------
         PopulationMember
-            The offspring member after crossover
+            The offspring member after crossover and cost evaluation
         """
         state = _get_state()
         parent_a = population_members[parent_indices[0]]
@@ -742,26 +742,29 @@ class RoutingApp:
 
         try:
             if state.params.crossover_strategy == "minimal_cost":
-                child_route = crossover_routes_minimal_cost(
-                    parent_a.route,
-                    parent_b.route,
+                child_member = crossover_routes_minimal_cost(
+                    parent_a,
+                    parent_b,
                     current_data_set=state.forcing.currents,
                     wind_data_set=state.forcing.winds,
                     wave_data_set=state.forcing.waves,
+                    hazard_penalty_multiplier=state.params.hazard_penalty_multiplier,
                 )
             else:  # "random"
-                child_route = crossover_routes_random(parent_a.route, parent_b.route)
+                child_member = crossover_routes_random(
+                    parent_a,
+                    parent_b,
+                    current_data_set=state.forcing.currents,
+                    wind_data_set=state.forcing.winds,
+                    wave_data_set=state.forcing.waves,
+                    hazard_penalty_multiplier=state.params.hazard_penalty_multiplier,
+                )
         except Exception:
             logging.warning("crossover failed; using parent_a")
-            child_route = parent_a.route
+            return parent_a
 
-        child_cost = child_route.cost_through(
-            current_data_set=state.forcing.currents,
-            wave_data_set=state.forcing.waves,
-            wind_data_set=state.forcing.winds,
-            hazard_penalty_multiplier=state.params.hazard_penalty_multiplier,
-        )
-        return PopulationMember(route=child_route, cost=child_cost)
+        # Cost already computed in crossover function (benefits from caching)
+        return child_member
 
     @profile
     def _stage_ga_crossover(
@@ -839,15 +842,14 @@ class RoutingApp:
         params = self.config.hyper
         M = params.population_size
 
-        # Selection from offspring
+        # Selection from offspring: Add seed route, select, add seed route.
+        population_with_seed = population.add_member(seed_member)
         selected_members = select_from_population(
-            members=population.members,
+            members=population_with_seed.members,
             quantile=q,
             target_size=M - 1,
             rng=self._rng,
         )
-
-        # Add back seed route
         population = Population.from_members(selected_members).add_member(seed_member)
 
         self._log_stage_metrics(

@@ -42,8 +42,10 @@ def select_from_population(
         return []
 
     sorted_members = sorted(valid_members, key=lambda m: m.cost)
-    elite_count = int(np.ceil(len(sorted_members) * quantile))
+    # Ensure elite_count >= 1 to guarantee non-empty elite_pool for sampling
+    elite_count = max(1, int(np.ceil(len(sorted_members) * quantile)))
     elite_pool = sorted_members[:elite_count]
+    # Sample with replacement to guarantee exactly target_size members returned
     indices = rng.integers(0, len(elite_pool), size=target_size)
     return [elite_pool[idx] for idx in indices]
 
