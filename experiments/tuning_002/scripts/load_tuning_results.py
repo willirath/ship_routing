@@ -94,9 +94,51 @@ def load_results(
     }
 
 
+def _get_cost_spread_genetic_q75_25(routing_result: RoutingResult = None):
+    df = routing_result.logs.to_dataframe()
+    df = df.where(df.stage.str.startswith("ga_")).dropna(how="all")
+    df = df.set_index(["timestamp", "stage"])
+    q75_25 = (df.cost_q75 - df.cost_q25)
+    q75_25 = q75_25.dropna()
+    q75_25 = q75_25.rename("q75_25")
+    return q75_25
+
+
+def _get_cost_spread_genetic_q50_00(routing_result: RoutingResult = None):
+    df = routing_result.logs.to_dataframe()
+    df = df.where(df.stage.str.startswith("ga_")).dropna(how="all")
+    df = df.set_index(["timestamp", "stage"])
+    q50_00 = (df.cost_median - df.cost_min)
+    q50_00 = q50_00.dropna()
+    q50_00 = q50_00.rename("q50_00")
+    return q50_00
+
+
 # =============================================================================
 # DataFrame Extraction Functions
 # =============================================================================
+
+
+def get_diversity_df(
+    routing_results_dict: dict[str, RoutingResult]
+) -> pd.Series:
+    df = pd.Series(
+        {
+            f: (_get_cost_spread_genetic_q75_25(rr) ** 2).mean() ** 0.5
+            for f, rr in tqdm(routing_results_dict.items(), desc="diversity")
+        },
+        name="cost_q75_25_rms"
+    ).to_frame()
+    df = df.assign(
+        cost_q50_00_rms=pd.Series(
+            {
+                f: (_get_cost_spread_genetic_q50_00(rr) ** 2).mean() ** 0.5
+                for f, rr in tqdm(routing_results_dict.items(), desc="diversity")
+            },
+            name="cost_q50_00_rms"
+        )
+    )
+    return df.add_prefix("diversity_")
 
 
 def get_journey_params_df(
