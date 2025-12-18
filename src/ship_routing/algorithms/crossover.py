@@ -58,9 +58,7 @@ def crossover_routes_random(
     route_1 = parent_b.route
 
     segments_0, segments_1 = route_0.segment_at(route_1)
-    segments_mix = [
-        s0s1[rng.integers(0, 2)] for s0s1 in zip(segments_0, segments_1)
-    ]
+    segments_mix = [s0s1[rng.integers(0, 2)] for s0s1 in zip(segments_0, segments_1)]
     route_mix = segments_mix[0]
     for s in segments_mix[1:]:
         route_mix = route_mix + s

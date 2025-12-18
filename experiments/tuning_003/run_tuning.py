@@ -9,7 +9,7 @@ Usage:
     python run_tuning.py --experiment quick --execution local-small
 
     # Production on SLURM
-    python run_tuning.py --experiment ablation_baseline --execution nesh-prod-50
+    python run_tuning.py --experiment ablation_baseline --execution nesh-prod-40
 
     # Dry run to see experiment count
     python run_tuning.py --experiment quick --execution local-small --dry-run
@@ -41,7 +41,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-#TODO: Put into experiment_params?
+# TODO: Put into experiment_params?
 def transform_offspring_size(sampled: dict) -> dict:
     """Compute offspring_size from offspring_ratio * population_size.
 
@@ -78,7 +78,7 @@ def transform_offspring_size(sampled: dict) -> dict:
     "--execution",
     type=click.Choice(list(EXECUTION_CONFIGS.keys())),
     default="local-small",
-    help="Execution environment (local-small, local-large, nesh-test, nesh-prod-50)",
+    help="Execution environment (local-small, local-large, nesh-test, nesh-prod-40)",
 )
 @click.option(
     "--seed",

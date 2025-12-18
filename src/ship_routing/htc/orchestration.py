@@ -121,9 +121,7 @@ def run_tuning_sweep(
         # Process results as they complete (not in submission order)
         futures_map = {future: key for key, future in futures}
         for future in tqdm(
-            as_completed(futures_map.keys()),
-            total=len(futures),
-            desc="Collecting"
+            as_completed(futures_map.keys()), total=len(futures), desc="Collecting"
         ):
             key = futures_map[future]
             try:

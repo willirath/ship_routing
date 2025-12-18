@@ -84,9 +84,9 @@ QUICK_HYPER = {
 PRODUCTION_HYPER = {
     "population_size": (64, 128, 256),
     "offspring_ratio": (0.25, 0.5, 1.0),  # Ratios for offspring_size computation
-    "generations": (1, 2, 4),
+    "generations": (1, 4),
     "mutation_iterations": (1, 3),
-    "gd_iterations": (1, 2),
+    "gd_iterations": (0, 2),
     "crossover_rounds": (0, 1, 2),
     "crossover_strategy": ("minimal_cost", "random"),
     "selection_quantile": (0.1, 0.25),

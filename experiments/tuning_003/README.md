@@ -44,7 +44,7 @@ sbatch run_no_winds.job
 - `local-small`: 2 workers, 5min timeout (quick testing)
 - `local-large`: 8 workers, 10min timeout (local development)
 - `nesh-test`: 4 workers, 2 nodes, 1h (HPC testing)
-- `nesh-prod-50`: 50 workers, 50 nodes, 4h (production runs)
+- `nesh-prod-40`: 50 workers, 50 nodes, 4h (production runs)
 
 ## Monitoring
 

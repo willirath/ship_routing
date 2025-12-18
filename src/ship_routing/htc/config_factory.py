@@ -107,7 +107,7 @@ def sample_routing_configs(
         Receives the sampled dict (after _sample_dict) and should return
         a modified dict. Useful for computing derived parameters like
         offspring_size = int(population_size * offspring_ratio) where both
-        population_size and offspring_ratio are sampled randomly. 
+        population_size and offspring_ratio are sampled randomly.
 
     Returns
     -------

@@ -107,7 +107,7 @@ def get_execution_and_parsl_config(
     Parameters
     ----------
     execution_name : str
-        Name of execution config (e.g., "local-small", "nesh-prod-50")
+        Name of execution config (e.g., "local-small", "nesh-prod-40")
 
     Returns
     -------
