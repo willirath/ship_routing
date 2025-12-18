@@ -749,6 +749,7 @@ class RoutingApp:
                     wind_data_set=state.forcing.winds,
                     wave_data_set=state.forcing.waves,
                     hazard_penalty_multiplier=state.params.hazard_penalty_multiplier,
+                    rng=state.rng,
                 )
             else:  # "random"
                 child_member = crossover_routes_random(
@@ -758,6 +759,7 @@ class RoutingApp:
                     wind_data_set=state.forcing.winds,
                     wave_data_set=state.forcing.waves,
                     hazard_penalty_multiplier=state.params.hazard_penalty_multiplier,
+                    rng=state.rng,
                 )
         except Exception:
             logging.warning("crossover failed; using parent_a")

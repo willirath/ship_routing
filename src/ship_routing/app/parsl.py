@@ -40,7 +40,7 @@ def run_single_experiment(config: "RoutingConfig", walltime=None) -> "RoutingRes
     config : RoutingConfig
         Complete routing configuration including journey, forcing data paths,
         and hyperparameters.
-    walltime : int, optional
+    walltime : float, optional
         Maximum execution time in seconds. Parsl special keyword argument.
 
     Returns

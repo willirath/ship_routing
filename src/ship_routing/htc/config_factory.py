@@ -26,11 +26,11 @@ Example:
     ...     'forcing': {
     ...         'currents_path': 'data/currents.zarr',
     ...         'waves_path': 'data/waves.zarr',
+    ...         'winds_path': 'data/winds.zarr',
     ...     },
     ...     'hyper': {
     ...         'population_size': (128, 256),
     ...         'generations': (1, 2, 4),
-    ...         'learning_rate_time': 0.5,
     ...     }
     ... }
     >>> configs = sample_routing_configs(param_space, n_samples=100, seed=42)
@@ -38,8 +38,7 @@ Example:
 
 from __future__ import annotations
 
-import random
-from typing import Any
+from typing import Any, Callable
 
 import numpy as np
 
@@ -51,7 +50,7 @@ from ship_routing.app.config import (
 )
 
 
-def sample_value(options: tuple | list | Any) -> Any:
+def sample_value(options: tuple | list | Any, rng: np.random.Generator) -> Any:
     """Sample from options or return single value.
 
     Parameters
@@ -60,6 +59,8 @@ def sample_value(options: tuple | list | Any) -> Any:
         If tuple or list with multiple elements, sample uniformly.
         If single-element tuple/list, return the element.
         Otherwise, return as-is.
+    rng : np.random.Generator
+        Random number generator for reproducibility
 
     Returns
     -------
@@ -69,7 +70,7 @@ def sample_value(options: tuple | list | Any) -> Any:
     if isinstance(options, (tuple, list)):
         if len(options) == 1:
             return options[0]
-        return random.choice(options)
+        return rng.choice(options)
     return options
 
 
@@ -77,6 +78,7 @@ def sample_routing_configs(
     param_space: dict[str, Any],
     n_samples: int,
     seed: int | None = None,
+    transform_fn: Callable[[dict], dict] | None = None,
 ) -> list[RoutingConfig]:
     """Generate n random RoutingConfig instances from parameter space.
 
@@ -99,6 +101,13 @@ def sample_routing_configs(
 
     seed : int, optional
         Random seed for reproducibility
+
+    transform_fn : Callable[[dict], dict], optional
+        Function to transform sampled parameters before creating configs.
+        Receives the sampled dict (after _sample_dict) and should return
+        a modified dict. Useful for computing derived parameters like
+        offspring_size = int(population_size * offspring_ratio) where both
+        population_size and offspring_ratio are sampled randomly. 
 
     Returns
     -------
@@ -125,34 +134,49 @@ def sample_routing_configs(
     """
     # Initialize random state for parameter sampling
     if seed is not None:
-        random.seed(seed)
-        seed_seq = np.random.SeedSequence(seed)
+        rng = np.random.default_rng(seed)
     else:
-        random.seed()
-        seed_seq = np.random.SeedSequence()
+        rng = np.random.default_rng()
 
-    # Generate independent seeds for each experiment using SeedSequence
+    # Spawn independent RNG streams for each experiment
     # This ensures proper statistical independence between experiments
-    experiment_seed_seqs = seed_seq.spawn(n_samples)
+    experiment_rngs = rng.spawn(n_samples)
 
     configs = []
-    for exp_seed_seq in experiment_seed_seqs:
-        # Sample from parameter ranges
-        sampled = _sample_dict(param_space)
+    for exp_rng in experiment_rngs:
+        # Sample from parameter ranges using this experiment's RNG
+        sampled = _sample_dict(param_space, rng=exp_rng)
 
-        # Generate unique random seed for this experiment
-        # SeedSequence guarantees statistical independence between streams
-        experiment_seed = int(exp_seed_seq.generate_state(1)[0])
+        # Apply custom transform if provided
+        if transform_fn is not None:
+            sampled = transform_fn(sampled)
+
+        # Extract seed for config storage (for reproducibility)
+        # Access the underlying SeedSequence entropy for logging/serialization
+        experiment_seed = int(exp_rng.bit_generator.seed_seq.generate_state(1)[0])
 
         # Build RoutingConfig from sampled params
         # ship and physics will use defaults if not provided
         hyper_params = sampled.get("hyper", {})
         hyper_params["random_seed"] = experiment_seed
 
+        # TODO: Support sampling ship and physics parameters
+        # The RoutingConfig also has .physics and .ship fields that will be sampled
+        # from param_space like journey/forcing/hyper are currently sampled.
+        #
+        # To implement:
+        # 1. Add 'ship' and 'physics' sections to param_space dict  (just import defaults from ship_routing for now)
+        # 2. Sample from these sections: sampled.get("ship", {}) and sampled.get("physics", {})
+        # 3. Pass to RoutingConfig: ship=Ship(**sampled.get("ship", {}))
+        # 4. Update docstring examples to show ship/physics param_space structure
+        #
+        # For now, using default Ship() and Physics() instances.
         config = RoutingConfig(
             journey=JourneyConfig(**sampled["journey"]),
             forcing=ForcingConfig(**sampled.get("forcing", {})),
             hyper=HyperParams(**hyper_params),
+            # ship=Ship(**sampled.get("ship", {})),  # TODO: Implement
+            # physics=Physics(**sampled.get("physics", {})),  # TODO: Implement
         )
         configs.append(config)
 
@@ -187,7 +211,7 @@ def _is_named_options_dict(d: dict) -> bool:
     return all(isinstance(v, dict) for v in d.values())
 
 
-def _sample_dict(d: dict) -> dict:
+def _sample_dict(d: dict, rng: np.random.Generator) -> dict:
     """Recursively sample values from nested dict.
 
     Special handling for named options dicts:
@@ -201,6 +225,8 @@ def _sample_dict(d: dict) -> dict:
     ----------
     d : dict
         Dictionary with potentially nested structure
+    rng : np.random.Generator
+        Random number generator for reproducibility
 
     Returns
     -------
@@ -225,7 +251,7 @@ def _sample_dict(d: dict) -> dict:
             # Check if this is a named options dict
             if _is_named_options_dict(value):
                 # Sample one (name, options_dict) pair
-                name, options_dict = random.choice(list(value.items()))
+                name, options_dict = rng.choice(list(value.items()))
                 # Merge options dict into result directly (no sampling of its values)
                 # Values in options_dict are treated as fixed data, not sampling options
                 result.update(options_dict)
@@ -233,7 +259,7 @@ def _sample_dict(d: dict) -> dict:
                 result["name"] = name
             else:
                 # Regular nested dict - recurse
-                result[key] = _sample_dict(value)
+                result[key] = _sample_dict(value, rng=rng)
         else:
-            result[key] = sample_value(value)
+            result[key] = sample_value(value, rng=rng)
     return result

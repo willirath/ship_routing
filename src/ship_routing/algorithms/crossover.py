@@ -17,6 +17,7 @@ def crossover_routes_random(
     ship: Ship = SHIP_DEFAULT,
     physics: Physics = PHYSICS_DEFAULT,
     hazard_penalty_multiplier: float = 100.0,
+    rng: np.random.Generator = None,
 ) -> PopulationMember:
     """Randomly cross over routes from population members.
 
@@ -42,18 +43,23 @@ def crossover_routes_random(
         Physics parameters for cost computation
     hazard_penalty_multiplier : float, default=100.0
         Hazard penalty multiplier for cost computation
+    rng : np.random.Generator, optional
+        Random number generator for reproducibility. If None, creates a new default RNG.
 
     Returns
     -------
     PopulationMember
         New member created by random crossover with cost, or random parent if offspring invalid
     """
+    if rng is None:
+        rng = np.random.default_rng()
+
     route_0 = parent_a.route
     route_1 = parent_b.route
 
     segments_0, segments_1 = route_0.segment_at(route_1)
     segments_mix = [
-        s0s1[np.random.randint(0, 2)] for s0s1 in zip(segments_0, segments_1)
+        s0s1[rng.integers(0, 2)] for s0s1 in zip(segments_0, segments_1)
     ]
     route_mix = segments_mix[0]
     for s in segments_mix[1:]:
@@ -77,7 +83,7 @@ def crossover_routes_random(
 
     # If invalid, return random parent
     if np.isnan(child_cost) or np.isinf(child_cost):
-        return parent_a if np.random.random() < 0.5 else parent_b
+        return parent_a if rng.random() < 0.5 else parent_b
 
     return PopulationMember(route=route_mix, cost=child_cost)
 
@@ -91,6 +97,7 @@ def crossover_routes_minimal_cost(
     ship: Ship = SHIP_DEFAULT,
     physics: Physics = PHYSICS_DEFAULT,
     hazard_penalty_multiplier: float = 100.0,
+    rng: np.random.Generator = None,
 ) -> PopulationMember:
     """Cross over routes to minimize cost using segment-level selection.
 
@@ -117,12 +124,17 @@ def crossover_routes_minimal_cost(
         Physics parameters
     hazard_penalty_multiplier : float, default=100.0
         Hazard penalty multiplier for cost computation
+    rng : np.random.Generator, optional
+        Random number generator for reproducibility. If None, creates a new default RNG.
 
     Returns
     -------
     PopulationMember
         New member made of minimum-cost segments and cost, or best parent if offspring invalid
     """
+    if rng is None:
+        rng = np.random.default_rng()
+
     route_0 = parent_a.route
     route_1 = parent_b.route
 
