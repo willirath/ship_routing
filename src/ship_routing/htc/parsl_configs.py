@@ -98,12 +98,16 @@ def get_slurm_config(
     if execution.account is not None:
         provider_kwargs["account"] = execution.account
 
+    # Determine working directory based on run_dir
+    base_run_dir = str(run_dir) if run_dir else "runinfo"
+    worker_dir = f"{base_run_dir}/worker_files"
+
     return Config(
         executors=[
             HighThroughputExecutor(
                 label="slurm",
                 address=address_by_hostname(),
-                working_dir="runinfo/worker_files",
+                working_dir=worker_dir,
                 max_workers_per_node=execution.max_workers,
                 cores_per_worker=1.0,  # Request 1 CPU per worker
                 provider=SlurmProvider(**provider_kwargs),
@@ -111,7 +115,7 @@ def get_slurm_config(
         ],
         strategy="simple",  # Simple scaling (less aggressive than htex_auto_scale)
         max_idletime=600,  # Shutdown idle workers after 10 minutes (prevent churning)
-        run_dir=str(run_dir) if run_dir else "runinfo",
+        run_dir=base_run_dir,
     )
 
 
