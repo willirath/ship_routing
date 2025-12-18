@@ -12,11 +12,13 @@ from parsl.launchers import SrunLauncher
 from parsl.addresses import address_by_hostname
 
 from ship_routing.htc.execution import (
-    ExecutionConfig,
     LocalExecutionConfig,
     SlurmExecutionConfig,
     EXECUTION_CONFIGS,
 )
+
+# Type alias for execution configs
+ExecutionConfig = LocalExecutionConfig | SlurmExecutionConfig
 
 
 def get_local_config(execution: LocalExecutionConfig) -> Config:
