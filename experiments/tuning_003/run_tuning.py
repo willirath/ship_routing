@@ -131,8 +131,8 @@ def main(
             Path("results") / f"{exp_config['output_prefix']}_{timestamp}.msgpack"
         )
 
-    # Generate unique run directory to prevent race conditions
-    run_dir = Path("runinfo") / f"{experiment}_{timestamp}"
+    # Generate unique run directory to prevent race conditions (use absolute path)
+    run_dir = (Path("runinfo") / f"{experiment}_{timestamp}").resolve()
 
     # Run the parameter sweep
     logger.info(f"Running sweep with execution profile: {execution}")
