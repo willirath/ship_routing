@@ -40,9 +40,6 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# Configure Parsl logging to reduce verbosity (suppress DEBUG messages)
-logging.getLogger("parsl").setLevel(logging.INFO)
-
 
 # TODO: Put into experiment_params?
 def transform_offspring_size(sampled: dict) -> dict:

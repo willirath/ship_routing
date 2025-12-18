@@ -103,6 +103,11 @@ def run_tuning_sweep(
     # Configure and load Parsl
     parsl.load(parsl_config)
 
+    # Suppress DEBUG messages from all Parsl loggers
+    for logger_name in list(logging.root.manager.loggerDict.keys()):
+        if logger_name.startswith("parsl"):
+            logging.getLogger(logger_name).setLevel(logging.INFO)
+
     try:
         # Submit all tasks
         futures = []
