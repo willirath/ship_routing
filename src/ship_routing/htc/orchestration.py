@@ -7,9 +7,7 @@ collecting results, and saving them to msgpack files.
 from __future__ import annotations
 
 from concurrent.futures import as_completed
-from dataclasses import asdict
 import hashlib
-import json
 import logging
 from datetime import datetime
 from pathlib import Path
@@ -45,11 +43,8 @@ def make_result_key(config_idx: int, config: RoutingConfig) -> str:
     str
         Unique result key with format: result:{idx}:seed{seed}:hash{hash}
     """
-    # Create stable hash of config content
-    config_dict = asdict(config)
-    config_json = json.dumps(config_dict, sort_keys=True)
-    config_hash = hashlib.sha256(config_json.encode()).hexdigest()[:8]
-
+    # Hash config just to be on the safe side for uniquenes of keys
+    config_hash = hashlib.sha256(repr(config).encode()).hexdigest()[:8]
     return f"result:{config_idx:04d}:seed{config.hyper.random_seed}:hash{config_hash}"
 
 
