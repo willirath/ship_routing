@@ -6,9 +6,6 @@ set -e  # Exit on error
 # Configuration
 BATCHES_PER_SCENARIO=13  # amounts to 13*4000=52000 samples per scenario
 
-# Create logs directory if it doesn't exist
-mkdir -p slurm_logs
-
 # Submit jobs for each scenario
 for job_file in run_{baseline,no_currents,no_winds,no_waves}.job; do
     prev_job_id=""
