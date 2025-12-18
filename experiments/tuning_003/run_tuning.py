@@ -131,9 +131,13 @@ def main(
             Path("results") / f"{exp_config['output_prefix']}_{timestamp}.msgpack"
         )
 
+    # Generate unique run directory to prevent race conditions
+    run_dir = Path("runinfo") / f"{experiment}_{timestamp}"
+
     # Run the parameter sweep
     logger.info(f"Running sweep with execution profile: {execution}")
-    run_tuning_sweep(configs, execution, output_path)
+    logger.info(f"Parsl run directory: {run_dir}")
+    run_tuning_sweep(configs, execution, output_path, run_dir=run_dir)
 
 
 if __name__ == "__main__":

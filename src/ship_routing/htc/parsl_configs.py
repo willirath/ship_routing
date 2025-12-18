@@ -5,6 +5,8 @@ Provides configurations for:
 - SLURM HPC clusters (production)
 """
 
+from pathlib import Path
+
 from parsl.config import Config
 from parsl.executors import HighThroughputExecutor, ThreadPoolExecutor
 from parsl.providers import LocalProvider, SlurmProvider
@@ -21,7 +23,10 @@ from ship_routing.htc.execution import (
 ExecutionConfig = LocalExecutionConfig | SlurmExecutionConfig
 
 
-def get_local_config(execution: LocalExecutionConfig) -> Config:
+def get_local_config(
+    execution: LocalExecutionConfig,
+    run_dir: str | Path | None = None,
+) -> Config:
     """Get Parsl config for local execution (testing).
 
     Uses ThreadPoolExecutor for parallel execution on the local machine.
@@ -31,6 +36,8 @@ def get_local_config(execution: LocalExecutionConfig) -> Config:
     ----------
     execution : ExecutionConfig
         Execution configuration containing worker settings
+    run_dir : str | Path | None, optional
+        Path to run directory (default: "runinfo")
 
     Returns
     -------
@@ -45,10 +52,14 @@ def get_local_config(execution: LocalExecutionConfig) -> Config:
             )
         ],
         strategy="none",  # No scaling for local
+        run_dir=str(run_dir) if run_dir else "runinfo",
     )
 
 
-def get_slurm_config(execution: SlurmExecutionConfig) -> Config:
+def get_slurm_config(
+    execution: SlurmExecutionConfig,
+    run_dir: str | Path | None = None,
+) -> Config:
     """Get Parsl config for SLURM HPC clusters.
 
     Uses HighThroughputExecutor with SlurmProvider for scalable
@@ -58,6 +69,8 @@ def get_slurm_config(execution: SlurmExecutionConfig) -> Config:
     ----------
     execution : SlurmExecutionConfig
         Execution configuration containing SLURM and worker settings
+    run_dir : str | Path | None, optional
+        Path to run directory (default: "runinfo")
 
     Returns
     -------
@@ -98,11 +111,13 @@ def get_slurm_config(execution: SlurmExecutionConfig) -> Config:
         ],
         strategy="simple",  # Simple scaling (less aggressive than htex_auto_scale)
         max_idletime=600,  # Shutdown idle workers after 10 minutes (prevent churning)
+        run_dir=str(run_dir) if run_dir else "runinfo",
     )
 
 
 def get_execution_and_parsl_config(
     execution_name: str,
+    run_dir: str | Path | None = None,
 ) -> tuple[ExecutionConfig, Config]:
     """Get both execution and Parsl configs for the specified environment.
 
@@ -110,6 +125,8 @@ def get_execution_and_parsl_config(
     ----------
     execution_name : str
         Name of execution config (e.g., "local-small", "nesh-prod-40")
+    run_dir : str | Path | None, optional
+        Path to run directory (default: "runinfo")
 
     Returns
     -------
@@ -130,9 +147,9 @@ def get_execution_and_parsl_config(
     execution_config = EXECUTION_CONFIGS[execution_name]
 
     if isinstance(execution_config, LocalExecutionConfig):
-        parsl_config = get_local_config(execution_config)
+        parsl_config = get_local_config(execution_config, run_dir=run_dir)
     elif isinstance(execution_config, SlurmExecutionConfig):
-        parsl_config = get_slurm_config(execution_config)
+        parsl_config = get_slurm_config(execution_config, run_dir=run_dir)
     else:
         raise ValueError(f"Unknown execution config type: {type(execution_config)}")
 

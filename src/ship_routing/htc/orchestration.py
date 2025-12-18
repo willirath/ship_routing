@@ -68,6 +68,7 @@ def run_tuning_sweep(
     configs: list[RoutingConfig],
     execution_name: str,
     output_path: Path | str,
+    run_dir: str | Path | None = None,
 ) -> dict[str, bytes]:
     """Run parameter sweep and collect results.
 
@@ -79,6 +80,8 @@ def run_tuning_sweep(
         Name of execution config (e.g., "local-small", "nesh-prod")
     output_path : Path | str
         Path to save results msgpack file
+    run_dir : str | Path | None, optional
+        Path to Parsl run directory (default: "runinfo")
 
     Returns
     -------
@@ -93,7 +96,9 @@ def run_tuning_sweep(
     output_path = Path(output_path)
 
     # Get both configs in one call (eliminates redundant lookup)
-    execution_config, parsl_config = get_execution_and_parsl_config(execution_name)
+    execution_config, parsl_config = get_execution_and_parsl_config(
+        execution_name, run_dir=run_dir
+    )
 
     # Configure and load Parsl
     parsl.load(parsl_config)
