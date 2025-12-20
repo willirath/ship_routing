@@ -12,6 +12,5 @@ all: $(NOTEBOOKS)
 .PHONY: clean
 clean:
 	@for nb in $(NOTEBOOKS); do \
-		jupyter nbconvert --clear-output --inplace "$$nb"; \
 		rm -fv "executed/$$nb"; \
 	done
