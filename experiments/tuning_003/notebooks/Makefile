@@ -6,11 +6,12 @@ NOTEBOOKS := $(sort $(wildcard [0-9]*.ipynb))
 all: $(NOTEBOOKS)
 	@for nb in $(NOTEBOOKS); do \
 		echo "Executing $$nb..."; \
-		jupyter nbconvert --execute --to notebook --inplace "$$nb"; \
+		papermill "$$nb" "executed/$$nb"; \
 	done
 
 .PHONY: clean
 clean:
 	@for nb in $(NOTEBOOKS); do \
 		jupyter nbconvert --clear-output --inplace "$$nb"; \
+		rm -fv "executed/$$nb"; \
 	done
