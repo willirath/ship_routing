@@ -8,12 +8,6 @@
 #SBATCH --output=slurm_logs/ablation_costs_%j.out
 #SBATCH --error=slurm_logs/ablation_costs_%j.err
 
-# Post-processing job to compute cross-evaluation ablation costs
-# for all tuning_003 results.
-#
-# This loads each result file, evaluates elite routes under all
-# forcing scenarios, and saves augmented results.
-
 # Load compiler environment
 module load gcc12-env
 
@@ -27,10 +21,6 @@ export FTP_PROXY=http://10.0.7.235:3128
 
 # Initialize Pixi environment
 eval "$(pixi shell-hook)"
-
-# Process all result files
-# Note: Processing one file at a time to manage memory
-# Each file takes ~2-4 hours depending on number of configs
 
 for result_file in results/results_ablation_*.msgpack; do
     # Skip already-processed files
