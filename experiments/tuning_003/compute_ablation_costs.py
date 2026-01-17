@@ -28,12 +28,32 @@ from ship_routing.app.routing import RoutingResult
 from ship_routing.app.config import ForcingData
 from ship_routing.core.config import SHIP_DEFAULT, PHYSICS_DEFAULT
 from ship_routing.core.data import load_currents, load_waves, load_winds
+from ship_routing.core.routes import Route, WayPoint
 
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s - %(levelname)s - %(message)s",
 )
 logger = logging.getLogger(__name__)
+
+
+def fix_route_times(route: Route) -> Route:
+    """Reconstruct route with proper datetime64 times.
+
+    When routes are deserialized from msgpack, waypoint times become strings.
+    This function reconstructs the route with proper np.datetime64 objects.
+    """
+    # Reconstruct waypoints with proper datetime64 times
+    fixed_waypoints = []
+    for wp in route.way_points:
+        fixed_wp = WayPoint(
+            lon=wp.lon,
+            lat=wp.lat,
+            time=np.datetime64(wp.time),  # Convert string to datetime64
+        )
+        fixed_waypoints.append(fixed_wp)
+
+    return Route(way_points=tuple(fixed_waypoints))
 
 
 def load_forcing_for_scenario(
@@ -124,17 +144,22 @@ def compute_ablation_costs_for_result(
     ablation_costs = {}
 
     for i, member in enumerate(result.elite_population.members):
+        # Fix route times (msgpack deserialization converts datetime64 to strings)
+        fixed_route = fix_route_times(member.route)
+
         costs = {}
         for scenario_name, forcing in forcings.items():
             try:
-                cost = member.route.cost_through(
-                    forcing=forcing,
+                cost = fixed_route.cost_through(
+                    current_data_set=forcing.currents,
+                    wind_data_set=forcing.winds,
+                    wave_data_set=forcing.waves,
                     ship=SHIP_DEFAULT,
                     physics=PHYSICS_DEFAULT,
                 )
                 costs[f"cost_{scenario_name}"] = float(cost)
             except Exception as e:
-                logger.debug(
+                logger.warning(
                     f"Failed cost for elite {i}, scenario {scenario_name}: {e}"
                 )
                 costs[f"cost_{scenario_name}"] = float("nan")
