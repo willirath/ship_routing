@@ -11,3 +11,4 @@ runs
 *.msgpack
 *.pq
 runinfo/
+slurm_logs/
