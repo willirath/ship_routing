@@ -12,3 +12,4 @@ runs
 *.pq
 runinfo/
 slurm_logs/
+cmd_parsl.*.sh
