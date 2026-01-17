@@ -25,9 +25,9 @@ sys.path.insert(0, str(Path(__file__).parent / "notebooks"))
 
 from experiment_params import FORCING_SCENARIOS, FORCING_SCENARIO_CALM
 from ship_routing.app.routing import RoutingResult
+from ship_routing.app.config import ForcingData
 from ship_routing.core.config import SHIP_DEFAULT, PHYSICS_DEFAULT
-from ship_routing.core.data import ForcingData, load_currents, load_waves, load_winds
-from ship_routing.core.routes import Route
+from ship_routing.core.data import load_currents, load_waves, load_winds
 
 logging.basicConfig(
     level=logging.INFO,
