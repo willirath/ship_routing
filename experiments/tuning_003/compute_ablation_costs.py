@@ -29,6 +29,7 @@ from ship_routing.app.config import ForcingData
 from ship_routing.core.config import SHIP_DEFAULT, PHYSICS_DEFAULT
 from ship_routing.core.data import load_currents, load_waves, load_winds
 from ship_routing.core.routes import Route, WayPoint
+from ship_routing.core.geodesics import compute_ellipse_bbox
 
 logging.basicConfig(
     level=logging.INFO,
@@ -60,6 +61,7 @@ def load_forcing_for_scenario(
     scenario_name: str,
     time_start: str,
     time_end: str,
+    spatial_bounds: tuple = None,
 ) -> ForcingData:
     """Load forcing data for a specific ablation scenario.
 
@@ -71,6 +73,8 @@ def load_forcing_for_scenario(
         Journey start time
     time_end : str
         Journey end time
+    spatial_bounds : tuple, optional
+        Spatial bounding box (lon_min, lon_max, lat_min, lat_max)
 
     Returns
     -------
@@ -93,6 +97,7 @@ def load_forcing_for_scenario(
                 time_start=time_start_dt,
                 time_end=time_end_dt,
                 engine=scenario["engine"],
+                spatial_bounds=spatial_bounds,
             )
             if scenario["currents_path"]
             else None
@@ -103,6 +108,7 @@ def load_forcing_for_scenario(
                 time_start=time_start_dt,
                 time_end=time_end_dt,
                 engine=scenario["engine"],
+                spatial_bounds=spatial_bounds,
             )
             if scenario["waves_path"]
             else None
@@ -113,6 +119,7 @@ def load_forcing_for_scenario(
                 time_start=time_start_dt,
                 time_end=time_end_dt,
                 engine=scenario["engine"],
+                spatial_bounds=spatial_bounds,
             )
             if scenario["winds_path"]
             else None
@@ -190,11 +197,22 @@ def process_result_file(
 
     logger.info(f"Loaded {len(raw_results)} results")
 
-    # Get time range from first result for loading forcing data
-    first_result = RoutingResult.from_msgpack(list(raw_results.values())[0])
-    journey_config = first_result.logs.config["journey"]
-    time_start = journey_config["time_start"]
-    time_end = journey_config["time_end"]
+    # Files contain journeys spanning all 12 months of 2021
+    # Load full year to evaluate all routes correctly
+    time_start = "2021-01-01T00:00:00"
+    time_end = "2021-12-31T23:59:59"
+
+    # Compute spatial bounds for Atlantic routes (covers both forward and backward)
+    # Both routes are: (-80.5, 30.0) <-> (-11.0, 50.0)
+    spatial_bounds = compute_ellipse_bbox(
+        lon_start=-80.5,
+        lat_start=30.0,
+        lon_end=-11.0,
+        lat_end=50.0,
+        length_multiplier=1.5,
+        buffer_degrees=5.0,
+    )
+    logger.info(f"Spatial bounds: {spatial_bounds}")
 
     # Load all forcing scenarios once
     logger.info("Loading forcing scenarios...")
@@ -202,7 +220,7 @@ def process_result_file(
     for scenario_name in ["baseline", "no_currents", "no_waves", "no_winds", "calm"]:
         logger.info(f"  Loading {scenario_name}...")
         forcings[scenario_name] = load_forcing_for_scenario(
-            scenario_name, time_start, time_end
+            scenario_name, time_start, time_end, spatial_bounds
         )
 
     # Process each result
