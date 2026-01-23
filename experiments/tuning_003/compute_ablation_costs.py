@@ -49,7 +49,7 @@ def fix_route_times(route: Route) -> Route:
         fixed_wp = WayPoint(
             lon=wp.lon,
             lat=wp.lat,
-            time=np.datetime64(wp.time),  # Convert string to datetime64
+            time=np.datetime64(wp.time, 'ns'),  # Convert string to datetime64[ns]
         )
         fixed_waypoints.append(fixed_wp)
 

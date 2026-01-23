@@ -255,10 +255,11 @@ def get_runtime_df(routing_results_dict: dict[str, RoutingResult]) -> pd.DataFra
 
 
 def get_elite_df(routing_results_dict: dict[str, RoutingResult]) -> pd.DataFrame:
-    """Extract elite population members with geometry.
+    """Extract elite population members with geometry and ablation costs.
 
     Creates one row per elite member with metrics relative to seed member.
     Includes LineString geometry for GeoDataFrame compatibility.
+    Includes ablation costs if available (from crosseval files).
 
     Parameters
     ----------
@@ -275,31 +276,51 @@ def get_elite_df(routing_results_dict: dict[str, RoutingResult]) -> pd.DataFrame
         - elite_cost_absolute (float)
         - elite_cost_relative (float, relative to seed)
         - geometry (LineString, from route.line_string)
+        - ablation_cost_baseline (float, if available)
+        - ablation_cost_no_currents (float, if available)
+        - ablation_cost_no_waves (float, if available)
+        - ablation_cost_no_winds (float, if available)
+        - ablation_cost_calm (float, if available)
 
     Notes
     -----
     This function shows a tqdm progress bar during processing.
     Returns one row per elite member, so results may have multiple rows
     per filename if elite_population has multiple members.
+    Ablation costs are only present in *_with_crosseval.msgpack files.
     """
     _records = []
     for f, rr in tqdm(routing_results_dict.items(), desc="elite"):
         seed_member = rr.seed_member
-        _records.extend(
-            [
-                {
-                    "filename": f,
-                    "n_elite": n,
-                    "elite_length_meters": m.route.length_meters,
-                    "elite_length_relative": m.route.length_meters
-                    / seed_member.route.length_meters,
-                    "elite_cost_absolute": m.cost,
-                    "elite_cost_relative": m.cost / seed_member.cost,
-                    "geometry": m.route.line_string,
-                }
-                for n, m in enumerate(rr.elite_population.members)
-            ]
-        )
+
+        # Check if ablation costs are available
+        ablation_costs = getattr(rr, 'ablation_costs', None)
+
+        for n, m in enumerate(rr.elite_population.members):
+            record = {
+                "filename": f,
+                "n_elite": n,
+                "elite_length_meters": m.route.length_meters,
+                "elite_length_relative": m.route.length_meters
+                / seed_member.route.length_meters,
+                "elite_cost_absolute": m.cost,
+                "elite_cost_relative": m.cost / seed_member.cost,
+                "geometry": m.route.line_string,
+            }
+
+            # Add ablation costs if available
+            if ablation_costs and f"elite_{n}" in ablation_costs:
+                elite_ablation = ablation_costs[f"elite_{n}"]
+                record.update({
+                    "ablation_cost_baseline": elite_ablation.get("cost_baseline", np.nan),
+                    "ablation_cost_no_currents": elite_ablation.get("cost_no_currents", np.nan),
+                    "ablation_cost_no_waves": elite_ablation.get("cost_no_waves", np.nan),
+                    "ablation_cost_no_winds": elite_ablation.get("cost_no_winds", np.nan),
+                    "ablation_cost_calm": elite_ablation.get("cost_calm", np.nan),
+                })
+
+            _records.append(record)
+
     return pd.DataFrame.from_records(_records).set_index("filename")
 
 
