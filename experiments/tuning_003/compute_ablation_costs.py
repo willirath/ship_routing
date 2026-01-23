@@ -214,14 +214,49 @@ def process_result_file(
     )
     logger.info(f"Spatial bounds: {spatial_bounds}")
 
-    # Load all forcing scenarios once
-    logger.info("Loading forcing scenarios...")
-    forcings = {}
-    for scenario_name in ["baseline", "no_currents", "no_waves", "no_winds", "calm"]:
-        logger.info(f"  Loading {scenario_name}...")
-        forcings[scenario_name] = load_forcing_for_scenario(
-            scenario_name, time_start, time_end, spatial_bounds
-        )
+    # Load each unique dataset once (from baseline scenario)
+    logger.info("Loading unique forcing datasets...")
+    baseline_scenario = FORCING_SCENARIOS["baseline"]
+
+    time_start_dt = np.datetime64(time_start)
+    time_end_dt = np.datetime64(time_end)
+
+    logger.info("  Loading currents...")
+    currents = load_currents(
+        baseline_scenario["currents_path"],
+        time_start=time_start_dt,
+        time_end=time_end_dt,
+        engine=baseline_scenario["engine"],
+        spatial_bounds=spatial_bounds,
+    )
+
+    logger.info("  Loading waves...")
+    waves = load_waves(
+        baseline_scenario["waves_path"],
+        time_start=time_start_dt,
+        time_end=time_end_dt,
+        engine=baseline_scenario["engine"],
+        spatial_bounds=spatial_bounds,
+    )
+
+    logger.info("  Loading winds...")
+    winds = load_winds(
+        baseline_scenario["winds_path"],
+        time_start=time_start_dt,
+        time_end=time_end_dt,
+        engine=baseline_scenario["engine"],
+        spatial_bounds=spatial_bounds,
+    )
+
+    # Create forcing scenario combinations by reference (no data copying)
+    logger.info("Creating forcing scenario combinations...")
+    forcings = {
+        "baseline": ForcingData(currents=currents, waves=waves, winds=winds),
+        "no_currents": ForcingData(currents=None, waves=waves, winds=winds),
+        "no_waves": ForcingData(currents=currents, waves=None, winds=winds),
+        "no_winds": ForcingData(currents=currents, waves=waves, winds=None),
+        "calm": ForcingData(currents=None, waves=None, winds=None),
+    }
 
     # Process each result
     logger.info("Computing ablation costs...")
