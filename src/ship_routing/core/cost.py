@@ -4,7 +4,11 @@ from .config import (
     SHIP_DEFAULT,
     PHYSICS_DEFAULT,
 )  # TODO: replace globals with explicit config wiring
-from .cost_ufuncs import power_maintain_speed_ufunc, hazard_conditions_wave_height_ufunc
+from .cost_ufuncs import (
+    power_maintain_speed_ufunc,
+    power_maintain_speed_decomposed_ufunc,
+    hazard_conditions_wave_height_ufunc,
+)
 
 
 import numpy as np
@@ -122,6 +126,73 @@ def power_maintain_speed(
 
     # calc power
     return power_maintain_speed_ufunc(
+        u_ship_og_ms=u_ship_og_ms,
+        v_ship_og_ms=v_ship_og_ms,
+        u_current_ms=u_current_ms,
+        v_current_ms=v_current_ms,
+        u_wind_ms=u_wind_ms,
+        v_wind_ms=v_wind_ms,
+        w_wave_height=w_wave_height,
+        physics=physics,
+        ship=ship,
+    )
+
+
+@profile
+def power_maintain_speed_decomposed(
+    u_ship_og_ms: xr.DataArray = 0.0,
+    v_ship_og_ms: xr.DataArray = 0.0,
+    u_current_ms: xr.DataArray = 0.0,
+    v_current_ms: xr.DataArray = 0.0,
+    u_wind_ms: xr.DataArray = 0.0,
+    v_wind_ms: xr.DataArray = 0.0,
+    w_wave_height: xr.DataArray = 0.0,
+    physics: Physics = PHYSICS_DEFAULT,
+    ship: Ship = SHIP_DEFAULT,
+) -> tuple:
+    """Calculate decomposed power components along a route.
+
+    Wrapper for power_maintain_speed_decomposed_ufunc that handles xarray
+    DataArrays. Components sum exactly to power_maintain_speed output.
+
+    Parameters
+    ----------
+    (same as power_maintain_speed)
+
+    Returns
+    -------
+    tuple[xr.DataArray, xr.DataArray, xr.DataArray]
+        (power_calm, power_waves, power_wind) along track in W
+    """
+    # cast all to arrays
+    u_ship_og_ms = maybe_cast_number_to_data_array(u_ship_og_ms)
+    v_ship_og_ms = maybe_cast_number_to_data_array(v_ship_og_ms)
+    u_current_ms = maybe_cast_number_to_data_array(u_current_ms)
+    v_current_ms = maybe_cast_number_to_data_array(v_current_ms)
+    u_wind_ms = maybe_cast_number_to_data_array(u_wind_ms)
+    v_wind_ms = maybe_cast_number_to_data_array(v_wind_ms)
+    w_wave_height = maybe_cast_number_to_data_array(w_wave_height)
+
+    # align all
+    (
+        u_ship_og_ms,
+        v_ship_og_ms,
+        u_current_ms,
+        v_current_ms,
+        u_wind_ms,
+        v_wind_ms,
+        w_wave_height,
+    ) = align_along_track_arrays(
+        u_ship_og_ms,
+        v_ship_og_ms,
+        u_current_ms,
+        v_current_ms,
+        u_wind_ms,
+        v_wind_ms,
+        w_wave_height,
+    )
+
+    return power_maintain_speed_decomposed_ufunc(
         u_ship_og_ms=u_ship_og_ms,
         v_ship_og_ms=v_ship_og_ms,
         u_current_ms=u_current_ms,

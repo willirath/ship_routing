@@ -42,6 +42,7 @@ from .data import select_data_for_leg
 
 from .cost import (
     power_maintain_speed,
+    power_maintain_speed_decomposed,
     hazard_conditions_wave_height,
 )
 
@@ -387,6 +388,106 @@ class Leg:
                 return base_cost * (1 + hazard_penalty_multiplier)
 
         return base_cost
+
+    @profile
+    def cost_through_decomposed(
+        self,
+        current_data_set: xr.Dataset = None,
+        wind_data_set: xr.Dataset = None,
+        wave_data_set: xr.Dataset = None,
+        ship: Ship = SHIP_DEFAULT,
+        physics: Physics = PHYSICS_DEFAULT,
+    ) -> dict:
+        """Return decomposed cost components for this leg.
+
+        Components sum exactly to cost_through (without hazard penalty).
+
+        Returns
+        -------
+        dict with keys: cost_calm, cost_waves, cost_wind, cost_total
+        """
+        u_ship_og, v_ship_og = self.uv_over_ground_ms
+        if current_data_set is not None:
+            ds_current = select_data_for_leg(
+                ds=current_data_set,
+                lon_start=self.way_point_start.lon,
+                lat_start=self.way_point_start.lat,
+                time_start=self.way_point_start.time,
+                lon_end=self.way_point_end.lon,
+                lat_end=self.way_point_end.lat,
+                time_end=self.way_point_end.time,
+            )
+            u_current, v_current = ds_current.uo, ds_current.vo
+        else:
+            u_current, v_current = 0, 0
+        if wind_data_set is not None:
+            ds_wind = select_data_for_leg(
+                ds=wind_data_set,
+                lon_start=self.way_point_start.lon,
+                lat_start=self.way_point_start.lat,
+                time_start=self.way_point_start.time,
+                lon_end=self.way_point_end.lon,
+                lat_end=self.way_point_end.lat,
+                time_end=self.way_point_end.time,
+            )
+            u_wind, v_wind = ds_wind.uw, ds_wind.vw
+        else:
+            u_wind, v_wind = 0, 0
+        if wave_data_set is not None:
+            ds_wave = select_data_for_leg(
+                ds=wave_data_set,
+                lon_start=self.way_point_start.lon,
+                lat_start=self.way_point_start.lat,
+                time_start=self.way_point_start.time,
+                lon_end=self.way_point_end.lon,
+                lat_end=self.way_point_end.lat,
+                time_end=self.way_point_end.time,
+            )
+            w_wave_height = ds_wave.wh
+        else:
+            w_wave_height = 0
+
+        # Decomposed power with actual kinematics
+        pwr_calm, pwr_waves, pwr_wind = power_maintain_speed_decomposed(
+            u_current_ms=u_current,
+            v_current_ms=v_current,
+            u_wind_ms=u_wind,
+            v_wind_ms=v_wind,
+            w_wave_height=w_wave_height,
+            u_ship_og_ms=u_ship_og,
+            v_ship_og_ms=v_ship_og,
+            ship=ship,
+            physics=physics,
+        )
+
+        dt = self.duration_seconds
+        cost_calm = pwr_calm.mean().data[()] * dt
+        cost_waves = pwr_waves.mean().data[()] * dt
+        cost_wind = pwr_wind.mean().data[()] * dt
+
+        # Decomposed power with no current kinematics (v_stw = v_sog)
+        pwr_calm_nc, pwr_waves_nc, _ = power_maintain_speed_decomposed(
+            u_current_ms=0,
+            v_current_ms=0,
+            u_wind_ms=u_wind,
+            v_wind_ms=v_wind,
+            w_wave_height=w_wave_height,
+            u_ship_og_ms=u_ship_og,
+            v_ship_og_ms=v_ship_og,
+            ship=ship,
+            physics=physics,
+        )
+        cost_calm_nc = pwr_calm_nc.mean().data[()] * dt
+        cost_waves_nc = pwr_waves_nc.mean().data[()] * dt
+
+        return {
+            "cost_calm": cost_calm,
+            "cost_waves": cost_waves,
+            "cost_wind": cost_wind,
+            "cost_total": cost_calm + cost_waves + cost_wind,
+            "cost_calm_no_current": cost_calm_nc,
+            "cost_waves_no_current": cost_waves_nc,
+        }
 
     @profile
     def hazard_through(
@@ -800,6 +901,62 @@ class Route:
                 for l in self.legs
             )
         )
+
+    def cost_through_decomposed(
+        self,
+        current_data_set: xr.Dataset = None,
+        wind_data_set: xr.Dataset = None,
+        wave_data_set: xr.Dataset = None,
+        ship: Ship = SHIP_DEFAULT,
+        physics: Physics = PHYSICS_DEFAULT,
+    ) -> dict:
+        """Return decomposed cost components for whole route.
+
+        Components sum exactly to cost_through (without hazard penalty).
+
+        Returns
+        -------
+        dict with keys:
+            cost_calm, cost_waves, cost_wind, cost_total,
+            cost_calm_no_current, cost_waves_no_current,
+            delta_current_on_calm, delta_current_on_waves, delta_current_total
+        """
+        leg_costs = [
+            leg.cost_through_decomposed(
+                current_data_set=current_data_set,
+                wind_data_set=wind_data_set,
+                wave_data_set=wave_data_set,
+                ship=ship,
+                physics=physics,
+            )
+            for leg in self.legs
+        ]
+
+        # Sum across legs
+        result = {
+            key: sum(lc[key] for lc in leg_costs)
+            for key in [
+                "cost_calm",
+                "cost_waves",
+                "cost_wind",
+                "cost_total",
+                "cost_calm_no_current",
+                "cost_waves_no_current",
+            ]
+        }
+
+        # Compute current effects
+        result["delta_current_on_calm"] = (
+            result["cost_calm_no_current"] - result["cost_calm"]
+        )
+        result["delta_current_on_waves"] = (
+            result["cost_waves_no_current"] - result["cost_waves"]
+        )
+        result["delta_current_total"] = (
+            result["delta_current_on_calm"] + result["delta_current_on_waves"]
+        )
+
+        return result
 
     def hazard_through(
         self,

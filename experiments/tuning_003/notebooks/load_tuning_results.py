@@ -44,6 +44,31 @@ def load_results_raw(msgpack_file_list: Union[List[Path], List[str]]) -> dict:
     return raw_results
 
 
+def load_ablation_costs(msgpack_file_list: Union[List[Path], List[str]]) -> dict:
+    """Extract ablation_costs from raw msgpack files.
+
+    Parameters
+    ----------
+    msgpack_file_list : list of Path or str
+        List of paths to msgpack files (should be *_with_crosseval.msgpack files).
+
+    Returns
+    -------
+    dict[str, dict]
+        Dictionary mapping result keys to their ablation_costs dicts.
+        Keys without ablation_costs are omitted.
+    """
+    ablation_costs = {}
+    for mf in msgpack_file_list:
+        with open(mf, "rb") as f:
+            raw_results = msgpack.unpack(f, raw=False)
+        for key, result_bytes in raw_results.items():
+            result_dict = msgpack.unpackb(result_bytes, raw=False)
+            if "ablation_costs" in result_dict:
+                ablation_costs[key] = result_dict["ablation_costs"]
+    return ablation_costs
+
+
 def load_result_for_key(
     key: str, msgpack_file_list: Union[List[Path], List[str]]
 ) -> RoutingResult:
@@ -254,7 +279,10 @@ def get_runtime_df(routing_results_dict: dict[str, RoutingResult]) -> pd.DataFra
     return df
 
 
-def get_elite_df(routing_results_dict: dict[str, RoutingResult]) -> pd.DataFrame:
+def get_elite_df(
+    routing_results_dict: dict[str, RoutingResult],
+    ablation_costs: dict[str, dict] | None = None,
+) -> pd.DataFrame:
     """Extract elite population members with geometry and ablation costs.
 
     Creates one row per elite member with metrics relative to seed member.
@@ -265,6 +293,9 @@ def get_elite_df(routing_results_dict: dict[str, RoutingResult]) -> pd.DataFrame
     ----------
     routing_results_dict : dict[str, RoutingResult]
         Dictionary of routing results from load_results().
+    ablation_costs : dict[str, dict], optional
+        Dictionary mapping result keys to ablation_costs dicts,
+        from load_ablation_costs().
 
     Returns
     -------
@@ -293,8 +324,8 @@ def get_elite_df(routing_results_dict: dict[str, RoutingResult]) -> pd.DataFrame
     for f, rr in tqdm(routing_results_dict.items(), desc="elite"):
         seed_member = rr.seed_member
 
-        # Check if ablation costs are available
-        ablation_costs = getattr(rr, 'ablation_costs', None)
+        # Check if ablation costs are available (from separate dict)
+        result_ablation = ablation_costs.get(f, {}) if ablation_costs else {}
 
         for n, m in enumerate(rr.elite_population.members):
             record = {
@@ -309,15 +340,25 @@ def get_elite_df(routing_results_dict: dict[str, RoutingResult]) -> pd.DataFrame
             }
 
             # Add ablation costs if available
-            if ablation_costs and f"elite_{n}" in ablation_costs:
-                elite_ablation = ablation_costs[f"elite_{n}"]
-                record.update({
-                    "ablation_cost_baseline": elite_ablation.get("cost_baseline", np.nan),
-                    "ablation_cost_no_currents": elite_ablation.get("cost_no_currents", np.nan),
-                    "ablation_cost_no_waves": elite_ablation.get("cost_no_waves", np.nan),
-                    "ablation_cost_no_winds": elite_ablation.get("cost_no_winds", np.nan),
-                    "ablation_cost_calm": elite_ablation.get("cost_calm", np.nan),
-                })
+            if f"elite_{n}" in result_ablation:
+                elite_ablation = result_ablation[f"elite_{n}"]
+                record.update(
+                    {
+                        "ablation_cost_baseline": elite_ablation.get(
+                            "cost_baseline", np.nan
+                        ),
+                        "ablation_cost_no_currents": elite_ablation.get(
+                            "cost_no_currents", np.nan
+                        ),
+                        "ablation_cost_no_waves": elite_ablation.get(
+                            "cost_no_waves", np.nan
+                        ),
+                        "ablation_cost_no_winds": elite_ablation.get(
+                            "cost_no_winds", np.nan
+                        ),
+                        "ablation_cost_calm": elite_ablation.get("cost_calm", np.nan),
+                    }
+                )
 
             _records.append(record)
 
@@ -462,10 +503,10 @@ def identify_suspicious_routes(df: pd.DataFrame) -> pd.Series:
     """Identify routes with data quality issues.
 
     Marks routes as suspicious if any of the following conditions are true:
-    - Has any NaN values in the row
     - elite_cost_absolute is infinite
     - seed_cost is infinite
     - elite_cost_relative > 1.0 (elite route is worse than seed route)
+    - elite_length_relative < 1.0 (shorter than great circle, geometrically impossible)
 
     Parameters
     ----------
@@ -481,6 +522,7 @@ def identify_suspicious_routes(df: pd.DataFrame) -> pd.Series:
         np.isinf(df.elite_cost_absolute)
         | np.isinf(df.seed_cost)
         | (df.elite_cost_relative > 1.0)
+        | (df.elite_length_relative < 1.0)
     )
 
 

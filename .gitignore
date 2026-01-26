@@ -10,6 +10,7 @@ runs
 *.geoparquet
 *.msgpack
 *.pq
+*.csv
 runinfo/
 slurm_logs/
 cmd_parsl.*.sh

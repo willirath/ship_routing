@@ -68,7 +68,9 @@ ls -lh results/results_*.msgpack
 
 ## Analysis
 
-Use notebooks/ for post-experiment analysis and `scripts/load_tuning_results.py` for loading results.
+Analysis notebooks in `notebooks/` follow a numbered sequence (010, 020, etc.) for data loading, forcing visualization, cost decomposition, and hyperparameter analysis.
+
+Use `notebooks/load_tuning_results.py` for utilities to load and process msgpack results.
 
 ## Architecture
 
