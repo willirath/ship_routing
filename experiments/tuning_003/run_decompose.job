@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 #SBATCH --job-name=decompose-021
 #SBATCH --ntasks=1
-#SBATCH --cpus-per-task=1
-#SBATCH --mem=20G
-#SBATCH --time=04:00:00
+#SBATCH --cpus-per-task=8
+#SBATCH --mem=120G
+#SBATCH --time=24:00:00
 #SBATCH --partition=base
 #SBATCH --output=slurm_logs/decompose_%j.out
 #SBATCH --error=slurm_logs/decompose_%j.err
