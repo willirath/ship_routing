@@ -22,9 +22,6 @@ export FTP_PROXY=http://10.0.7.235:3128
 # Initialize Pixi environment
 eval "$(pixi shell-hook)"
 
-# Execute notebook
+# Run decomposition script
 cd notebooks
-jupyter nbconvert --to notebook --execute \
-    --ExecutePreprocessor.timeout=14400 \
-    --output executed/021_compute_decomposed_costs.ipynb \
-    021_compute_decomposed_costs.ipynb
+python 021_compute_decomposed_costs.py
