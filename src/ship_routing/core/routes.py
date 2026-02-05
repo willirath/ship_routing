@@ -186,6 +186,11 @@ class Leg:
         )
 
     @property
+    def has_negative_duration(self):
+        """Whether leg end time is before start time."""
+        return self.way_point_end.time < self.way_point_start.time
+
+    @property
     def speed_ms(self):
         """Speed in meters per second."""
         return self.length_meters / self.duration_seconds
@@ -792,6 +797,11 @@ class Route:
     def sort_in_time(self):
         """Return route with waypoints sorted in time in ascending order."""
         return Route(way_points=tuple(sorted(self.way_points, key=lambda w: w.time)))
+
+    @property
+    def has_negative_time_increment(self):
+        """Whether any leg has time going backwards."""
+        return any(leg.has_negative_duration for leg in self.legs)
 
     def remove_consecutive_duplicate_timesteps(self, min_time_diff_seconds=600):
         """Route with the first of each 2 consecutive way points having the same time stamp."""

@@ -274,6 +274,7 @@ def get_elite_df(routing_results_dict: dict[str, RoutingResult]) -> pd.DataFrame
         - elite_length_relative (float, relative to seed)
         - elite_cost_absolute (float)
         - elite_cost_relative (float, relative to seed)
+        - elite_has_negative_time (bool, True if any leg has backwards time)
         - geometry (LineString, from route.line_string)
 
     Notes
@@ -295,6 +296,7 @@ def get_elite_df(routing_results_dict: dict[str, RoutingResult]) -> pd.DataFrame
                     / seed_member.route.length_meters,
                     "elite_cost_absolute": m.cost,
                     "elite_cost_relative": m.cost / seed_member.cost,
+                    "elite_has_negative_time": m.route.has_negative_time_increment,
                     "geometry": m.route.line_string,
                 }
                 for n, m in enumerate(rr.elite_population.members)
@@ -441,10 +443,10 @@ def identify_suspicious_routes(df: pd.DataFrame) -> pd.Series:
     """Identify routes with data quality issues.
 
     Marks routes as suspicious if any of the following conditions are true:
-    - Has any NaN values in the row
     - elite_cost_absolute is infinite
     - seed_cost is infinite
     - elite_cost_relative > 1.0 (elite route is worse than seed route)
+    - elite_has_negative_time is True (route has backwards time increments)
 
     Parameters
     ----------
@@ -460,6 +462,7 @@ def identify_suspicious_routes(df: pd.DataFrame) -> pd.Series:
         np.isinf(df.elite_cost_absolute)
         | np.isinf(df.seed_cost)
         | (df.elite_cost_relative > 1.0)
+        | df.elite_has_negative_time
     )
 
 
