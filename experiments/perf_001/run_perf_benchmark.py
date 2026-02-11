@@ -50,15 +50,17 @@ PERF_SUBMISSION_OFFSET = 1000
 
 def _get_config(case_index, replica_index, num_workers, submission_id=1):
     """Build a single RoutingConfig for the given case and replica."""
-    journey = REPRESENTATIVE_JOURNEYS[case_index]
+    # Generate configs for ALL representative journeys so the spawn counter
+    # advances per case (passing a single journey would reset the RNG each
+    # call, giving identical seeds across cases).
     configs = make_production_configs(
-        journeys=[journey],
+        journeys=REPRESENTATIVE_JOURNEYS,
         n_replicas=N_REPLICAS,
         submission_id=PERF_SUBMISSION_OFFSET + submission_id,
         executor_type="process" if num_workers > 1 else "sequential",
         num_workers=num_workers,
     )
-    return configs[replica_index]
+    return configs[case_index * N_REPLICAS + replica_index]
 
 
 def _run_single(config, num_workers, case_index, replica_index):
