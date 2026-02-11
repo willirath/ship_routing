@@ -86,6 +86,7 @@ class RoutingResult:
     seed_member: PopulationMember | None = None
     elite_population: Population | None = None
     logs: "RoutingLog | None" = None
+    elite_cost_components: list[dict] | None = None
 
     def to_dict(self) -> dict[str, Any]:
         """Return a JSON-friendly representation."""
@@ -95,6 +96,7 @@ class RoutingResult:
                 self.elite_population.to_dict() if self.elite_population else None
             ),
             "log": self.logs.to_dict() if self.logs else None,
+            "elite_cost_components": self.elite_cost_components,
         }
 
     def to_msgpack(self) -> bytes:
@@ -148,7 +150,10 @@ class RoutingResult:
             else None
         )
         return cls(
-            seed_member=seed_member, elite_population=elite_population, logs=logs
+            seed_member=seed_member,
+            elite_population=elite_population,
+            logs=logs,
+            elite_cost_components=data.get("elite_cost_components"),
         )
 
     @classmethod
@@ -436,10 +441,27 @@ class RoutingApp:
         # Clean up executor (GC would handle this, but be explicit)
         executor.shutdown()
 
+        # Decompose elite costs into components (calm, waves, wind, current effects)
+        elite_cost_components = (
+            [
+                member.route.cost_through_decomposed(
+                    current_data_set=forcing.currents,
+                    wind_data_set=forcing.winds,
+                    wave_data_set=forcing.waves,
+                    ship=self.config.ship,
+                    physics=self.config.physics,
+                )
+                for member in elite_population.members
+            ]
+            if elite_population and elite_population.members
+            else None
+        )
+
         return RoutingResult(
             seed_member=seed_member,
             elite_population=elite_population,
             logs=self.log,
+            elite_cost_components=elite_cost_components,
         )
 
     @profile

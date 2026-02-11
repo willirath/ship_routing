@@ -1,0 +1,27 @@
+#!/usr/bin/env bash
+#SBATCH --job-name=perf-w08
+#SBATCH --ntasks=24
+#SBATCH --cpus-per-task=16
+#SBATCH --mem-per-cpu=4G
+#SBATCH --time=04:00:00
+#SBATCH --partition=base
+#SBATCH --output=slurm_logs/perf_w08_%j.out
+#SBATCH --error=slurm_logs/perf_w08_%j.err
+
+module load gcc12-env
+export http_proxy=http://10.0.7.235:3128
+export https_proxy=http://10.0.7.235:3128
+export ftp_proxy=http://10.0.7.235:3128
+export HTTP_PROXY=http://10.0.7.235:3128
+export HTTPS_PROXY=http://10.0.7.235:3128
+export FTP_PROXY=http://10.0.7.235:3128
+eval "$(pixi shell-hook)"
+
+W=8
+for C in $(seq 0 7); do
+    for R in $(seq 0 2); do
+        echo "srun --exclusive --ntasks=1 -c$((2*W)) python run_perf_benchmark.py --num-workers ${W} --case-index ${C} --replica-index ${R}"
+    done
+done | xargs -P "${SLURM_NTASKS}" -I{} bash -c "{}"
+
+jobinfo
