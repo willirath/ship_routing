@@ -131,6 +131,90 @@ def power_maintain_speed_ufunc(
 
 
 @profile
+def power_maintain_speed_decomposed_ufunc(
+    u_ship_og_ms: float = 0.0,
+    v_ship_og_ms: float = 0.0,
+    u_current_ms: float = 0.0,
+    v_current_ms: float = 0.0,
+    u_wind_ms: float = 0.0,
+    v_wind_ms: float = 0.0,
+    w_wave_height: float = 0.0,
+    physics: Physics = PHYSICS_DEFAULT,
+    ship: Ship = SHIP_DEFAULT,
+) -> tuple:
+    """Calculate decomposed power components to maintain speed over ground.
+
+    Returns individual resistance components for cost attribution analysis.
+    Components sum exactly to total power from power_maintain_speed_ufunc.
+
+    Parameters
+    ----------
+    (same as power_maintain_speed_ufunc)
+
+    Returns
+    -------
+    tuple[float, float, float]
+        (power_calm, power_waves, power_wind) in W
+    """
+    # Kinematics
+    speed_through_water_ms = (
+        (u_ship_og_ms - u_current_ms) ** 2 + (v_ship_og_ms - v_current_ms) ** 2
+    ) ** 0.5
+    speed_through_wind_ms = (
+        (u_ship_og_ms - u_wind_ms) ** 2 + (v_ship_og_ms - v_wind_ms) ** 2
+    ) ** 0.5
+
+    # Calm water resistance
+    reference_resistance_calm = (
+        ship.total_propulsive_efficiency
+        * ship.reference_engine_power_W
+        / ship.reference_speed_calm_water_ms**3
+    )
+    power_calm = reference_resistance_calm * speed_through_water_ms**3
+
+    # Wave resistance
+    spectral_average = 0.5
+    nondimensional_resistance_reference = (
+        20.0
+        * (ship.waterline_width_m / ship.waterline_length_m) ** (-1.20)
+        * (ship.draught_m / ship.waterline_length_m) ** 0.62
+    )
+    froude_number_reference = (
+        ship.reference_speed_calm_water_ms
+        / (physics.gravity_acceleration_ms2 * ship.waterline_length_m) ** 0.5
+    )
+    froude_number = (
+        speed_through_water_ms
+        / (physics.gravity_acceleration_ms2 * ship.waterline_length_m) ** 0.5
+    )
+    nondimensional_resistance = (
+        nondimensional_resistance_reference / froude_number_reference * froude_number
+    )
+    resistance_through_sea_waves = (
+        nondimensional_resistance
+        * physics.sea_water_density_kgm3
+        * physics.gravity_acceleration_ms2
+        * (w_wave_height / 2.0) ** 2
+        * ship.waterline_width_m**2
+        / ship.waterline_length_m
+        * spectral_average
+    )
+    power_waves = resistance_through_sea_waves * speed_through_water_ms
+
+    # Wind resistance
+    resistance_through_wind = (
+        0.5
+        * ship.wind_resistance_coefficient
+        * ship.projected_frontal_area_above_waterline_m2
+        * physics.air_density_kgm3
+        * speed_through_wind_ms**2
+    )
+    power_wind = resistance_through_wind * speed_through_wind_ms
+
+    return (power_calm, power_waves, power_wind)
+
+
+@profile
 def hazard_conditions_wave_height_ufunc(
     ship: Ship = Ship(),
     w_wave_height_m: float = 0.0,

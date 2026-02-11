@@ -1,0 +1,35 @@
+#!/usr/bin/env bash
+#SBATCH --job-name=decompose-021
+#SBATCH --ntasks=13
+#SBATCH --cpus-per-task=8
+#SBATCH --mem-per-cpu=10G
+#SBATCH --time=24:00:00
+#SBATCH --partition=base
+#SBATCH --output=slurm_logs/decompose_%j.out
+#SBATCH --error=slurm_logs/decompose_%j.err
+
+# Load compiler environment
+module load gcc12-env
+
+# Configure HTTP proxy
+export http_proxy=http://10.0.7.235:3128
+export https_proxy=http://10.0.7.235:3128
+export ftp_proxy=http://10.0.7.235:3128
+export HTTP_PROXY=http://10.0.7.235:3128
+export HTTPS_PROXY=http://10.0.7.235:3128
+export FTP_PROXY=http://10.0.7.235:3128
+
+# Initialize Pixi environment
+eval "$(pixi shell-hook)"
+
+cd notebooks || exit 1
+
+# Launch one worker per baseline msgpack file (excluding crosseval)
+for msgpack_file in $(ls ../results/results_ablation_baseline_*.msgpack | grep -v crosseval); do
+    srun --ntasks=1 --exclusive -c "${SLURM_CPUS_PER_TASK}" \
+        python 021_compute_decomposed_costs.py "$msgpack_file" &
+done
+
+wait
+
+jobinfo

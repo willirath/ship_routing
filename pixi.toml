@@ -47,6 +47,8 @@ copernicusmarine = ">=2.2.5,<3"
 click = ">=8.0,<9"
 parsl = ">=2024.9.30"
 tree = ">=2.2.1,<3"
+nbterm = ">=0.0.13,<0.0.14"
+papermill = ">=2.6.0,<3"
 
 [tasks]
 tests = "pytest -q"

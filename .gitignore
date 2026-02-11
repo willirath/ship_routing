@@ -10,4 +10,8 @@ runs
 *.geoparquet
 *.msgpack
 *.pq
+*.parquet
+*.csv
 runinfo/
+slurm_logs/
+cmd_parsl.*.sh

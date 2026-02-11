@@ -71,23 +71,23 @@ class HyperParams:
     """Unified hyperparameter configuration (matches Table~\\ref{tab:hyperparams})."""
 
     # Population
-    population_size: int = 4
+    population_size: int = 256
     random_seed: int | None = 345
 
     # Stage 2: Warmup
     selection_acceptance_rate_warmup: float = 0.3  # p_w
     mutation_width_fraction_warmup: float = 0.9  # W_w
-    mutation_displacement_fraction_warmup: float = 0.2  # D_w
+    mutation_displacement_fraction_warmup: float = 0.25  # D_w
 
     # Stage 3: Genetic evolution
-    generations: int = 5  # N_G
-    offspring_size: int = 4  # M_offspring
+    generations: int = 4  # N_G
+    offspring_size: int = 256  # M_offspring
     crossover_rounds: int = 1  # N_crossover
-    selection_quantile: float = 0.2  # q
-    selection_acceptance_rate: float = 0.0  # p
+    selection_quantile: float = 0.1  # q
+    selection_acceptance_rate: float = 0.25  # p
     mutation_width_fraction: float = 0.9  # W
     mutation_displacement_fraction: float = 0.1  # D
-    mutation_iterations: int = 2  # N_mut (max; actual sampled uniformly from 1..N_mut)
+    mutation_iterations: int = 3  # N_mut (max; actual sampled uniformly from 1..N_mut)
     crossover_strategy: Literal["minimal_cost", "random"] = "minimal_cost"  # C_e or C_r
     hazard_penalty_multiplier: float = 100.0  # Penalty multiplier for hazardous routes
 
@@ -100,7 +100,7 @@ class HyperParams:
     distance_increment: float = 10_000.0  # delta d
 
     # Stage 5: Parameter adaptation
-    enable_adaptation: bool = False  # Enable W, D adaptation
+    enable_adaptation: bool = True  # Enable W, D adaptation
     target_relative_improvement: float = 0.01  # Target relative cost improvement (1%)
     adaptation_scale_W: float = 0.8  # Scale factor for W when improvement < target
     adaptation_scale_D: float = 0.894427191  # Scale factor for D (0.8**0.5)
