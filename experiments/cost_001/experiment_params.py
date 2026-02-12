@@ -53,6 +53,13 @@ FORCING_BASELINE = ForcingConfig(
     engine="zarr",
 )
 
+FORCING_NO_CURRENTS = ForcingConfig(
+    currents_path=None,
+    waves_path=FORCING_BASELINE.waves_path,
+    winds_path=FORCING_BASELINE.winds_path,
+    engine="zarr",
+)
+
 
 # --- Journeys ---
 
@@ -116,6 +123,7 @@ def make_production_configs(
     journeys: list[JourneyConfig],
     n_replicas: int,
     submission_id: int = 1,
+    forcing: ForcingConfig = FORCING_BASELINE,
     executor_type: Literal["sequential", "process", "thread"] = "sequential",
     num_workers: int = 1,
 ) -> list[RoutingConfig]:
@@ -130,6 +138,8 @@ def make_production_configs(
     submission_id : int
         Submission identifier (1, 2, ...). Different IDs produce independent
         seed streams, so resubmitting with a new ID appends independent runs.
+    forcing : ForcingConfig
+        Forcing configuration to use. Default: FORCING_BASELINE.
     executor_type : str, default="sequential"
         Executor type for the routing app.
     num_workers : int, default=1
@@ -154,7 +164,7 @@ def make_production_configs(
             configs.append(
                 RoutingConfig(
                     journey=journey,
-                    forcing=FORCING_BASELINE,
+                    forcing=forcing,
                     hyper=HyperParams(
                         random_seed=experiment_seed,
                         executor_type=executor_type,

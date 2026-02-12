@@ -439,6 +439,67 @@ def add_derived_features(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
+def max_turning_angle_deg(rr) -> float:
+    """Compute maximum turning angle between consecutive legs of the best elite route.
+
+    Parameters
+    ----------
+    rr : RoutingResult
+        A routing result containing an elite population.
+
+    Returns
+    -------
+    float
+        Maximum turning angle in degrees (0 = straight, 180 = full reversal).
+    """
+    route = rr.elite_population.members[0].route
+    wps = route.way_points
+    lons = np.array([wp.lon for wp in wps])
+    lats = np.array([wp.lat for wp in wps])
+    dlons = np.diff(lons)
+    dlats = np.diff(lats)
+    max_angle = 0.0
+    for i in range(len(dlons) - 1):
+        v1 = np.array([dlons[i], dlats[i]])
+        v2 = np.array([dlons[i + 1], dlats[i + 1]])
+        n1, n2 = np.linalg.norm(v1), np.linalg.norm(v2)
+        if n1 < 1e-10 or n2 < 1e-10:
+            continue
+        cos_a = np.clip(np.dot(v1, v2) / (n1 * n2), -1, 1)
+        max_angle = max(max_angle, np.degrees(np.arccos(cos_a)))
+    return max_angle
+
+
+def filter_kinked_routes(
+    rr_dict: dict, threshold_deg: float = 60.0
+) -> dict:
+    """Remove routes with sharp turning angles (crossover artifacts).
+
+    Parameters
+    ----------
+    rr_dict : dict
+        Mapping of key -> RoutingResult.
+    threshold_deg : float
+        Maximum allowed turning angle in degrees. Routes exceeding this
+        are removed. Default 60 deg.
+
+    Returns
+    -------
+    dict
+        Filtered dict with kinked routes removed.
+    """
+    clean = {}
+    n_kinked = 0
+    for key, rr in rr_dict.items():
+        if max_turning_angle_deg(rr) <= threshold_deg:
+            clean[key] = rr
+        else:
+            n_kinked += 1
+    total = len(rr_dict)
+    print(f"{n_kinked}/{total} routes removed (max turning angle > {threshold_deg}°)")
+    return clean
+
+
 def identify_suspicious_routes(df: pd.DataFrame) -> pd.Series:
     """Identify routes with data quality issues.
 
