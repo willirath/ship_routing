@@ -101,7 +101,7 @@ def _save_result(key, data_bytes, output_path):
 
 @click.command()
 @click.option("--num-workers", type=int, default=1, help="Workers for process executor")
-@click.option("--case-index", type=int, default=None, help="Case index (0..7)")
+@click.option("--case-index", type=int, default=None, help="Case index (0..11)")
 @click.option("--replica-index", type=int, default=None, help="Replica index (0..2)")
 @click.option("--submission-id", type=int, default=1, help="Submission ID (default: 1)")
 @click.option("--output", type=click.Path(), default=None, help="Override output path")
