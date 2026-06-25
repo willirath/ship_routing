@@ -1,6 +1,6 @@
 """Experiment parameters for cost_001.
 
-Defines 72 journey configurations (2 directions x 3 speeds x 12 months)
+Defines 96 journey configurations (2 directions x 4 speeds x 12 months)
 using default hyperparameters. Only journey definition and random seed
 vary across runs.
 
@@ -63,13 +63,13 @@ FORCING_NO_CURRENTS = ForcingConfig(
 
 # --- Journeys ---
 
-SPEEDS_KNOTS = (8.0, 12.0, 16.0)
+SPEEDS_KNOTS = (8.0, 12.0, 16.0, 20.0)
 MONTHS = tuple(range(1, 13))
 TIME_RESOLUTION_HOURS = 6.0
 
 
 def _make_journeys() -> list[JourneyConfig]:
-    """Enumerate all 72 journey configurations."""
+    """Enumerate all 96 journey configurations."""
     journeys = []
     for route_name, route in ROUTES.items():
         for month in MONTHS:
@@ -89,20 +89,24 @@ def _make_journeys() -> list[JourneyConfig]:
 
 ALL_JOURNEYS = _make_journeys()
 
-# 12 representative cases (Table 7): 2 directions x 2 months x 3 speeds
+# 16 representative cases (Table 7): 2 directions x 2 months x 4 speeds
 REPRESENTATIVE_CASES = [
     {"route": "Atlantic_forward", "month": 8, "speed": 8.0},
     {"route": "Atlantic_forward", "month": 8, "speed": 12.0},
     {"route": "Atlantic_forward", "month": 8, "speed": 16.0},
+    {"route": "Atlantic_forward", "month": 8, "speed": 20.0},
     {"route": "Atlantic_backward", "month": 8, "speed": 8.0},
     {"route": "Atlantic_backward", "month": 8, "speed": 12.0},
     {"route": "Atlantic_backward", "month": 8, "speed": 16.0},
+    {"route": "Atlantic_backward", "month": 8, "speed": 20.0},
     {"route": "Atlantic_forward", "month": 1, "speed": 8.0},
     {"route": "Atlantic_forward", "month": 1, "speed": 12.0},
     {"route": "Atlantic_forward", "month": 1, "speed": 16.0},
+    {"route": "Atlantic_forward", "month": 1, "speed": 20.0},
     {"route": "Atlantic_backward", "month": 1, "speed": 8.0},
     {"route": "Atlantic_backward", "month": 1, "speed": 12.0},
     {"route": "Atlantic_backward", "month": 1, "speed": 16.0},
+    {"route": "Atlantic_backward", "month": 1, "speed": 20.0},
 ]
 
 REPRESENTATIVE_JOURNEYS = [

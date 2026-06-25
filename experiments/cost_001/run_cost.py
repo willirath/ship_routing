@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 """Parsl-based cost analysis runs for cost_001.
 
-Runs all 72 journey configurations with default hyperparameters.
+Runs all 96 journey configurations with default hyperparameters.
 Each submission produces 5 replicas with independent seeds.
 
 Usage:

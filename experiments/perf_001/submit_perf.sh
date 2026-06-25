@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Submit all 5 performance benchmark jobs (one per worker count).
-# Each job dispatches 24 tasks (8 cases x 3 replicas) via xargs/srun.
+# Each job dispatches 48 tasks (16 cases x 3 replicas) via xargs/srun.
 set -e
 
 mkdir -p slurm_logs
