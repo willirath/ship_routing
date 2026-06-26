@@ -20,6 +20,30 @@ from ship_routing.app import RoutingResult
 
 
 # =============================================================================
+# Shared figure styling
+# =============================================================================
+
+# One consistent visual encoding for the four production speeds, reused across
+# all figures so 16 kn (etc.) reads the same everywhere. Okabe-Ito colours,
+# ordered cool -> warm with increasing speed.
+SPEED_COLORS = {
+    8.0: "#0072B2",   # blue
+    12.0: "#009E73",  # green
+    16.0: "#E69F00",  # orange
+    20.0: "#D55E00",  # vermillion
+}
+
+# Direction is encoded by line style (eastward solid, westward dashed). Keyed by
+# both the route name and the short E/W label used across notebooks.
+DIRECTION_LINESTYLES = {
+    "Atlantic_forward": "-",
+    "Atlantic_backward": "--",
+    "E": "-",
+    "W": "--",
+}
+
+
+# =============================================================================
 # Core Loading Functions
 # =============================================================================
 
