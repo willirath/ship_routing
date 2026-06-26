@@ -1,0 +1,23 @@
+#!/usr/bin/env bash
+#SBATCH --job-name=cost-001
+#SBATCH --ntasks=1
+#SBATCH --cpus-per-task=1
+#SBATCH --mem=5G
+#SBATCH --time=04:00:00
+#SBATCH --partition=base
+#SBATCH --output=slurm_logs/cost_%j.out
+#SBATCH --error=slurm_logs/cost_%j.err
+
+module load gcc12-env
+export http_proxy=http://10.0.7.235:3128
+export https_proxy=http://10.0.7.235:3128
+export ftp_proxy=http://10.0.7.235:3128
+export HTTP_PROXY=http://10.0.7.235:3128
+export HTTPS_PROXY=http://10.0.7.235:3128
+export FTP_PROXY=http://10.0.7.235:3128
+eval "$(pixi shell-hook)"
+
+SUB_ID=${SUBMISSION_ID:-1}
+python run_cost.py --submission-id "$SUB_ID" --execution "nesh-prod-40"
+
+jobinfo
