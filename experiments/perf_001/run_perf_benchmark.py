@@ -42,7 +42,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 N_REPLICAS = 3
-N_CASES = len(REPRESENTATIVE_JOURNEYS)  # 12
+N_CASES = len(REPRESENTATIVE_JOURNEYS)  # 16
 
 # Seed offset to avoid overlap with cost run seeds
 PERF_SUBMISSION_OFFSET = 1000
