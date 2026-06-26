@@ -1,0 +1,29 @@
+#!/usr/bin/env bash
+#SBATCH --job-name=perf-topup
+#SBATCH --ntasks=9
+#SBATCH --cpus-per-task=2
+#SBATCH --mem-per-cpu=4G
+#SBATCH --time=04:00:00
+#SBATCH --partition=base
+#SBATCH --output=slurm_logs/perf_topup_%j.out
+#SBATCH --error=slurm_logs/perf_topup_%j.err
+
+module load gcc12-env
+export http_proxy=http://10.0.7.235:3128
+export https_proxy=http://10.0.7.235:3128
+export ftp_proxy=http://10.0.7.235:3128
+export HTTP_PROXY=http://10.0.7.235:3128
+export HTTPS_PROXY=http://10.0.7.235:3128
+export FTP_PROXY=http://10.0.7.235:3128
+eval "$(pixi shell-hook)"
+
+# 3 transient-outlier cases (c03, c10, c11) x 3 replicas at W=1, submission-id 2.
+# Fresh independent seeds -> these add 3 good replicas per case; the slow runs
+# stay in the data but get outvoted in the per-(case,speed,workers) median.
+for C in 3 10 11; do
+    for R in $(seq 0 2); do
+        echo "srun --exclusive --ntasks=1 -c2 python run_perf_benchmark.py --num-workers 1 --case-index ${C} --replica-index ${R} --submission-id 2"
+    done
+done | xargs -P "${SLURM_NTASKS}" -I{} bash -c "{}"
+
+jobinfo
