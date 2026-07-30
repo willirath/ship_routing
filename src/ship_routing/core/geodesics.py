@@ -9,6 +9,11 @@ from collections import namedtuple
 # Create unit registry once at module level
 _ureg = pint.UnitRegistry()
 
+# One WGS84 geodesic calculator for the whole module. Constructing a
+# pyproj.Geod is not free and these are called once per leg per cost
+# evaluation, so they are built once here rather than per call.
+_GEOD_WGS84 = pyproj.Geod(ellps="WGS84")
+
 
 def knots_to_ms(speed_knots: float) -> float:
     """Convert speed from knots to meters per second."""
@@ -44,9 +49,7 @@ def move_fwd(
     tuple of float
         New (longitude, latitude) in degrees
     """
-    geod = pyproj.Geod(
-        ellps="WGS84"
-    )  # TODO: move the geod out of this function for re-use
+    geod = _GEOD_WGS84
     lon_new, lat_new, _ = geod.fwd(
         lons=lon, lats=lat, az=azimuth_degrees, dist=distance_meters, radians=False
     )
@@ -77,7 +80,7 @@ def get_distance_meters(
     float
         Distance in meters along geodesic
     """
-    geod = pyproj.Geod(ellps="WGS84")
+    geod = _GEOD_WGS84
     _, _, distance_meters = geod.inv(
         lons1=lon_start,
         lons2=lon_end,
@@ -89,7 +92,7 @@ def get_distance_meters(
 
 def get_length_meters(line_string: LineString = None) -> float:
     """Calculate geodesic length of a LineString geometry."""
-    geod = pyproj.Geod(ellps="WGS84")
+    geod = _GEOD_WGS84
 
     return geod.geometry_length(line_string)
 
@@ -140,7 +143,7 @@ def refine_along_great_circle(
         Refined (longitudes, latitudes) with intermediate points added
     """
     # define geoid
-    geod = pyproj.Geod(ellps="WGS84")
+    geod = _GEOD_WGS84
 
     # extract segments
     lon_start = np.array(lon)[:-1]
@@ -243,7 +246,7 @@ def get_leg_azimuth(
     tuple of float
         (average_azimuth, forward_azimuth, backward_azimuth) in degrees
     """
-    geod = pyproj.Geod(ellps="WGS84")
+    geod = _GEOD_WGS84
     fwd_az, bwd_az, _ = geod.inv(
         lons1=lon_start,
         lons2=lon_end,

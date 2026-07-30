@@ -1,3 +1,5 @@
+from functools import lru_cache
+
 from .config import (
     Ship,
     Physics,
@@ -38,6 +40,150 @@ def align_along_track_arrays(*argv) -> tuple:
             for a in argv
         )
     )
+
+
+# --- numpy-native fast path -------------------------------------------------
+#
+# The array-level helpers above are the readable reference implementation, but
+# they carry xarray/pandas overhead on every call. Along-track arrays are only
+# a few tens of elements long, so that overhead dominates the actual arithmetic
+# by two orders of magnitude. The helpers below do the same thing on raw numpy
+# and are what the per-leg cost evaluation uses.
+#
+# All `along` coordinates are `np.linspace(0, 1, n)` (see core.data), so the
+# nearest-neighbour index map depends only on the pair of sizes and can be
+# cached. The tie-breaking rule (`dl < dr`, i.e. ties resolve to the higher
+# index) reproduces `DataArray.sel(along=..., method="nearest")` exactly; this
+# is verified for all size pairs up to 90 in tests/core/test_cost_values.py.
+
+
+@lru_cache(maxsize=4096)
+def nearest_along_index(n_src: int, n_ref: int) -> np.ndarray:
+    """Index into a length-``n_src`` along-axis nearest each length-``n_ref`` point.
+
+    Both axes are assumed to be ``np.linspace(0, 1, n)``, matching how the
+    ``along`` coordinate is constructed during data selection.
+
+    Parameters
+    ----------
+    n_src : int
+        Length of the source along-axis.
+    n_ref : int
+        Length of the reference along-axis to resample onto.
+
+    Returns
+    -------
+    np.ndarray
+        Integer index array of length ``n_ref``. Read-only, because it is
+        shared between callers via the cache.
+    """
+    if n_src == n_ref:
+        idx = np.arange(n_ref)
+        idx.flags.writeable = False
+        return idx
+
+    src = np.linspace(0.0, 1.0, n_src)
+    ref = np.linspace(0.0, 1.0, n_ref)
+    pos = np.searchsorted(src, ref)
+    left = np.clip(pos - 1, 0, n_src - 1)
+    right = np.clip(pos, 0, n_src - 1)
+    # Strict `<` puts exact ties on the higher index, matching pandas/xarray.
+    idx = np.where(np.abs(ref - src[left]) < np.abs(src[right] - ref), left, right)
+    idx.flags.writeable = False
+    return idx
+
+
+def maybe_cast_number_to_values(obj) -> np.ndarray:
+    """Return ``obj`` as a 1-D numpy array along track.
+
+    Scalars become two-element arrays, mirroring
+    :func:`maybe_cast_number_to_data_array`, so that the choice of reference
+    axis in :func:`align_along_track_values` is unchanged.
+    """
+    values = getattr(obj, "values", obj)
+    values = np.asarray(values)
+    if values.shape == ():
+        return np.full(2, float(values))
+    return values
+
+
+@profile
+def align_along_track_values(*argv) -> tuple:
+    """Align 1-D numpy arrays on their along-track axis.
+
+    Numpy equivalent of :func:`align_along_track_arrays`: every array is
+    resampled with nearest-neighbour onto the longest array's axis.
+    """
+    sizes = [a.size for a in argv]
+    n_ref = sizes[int(np.argmax(sizes))]
+    return tuple(
+        a if a.size == n_ref else a[nearest_along_index(a.size, n_ref)] for a in argv
+    )
+
+
+@profile
+def power_and_hazard_values(
+    u_ship_og_ms=0.0,
+    v_ship_og_ms=0.0,
+    u_current_ms=0.0,
+    v_current_ms=0.0,
+    u_wind_ms=0.0,
+    v_wind_ms=0.0,
+    w_wave_height=0.0,
+    physics: Physics = PHYSICS_DEFAULT,
+    ship: Ship = SHIP_DEFAULT,
+) -> tuple:
+    """Along-track power and hazard flags for one leg, on raw numpy arrays.
+
+    Combines :func:`power_maintain_speed` and
+    :func:`hazard_conditions_wave_height` so the along-track alignment is paid
+    for once instead of twice. Inputs may be xarray DataArrays, numpy arrays or
+    scalars.
+
+    Parameters
+    ----------
+    (same as power_maintain_speed)
+
+    Returns
+    -------
+    tuple[np.ndarray, np.ndarray]
+        ``(power_w, hazard)`` along track: power in W and a boolean array
+        flagging where stability thresholds are violated.
+    """
+    (
+        u_ship_og_ms,
+        v_ship_og_ms,
+        u_current_ms,
+        v_current_ms,
+        u_wind_ms,
+        v_wind_ms,
+        w_wave_height,
+    ) = align_along_track_values(
+        maybe_cast_number_to_values(u_ship_og_ms),
+        maybe_cast_number_to_values(v_ship_og_ms),
+        maybe_cast_number_to_values(u_current_ms),
+        maybe_cast_number_to_values(v_current_ms),
+        maybe_cast_number_to_values(u_wind_ms),
+        maybe_cast_number_to_values(v_wind_ms),
+        maybe_cast_number_to_values(w_wave_height),
+    )
+
+    power = power_maintain_speed_ufunc(
+        u_ship_og_ms=u_ship_og_ms,
+        v_ship_og_ms=v_ship_og_ms,
+        u_current_ms=u_current_ms,
+        v_current_ms=v_current_ms,
+        u_wind_ms=u_wind_ms,
+        v_wind_ms=v_wind_ms,
+        w_wave_height=w_wave_height,
+        physics=physics,
+        ship=ship,
+    )
+    hazard = hazard_conditions_wave_height_ufunc(
+        w_wave_height_m=w_wave_height,
+        ship=ship,
+    )
+    return power, hazard
 
 
 @profile

@@ -44,7 +44,9 @@ from .cost import (
     power_maintain_speed,
     power_maintain_speed_decomposed,
     hazard_conditions_wave_height,
+    power_and_hazard_values,
 )
+from .lookup import sample_values_for_leg
 
 from .config import Ship, Physics, SHIP_DEFAULT, PHYSICS_DEFAULT
 
@@ -169,7 +171,15 @@ class Leg:
     @property
     def length_meters(self):
         """Length of the leg in meters."""
-        return get_length_meters(self.line_string)
+        # A leg has exactly two way points, so the geodesic inverse gives the
+        # same answer as measuring a two-point LineString, without building
+        # the shapely geometries. This is on the per-leg cost path.
+        return get_distance_meters(
+            lon_start=self.way_point_start.lon,
+            lat_start=self.way_point_start.lat,
+            lon_end=self.way_point_end.lon,
+            lat_end=self.way_point_end.lat,
+        )
 
     @property
     def duration_seconds(self):
@@ -321,47 +331,38 @@ class Leg:
         hazard_penalty_multiplier: float = 100.0,
     ):
         u_ship_og, v_ship_og = self.uv_over_ground_ms
+        # Sampling goes through the numpy lookup layer rather than through
+        # Dataset.sel/isel: a leg reads only a few tens of points, so building
+        # the intermediate xarray objects costs far more than the sampling.
+        sample_kwargs = dict(
+            lon_start=self.way_point_start.lon,
+            lat_start=self.way_point_start.lat,
+            time_start=self.way_point_start.time,
+            lon_end=self.way_point_end.lon,
+            lat_end=self.way_point_end.lat,
+            time_end=self.way_point_end.time,
+        )
         if current_data_set is not None:
-            ds_current = select_data_for_leg(
-                ds=current_data_set,
-                lon_start=self.way_point_start.lon,
-                lat_start=self.way_point_start.lat,
-                time_start=self.way_point_start.time,
-                lon_end=self.way_point_end.lon,
-                lat_end=self.way_point_end.lat,
-                time_end=self.way_point_end.time,
-            )
-            u_current, v_current = ds_current.uo, ds_current.vo
+            current = sample_values_for_leg(ds=current_data_set, **sample_kwargs)
+            u_current, v_current = current["uo"], current["vo"]
         else:
             u_current, v_current = 0, 0
         if wind_data_set is not None:
-            ds_wind = select_data_for_leg(
-                ds=wind_data_set,
-                lon_start=self.way_point_start.lon,
-                lat_start=self.way_point_start.lat,
-                time_start=self.way_point_start.time,
-                lon_end=self.way_point_end.lon,
-                lat_end=self.way_point_end.lat,
-                time_end=self.way_point_end.time,
-            )
-            u_wind, v_wind = ds_wind.uw, ds_wind.vw
+            wind = sample_values_for_leg(ds=wind_data_set, **sample_kwargs)
+            u_wind, v_wind = wind["uw"], wind["vw"]
         else:
             u_wind, v_wind = 0, 0
         if wave_data_set is not None:
-            ds_wave = select_data_for_leg(
-                ds=wave_data_set,
-                lon_start=self.way_point_start.lon,
-                lat_start=self.way_point_start.lat,
-                time_start=self.way_point_start.time,
-                lon_end=self.way_point_end.lon,
-                lat_end=self.way_point_end.lat,
-                time_end=self.way_point_end.time,
-            )
-            w_wave_height = ds_wave.wh
+            w_wave_height = sample_values_for_leg(
+                ds=wave_data_set, **sample_kwargs
+            )["wh"]
         else:
             w_wave_height = 0
-        # Compute base cost first
-        pwr = power_maintain_speed(
+        # Compute base cost first. This runs on raw numpy: the along-track
+        # arrays are only tens of elements long, so xarray's per-operation
+        # overhead would dominate the arithmetic by orders of magnitude.
+        # Power and hazard share one alignment pass.
+        pwr, hazard = power_and_hazard_values(
             u_current_ms=u_current,
             v_current_ms=v_current,
             u_wind_ms=u_wind,
@@ -372,24 +373,13 @@ class Leg:
             ship=ship,
             physics=physics,
         )
-        if pwr.isnull().sum() > 0:
+        if np.isnan(pwr).any():
             return np.nan
-        base_cost = pwr.mean().data[()] * self.duration_seconds
+        base_cost = pwr.mean() * self.duration_seconds
 
         # Apply hazard penalty if needed
         if hazard_penalty_multiplier > 0:
-            hazard = hazard_conditions_wave_height(
-                u_current_ms=u_current,
-                v_current_ms=v_current,
-                u_wind_ms=u_wind,
-                v_wind_ms=v_wind,
-                w_wave_height=w_wave_height,
-                u_ship_og_ms=u_ship_og,
-                v_ship_og_ms=v_ship_og,
-                ship=ship,
-                physics=physics,
-            )
-            if np.any(hazard):
+            if hazard.any():
                 return base_cost * (1 + hazard_penalty_multiplier)
 
         return base_cost
