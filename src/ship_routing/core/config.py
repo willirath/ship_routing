@@ -4,6 +4,12 @@ from dataclasses import dataclass
 
 MAX_CACHE_SIZE = 100_000
 
+# Block cache used when sampling lazily-opened forcing datasets; see
+# ship_routing.core.lookup.BlockCachedForcingGrid.
+BLOCK_SHAPE_DEFAULT = (8, 32, 32)  # (time, lat, lon)
+BLOCK_CACHE_MAX_BYTES = 512 * 1024**2
+BLOCK_FETCH_MAX_WORKERS = 4
+
 
 @dataclass(frozen=True)
 class Physics:
