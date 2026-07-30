@@ -26,6 +26,18 @@ except NameError:
         return func
 
 
+def _open(data_file, **kwargs) -> xr.Dataset:
+    """Open ``data_file``, or pass an already-open dataset straight through.
+
+    Accepting a :class:`xarray.Dataset` lets sources that are not files -- most
+    usefully ``copernicusmarine.open_dataset`` -- be fed to the loaders without
+    a round trip through disk.
+    """
+    if isinstance(data_file, xr.Dataset):
+        return data_file
+    return xr.open_dataset(data_file, **kwargs)
+
+
 @profile
 def load_currents(
     data_file: Path = None,
@@ -78,7 +90,7 @@ def load_currents(
     """
     if data_file is None:
         return None
-    ds = xr.open_dataset(data_file, **kwargs)
+    ds = _open(data_file, **kwargs)
     ds = ds.rename(
         {
             lon_name: "lon",
@@ -149,7 +161,7 @@ def load_winds(
     """
     if data_file is None:
         return None
-    ds = xr.open_dataset(data_file, **kwargs)
+    ds = _open(data_file, **kwargs)
     ds = ds.rename(
         {
             lon_name: "lon",
@@ -217,7 +229,7 @@ def load_waves(
     """
     if data_file is None:
         return None
-    ds = xr.open_dataset(data_file, **kwargs)
+    ds = _open(data_file, **kwargs)
     ds = ds.rename(
         {
             lon_name: "lon",
