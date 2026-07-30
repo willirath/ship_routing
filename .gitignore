@@ -5,6 +5,10 @@ doc/examples/data_large
 .pixi/
 *.tex
 data/large
+# Locally derived forcing stores: rechunked copies (dev/profiling/rechunk.py) and
+# CMEMS subset mirrors (dev/profiling/cmems_run.py). Both are reproducible.
+data/rechunked
+data/cmems
 *.backup
 runs
 *.geoparquet
@@ -15,3 +19,6 @@ runs
 runinfo/
 slurm_logs/
 cmd_parsl.*.sh
+
+# Profiling scratch output (dev/profiling harnesses)
+dev/profiling/out/
